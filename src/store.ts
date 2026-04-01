@@ -27,6 +27,7 @@ export interface ParticleEmitter {
 }
 
 interface GameState {
+  gameState: 'menu' | 'playing';
   inventory: {
     sticks: number;
     mud: number;
@@ -44,7 +45,9 @@ interface GameState {
   particleEmitters: ParticleEmitter[];
   virtualJoystick: { x: number, y: number };
   virtualCamera: { x: number, y: number };
+  virtualCamera: { x: number, y: number };
   virtualButtons: { jump: boolean, crouch: boolean, action1: boolean, action2: boolean, action3: boolean };
+  setGameState: (state: 'menu' | 'playing') => void;
   setVirtualJoystick: (x: number, y: number) => void;
   setVirtualCamera: (x: number, y: number) => void;
   setVirtualButton: (button: 'jump' | 'crouch' | 'action1' | 'action2' | 'action3', value: boolean) => void;
@@ -71,6 +74,7 @@ interface GameState {
 }
 
 export const useGameStore = create<GameState>((set, get) => ({
+  gameState: 'menu',
   inventory: {
     sticks: 0,
     mud: 0,
@@ -89,6 +93,7 @@ export const useGameStore = create<GameState>((set, get) => ({
   virtualButtons: { jump: false, crouch: false, action1: false, action2: false, action3: false },
   terrainOffsets: {},
   particleEmitters: [],
+  setGameState: (state) => set({ gameState: state }),
   setVirtualJoystick: (x, y) => set({ virtualJoystick: { x, y } }),
   setVirtualCamera: (x, y) => set({ virtualCamera: { x, y } }),
   setVirtualButton: (button, value) => set((state) => ({ virtualButtons: { ...state.virtualButtons, [button]: value } })),

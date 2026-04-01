@@ -7,6 +7,8 @@ import { ElevationGauge } from './ElevationGauge';
 import { Gesture, GestureDetector } from 'react-native-gesture-handler';
 
 export function UI() {
+  const gameState = useGameStore((state) => state.gameState);
+  const setGameState = useGameStore((state) => state.setGameState);
   const inventory = useGameStore((state) => state.inventory);
   const rainIntensity = useGameStore((state) => state.rainIntensity);
   const saveGame = useGameStore((state) => state.saveGame);
@@ -77,9 +79,31 @@ export function UI() {
 
   return (
     <View style={styles.container} pointerEvents="box-none">
-      {/* Mobile Gesture Overlay */}
-      {isMobile && (
-        <View style={styles.gestureOverlay} pointerEvents="box-none">
+      {/* Start Menu Overlay */}
+      {gameState === 'menu' && (
+        <View style={styles.startMenu} pointerEvents="auto">
+          <Text style={styles.title}>Dam It! Beavertown</Text>
+          <Text style={styles.subtitle}>Protect the ecosystem. Build the ultimate dam.</Text>
+          
+          <Pressable 
+            style={({ pressed }) => [styles.startButton, pressed && styles.startButtonPressed]}
+            onPress={() => setGameState('playing')}
+          >
+            <Text style={styles.startButtonText}>PLAY NOW</Text>
+          </Pressable>
+          
+          <Pressable style={styles.loadButton} onPress={() => loadGame()}>
+            <Text style={styles.loadButtonText}>Load Saved Map</Text>
+          </Pressable>
+        </View>
+      )}
+
+      {/* Main Game UI Overlay */}
+      {gameState === 'playing' && (
+        <View style={styles.hudContainer} pointerEvents="box-none">
+          {/* Mobile Gesture Overlay */}
+          {isMobile && (
+            <View style={styles.gestureOverlay} pointerEvents="box-none">
           <GestureDetector gesture={gestureComposerLeft}>
             <View style={styles.touchHalf} />
           </GestureDetector>
@@ -156,6 +180,8 @@ export function UI() {
       {/* Map & Gauge */}
       <ElevationGauge />
       <Minimap />
+        </View>
+      )}
     </View>
   );
 }
@@ -164,6 +190,63 @@ const styles = StyleSheet.create({
   container: {
     ...StyleSheet.absoluteFillObject,
     zIndex: 10,
+  },
+  hudContainer: {
+    ...StyleSheet.absoluteFillObject,
+  },
+  startMenu: {
+    ...StyleSheet.absoluteFillObject,
+    backgroundColor: 'rgba(56, 189, 248, 0.85)', // translucent sky blue
+    justifyContent: 'center',
+    alignItems: 'center',
+    zIndex: 100,
+  },
+  title: {
+    fontSize: 48,
+    fontWeight: '900',
+    color: '#fff',
+    textShadowColor: 'rgba(0,0,0,0.3)',
+    textShadowOffset: { width: 0, height: 4 },
+    textShadowRadius: 8,
+    marginBottom: 8,
+    textAlign: 'center'
+  },
+  subtitle: {
+    fontSize: 18,
+    color: '#0284c7', // darker blue
+    fontWeight: '600',
+    marginBottom: 48,
+    textAlign: 'center'
+  },
+  startButton: {
+    backgroundColor: '#16a34a', // lush green
+    paddingHorizontal: 48,
+    paddingVertical: 16,
+    borderRadius: 32,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.3,
+    shadowRadius: 6,
+    marginBottom: 24,
+  },
+  startButtonPressed: {
+    backgroundColor: '#15803d', // darker green
+    transform: [{ scale: 0.95 }]
+  },
+  startButtonText: {
+    color: '#fff',
+    fontSize: 24,
+    fontWeight: '900',
+    letterSpacing: 2,
+  },
+  loadButton: {
+    padding: 12,
+  },
+  loadButtonText: {
+    color: '#e0f2fe',
+    fontSize: 16,
+    fontWeight: '600',
+    textDecorationLine: 'underline',
   },
   gestureOverlay: {
     ...StyleSheet.absoluteFillObject,

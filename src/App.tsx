@@ -1,11 +1,14 @@
 import { View, StyleSheet } from 'react-native';
 import { Game } from './components/Game';
 import { UI } from './components/UI';
+import { ErrorBoundary } from './components/ErrorBoundary';
 
 export default function App() {
   return (
     <View style={styles.container}>
-      <Game />
+      <ErrorBoundary>
+        <Game />
+      </ErrorBoundary>
       <UI />
     </View>
   );
