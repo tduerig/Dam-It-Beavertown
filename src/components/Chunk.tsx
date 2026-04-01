@@ -185,6 +185,7 @@ export function Chunk({ chunkX, chunkZ }: { chunkX: number, chunkZ: number }) {
   const leavesScales = useRef(new Map<string, number>());
 
   useFrame((state, delta) => {
+    const dt = Math.min(delta, 0.1);
     if (!trunkMeshRef.current || !leavesMeshRef.current) return;
     
     // We can check water level dynamically, but for performance we might just do it occasionally
@@ -231,9 +232,9 @@ export function Chunk({ chunkX, chunkZ }: { chunkX: number, chunkZ: number }) {
       
       // Gradually change leaves scale
       if (currentLeavesScale < targetLeavesScale) {
-        currentLeavesScale = Math.min(targetLeavesScale, currentLeavesScale + delta * 0.5);
+        currentLeavesScale = Math.min(targetLeavesScale, currentLeavesScale + dt * 0.5);
       } else if (currentLeavesScale > targetLeavesScale) {
-        currentLeavesScale = Math.max(targetLeavesScale, currentLeavesScale - delta * 0.5);
+        currentLeavesScale = Math.max(targetLeavesScale, currentLeavesScale - dt * 0.5);
       }
       leavesScales.current.set(tree.id, currentLeavesScale);
       

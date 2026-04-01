@@ -120,6 +120,7 @@ export function DraggableLogs() {
   const leavesScales = useRef(new Map<string, number>());
 
   useFrame((state, delta) => {
+    const dt = Math.min(delta, 0.1);
     if (!meshRef.current || !leavesMeshRef.current || !branchesMeshRef.current || !whittleMeshRef.current) return;
 
     const { playerPosition, playerRotation } = useGameStore.getState();
@@ -140,8 +141,8 @@ export function DraggableLogs() {
         const targetZ = playerPosition[2] - Math.cos(playerRotation) * dragDist;
         
         // Smoothly move towards target (slower = heavier feel)
-        lx += (targetX - lx) * 3 * delta;
-        lz += (targetZ - lz) * 3 * delta;
+        lx += (targetX - lx) * 3 * dt;
+        lz += (targetZ - lz) * 3 * dt;
         
         // The log should point from its center towards the player.
         // Actually, if it's dragging behind, its rotation should just match the player's rotation.
@@ -153,7 +154,7 @@ export function DraggableLogs() {
         let diff = targetRy - ry;
         while (diff < -Math.PI) diff += Math.PI * 2;
         while (diff > Math.PI) diff -= Math.PI * 2;
-        ry += diff * 4 * delta;
+        ry += diff * 4 * dt;
         
         rx = Math.PI / 2; // Dragging horizontally
         rz = 0;
@@ -177,7 +178,7 @@ export function DraggableLogs() {
           const oldRx = rx;
           // Start slow, accelerate as it falls.
           const fallSpeed = 0.2 + Math.sin(rx) * 2.0;
-          rx += fallSpeed * delta;
+          rx += fallSpeed * dt;
           if (rx > Math.PI / 2) rx = Math.PI / 2;
           
           const groundHeight = getTerrainHeight(lx, lz);
@@ -199,22 +200,22 @@ export function DraggableLogs() {
           if (!log.isMudded) {
             if (waterHeight > ly - 1) {
               // Float up
-              ly += (waterHeight - ly) * 5 * delta;
+              ly += (waterHeight - ly) * 5 * dt;
               
               // Drift with water flow
               const flow = waterEngine.getVelocity(lx, lz);
-              lx += flow.x * delta;
-              lz += flow.z * delta;
+              lx += flow.x * dt;
+              lz += flow.z * dt;
               
               // Slowly rotate to align with flow
               if (Math.abs(flow.x) > 0.1 || Math.abs(flow.z) > 0.1) {
                 const targetRot = Math.atan2(flow.x, flow.z);
-                ry += (targetRot - ry) * delta;
+                ry += (targetRot - ry) * dt;
               }
             } else {
               // Fall to ground
               if (ly > groundHeight) {
-                ly -= 10 * delta; // Gravity
+                ly -= 10 * dt; // Gravity
               }
             }
             

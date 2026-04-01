@@ -113,6 +113,30 @@ class SoundEngine {
     
     noise.start(t);
   }
+
+  playWee() {
+    if (!this.ctx) return;
+    const t = this.ctx.currentTime;
+    
+    const osc = this.ctx.createOscillator();
+    const gain = this.ctx.createGain();
+    
+    osc.type = 'sine';
+    // Start high, go higher, then drop slightly
+    osc.frequency.setValueAtTime(800, t);
+    osc.frequency.exponentialRampToValueAtTime(1200, t + 0.1);
+    osc.frequency.exponentialRampToValueAtTime(1000, t + 0.3);
+    
+    gain.gain.setValueAtTime(0, t);
+    gain.gain.linearRampToValueAtTime(0.3, t + 0.05);
+    gain.gain.exponentialRampToValueAtTime(0.01, t + 0.3);
+    
+    osc.connect(gain);
+    gain.connect(this.ctx.destination);
+    
+    osc.start(t);
+    osc.stop(t + 0.3);
+  }
 }
 
 export const soundEngine = new SoundEngine();

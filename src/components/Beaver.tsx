@@ -6,6 +6,7 @@ import { getTerrainHeight } from '../utils/terrain';
 import { waterEngine } from '../utils/WaterEngine';
 import { useGameStore } from '../store';
 import { BRANCH_CONFIGS } from './DraggableLogs';
+import { soundEngine } from '../utils/SoundEngine';
 
 const SPEED = 5;
 const JUMP_FORCE = 8;
@@ -27,7 +28,15 @@ export function Beaver() {
   const velocity = useRef(new THREE.Vector3());
   const isGrounded = useRef(true);
 
+  const lastWeeTime = useRef(0);
+  const lastFrameTime = useRef(performance.now());
+
   useFrame((state, delta) => {
+    const now = performance.now();
+    // Use custom delta to avoid R3F's 0.1s cap which causes slow-motion on low framerates
+    const dt = Math.min((now - lastFrameTime.current) / 1000, 0.5);
+    lastFrameTime.current = now;
+
     if (!groupRef.current || !bodyRef.current || !headRef.current || !tailRef.current || !armLRef.current || !armRRef.current) return;
 
     const pos = groupRef.current.position;
@@ -63,17 +72,17 @@ export function Beaver() {
     }
 
     // Camera Controls
-    if (keys['ArrowLeft']) setCameraAngle(cameraAngle - 2 * delta);
-    if (keys['ArrowRight']) setCameraAngle(cameraAngle + 2 * delta);
-    if (keys['ArrowUp']) setCameraPitch(cameraPitch + 2 * delta);
-    if (keys['ArrowDown']) setCameraPitch(cameraPitch - 2 * delta);
+    if (keys['ArrowLeft']) setCameraAngle(cameraAngle - 2 * dt);
+    if (keys['ArrowRight']) setCameraAngle(cameraAngle + 2 * dt);
+    if (keys['ArrowUp']) setCameraPitch(cameraPitch + 2 * dt);
+    if (keys['ArrowDown']) setCameraPitch(cameraPitch - 2 * dt);
     
-    if (virtualCamera.x !== 0) setCameraAngle(cameraAngle + virtualCamera.x * 2 * delta);
-    if (virtualCamera.y !== 0) setCameraPitch(cameraPitch - virtualCamera.y * 2 * delta);
+    if (virtualCamera.x !== 0) setCameraAngle(cameraAngle + virtualCamera.x * 2 * dt);
+    if (virtualCamera.y !== 0) setCameraPitch(cameraPitch - virtualCamera.y * 2 * dt);
 
     // Rain Controls
-    if (keys['Equal'] || keys['NumpadAdd']) setRainIntensity(rainIntensity + 0.5 * delta);
-    if (keys['Minus'] || keys['NumpadSubtract']) setRainIntensity(rainIntensity - 0.5 * delta);
+    if (keys['Equal'] || keys['NumpadAdd']) setRainIntensity(rainIntensity + 0.5 * dt);
+    if (keys['Minus'] || keys['NumpadSubtract']) setRainIntensity(rainIntensity - 0.5 * dt);
 
     const isCrouching = keys['ShiftLeft'] || keys['ShiftRight'] || keys['KeyC'] || virtualButtons.crouch;
     const isJumping = keys['Space'] || virtualButtons.jump;
@@ -103,8 +112,8 @@ export function Beaver() {
         -moveDir.x * Math.sin(cameraAngle) + moveDir.z * Math.cos(cameraAngle)
       );
 
-      pos.x += rotatedMoveDir.x * currentSpeed * delta;
-      pos.z += rotatedMoveDir.z * currentSpeed * delta;
+      pos.x += rotatedMoveDir.x * currentSpeed * dt;
+      pos.z += rotatedMoveDir.z * currentSpeed * dt;
 
       // Rotation
       const targetRotation = Math.atan2(rotatedMoveDir.x, rotatedMoveDir.z) + Math.PI;
@@ -114,17 +123,24 @@ export function Beaver() {
       let diff = targetRotation - currentRotation;
       while (diff < -Math.PI) diff += Math.PI * 2;
       while (diff > Math.PI) diff -= Math.PI * 2;
-      groupRef.current.rotation.y += diff * 10 * delta;
+      groupRef.current.rotation.y += diff * 10 * dt;
     }
 
     // Jumping
     if (isJumping && isGrounded.current) {
       velocity.current.y = inWater ? JUMP_FORCE * 1.5 : JUMP_FORCE; // Dolphin hop
       isGrounded.current = false;
+      if (inWater) {
+        const now = Date.now();
+        if (now - lastWeeTime.current > 1000) {
+          soundEngine.playWee();
+          lastWeeTime.current = now;
+        }
+      }
     }
 
     // Apply gravity
-    velocity.current.y -= GRAVITY * delta;
+    velocity.current.y -= GRAVITY * dt;
 
     // Ground collision
     let groundY = terrainHeight + 0.5; // 0.5 is half beaver height
@@ -270,8 +286,17 @@ export function Beaver() {
     if (waterHeight > groundY - 0.5) {
        // Apply water flow velocity
        const vel = waterEngine.getVelocity(pos.x, pos.z);
-       pos.x += vel.x * delta * 15;
-       pos.z += vel.z * delta * 15;
+       pos.x += vel.x * dt * 15;
+       pos.z += vel.z * dt * 15;
+       
+       const waterSpeedSq = vel.x * vel.x + vel.z * vel.z;
+       if (waterSpeedSq > 0.2) {
+         const now = Date.now();
+         if (now - lastWeeTime.current > 2000) {
+           soundEngine.playWee();
+           lastWeeTime.current = now;
+         }
+       }
 
        if (isCrouching) {
          // Dive underwater
@@ -286,7 +311,7 @@ export function Beaver() {
     if (inWater) {
       if (pos.y < targetY) {
         // Buoyancy pushes up (counteracts gravity)
-        velocity.current.y += (GRAVITY + (targetY - pos.y) * 15) * delta;
+        velocity.current.y += (GRAVITY + (targetY - pos.y) * 15) * dt;
         // Dampen velocity
         velocity.current.y *= 0.9;
         isGrounded.current = true; // Allow jumping while in water
@@ -294,7 +319,7 @@ export function Beaver() {
         isGrounded.current = false;
       }
       
-      pos.y += velocity.current.y * delta;
+      pos.y += velocity.current.y * dt;
       
       // Prevent going below ground
       if (pos.y < groundY) {
@@ -302,7 +327,7 @@ export function Beaver() {
         if (velocity.current.y < 0) velocity.current.y = 0;
       }
     } else {
-      pos.y += velocity.current.y * delta;
+      pos.y += velocity.current.y * dt;
       
       if (pos.y <= groundY) {
         pos.y = groundY;

@@ -41,7 +41,8 @@ class WaterEngine {
     
     // Run simulation steps (fixed time step for stability)
     const fixedDt = 1 / 60;
-    const steps = Math.max(1, Math.ceil(dt / fixedDt)) * 4; // Run 4x faster
+    // Cap steps to prevent spiral of death on low framerates
+    const steps = Math.min(Math.max(1, Math.ceil(dt / fixedDt)) * 4, 16); 
     for (let i = 0; i < steps; i++) {
       this.simulate();
     }
