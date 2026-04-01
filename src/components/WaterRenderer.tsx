@@ -1,0 +1,78 @@
+import { useRef, useMemo } from 'react';
+import { useFrame } from '@react-three/fiber';
+import * as THREE from 'three';
+import { waterEngine, WATER_SIZE } from '../utils/WaterEngine';
+import { useGameStore } from '../store';
+
+export function WaterRenderer() {
+  const meshRef = useRef<THREE.Mesh>(null);
+  const geoRef = useRef<THREE.PlaneGeometry>(null);
+  
+  const geo = useMemo(() => {
+    // Create a plane with WATER_SIZE x WATER_SIZE vertices
+    const g = new THREE.PlaneGeometry(WATER_SIZE - 1, WATER_SIZE - 1, WATER_SIZE - 1, WATER_SIZE - 1);
+    g.rotateX(-Math.PI / 2);
+    g.translate(-0.5, 0, -0.5); // Center the grid on the integer coordinates
+    return g;
+  }, []);
+
+  useFrame((state, delta) => {
+    const { playerPosition, placedBlocks, draggableLogs, rainIntensity } = useGameStore.getState();
+    
+    // Update water simulation
+    waterEngine.update(playerPosition[0], playerPosition[2], placedBlocks, draggableLogs, Math.min(delta, 0.1), rainIntensity);
+    
+    if (meshRef.current && geoRef.current) {
+      // Snap mesh to the origin of the water engine grid
+      meshRef.current.position.x = waterEngine.originX;
+      meshRef.current.position.z = waterEngine.originZ;
+      
+      const pos = geoRef.current.attributes.position.array;
+      const time = state.clock.elapsedTime;
+      
+      for (let i = 0; i < WATER_SIZE * WATER_SIZE; i++) {
+        const w = waterEngine.W[i];
+          // Flowing ripples based on velocity
+          const vx = waterEngine.VX[i];
+          const vz = waterEngine.VZ[i];
+          const speed = Math.sqrt(vx*vx + vz*vz);
+          
+          // Only show water if it's deep enough, to prevent "frosting" on slopes
+          if (w > 0.15) {
+            const x = i % WATER_SIZE;
+            const z = Math.floor(i / WATER_SIZE);
+            const worldX = waterEngine.originX - (WATER_SIZE / 2) + x;
+            const worldZ = waterEngine.originZ - (WATER_SIZE / 2) + z;
+            
+            // Directional ripples based on flow
+            const flowDirX = speed > 0.1 ? vx / speed : 0;
+            const flowDirZ = speed > 0.1 ? vz / speed : 1; // Default flow south
+            
+            const ripple = Math.sin(worldX * 1.5 - flowDirX * time * 5) * 0.04 + 
+                           Math.sin(worldZ * 1.5 - flowDirZ * time * 5) * 0.04;
+            
+            pos[i * 3 + 1] = waterEngine.T[i] + w + ripple;
+          } else {
+            pos[i * 3 + 1] = waterEngine.T[i] - 10.0; // Hide deep below terrain
+          }
+      }
+      geoRef.current.attributes.position.needsUpdate = true;
+      geoRef.current.computeVertexNormals();
+    }
+  });
+
+  return (
+    <mesh ref={meshRef} receiveShadow>
+      <bufferGeometry ref={geoRef} attach="geometry" {...geo} />
+      <meshPhysicalMaterial 
+        color="#4da6ff" 
+        transparent 
+        opacity={0.8} 
+        roughness={0.1} 
+        transmission={0.9} 
+        ior={1.33} 
+        side={THREE.DoubleSide} 
+      />
+    </mesh>
+  );
+}
