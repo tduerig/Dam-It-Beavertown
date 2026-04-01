@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useState, useRef } from 'react';
 import { View, Text, StyleSheet, Platform, Pressable } from 'react-native';
 import { useGameStore } from '../store';
 import { Hammer, Droplets, TreePine, Download, Upload, CloudRain, ArrowUp, ArrowDown } from 'lucide-react-native';
@@ -9,6 +9,23 @@ import { Gesture, GestureDetector } from 'react-native-gesture-handler';
 export function UI() {
   const gameState = useGameStore((state) => state.gameState);
   const setGameState = useGameStore((state) => state.setGameState);
+  
+  // React 19 RN-Web SyntheticEvent Bypass
+  const playButtonRef = useRef<any>(null);
+
+  useEffect(() => {
+    if (Platform.OS === 'web' && playButtonRef.current) {
+      const node = playButtonRef.current as HTMLElement;
+      const handler = () => setGameState('playing');
+      node.addEventListener('click', handler);
+      // Fallback for pointer environments
+      node.addEventListener('pointerdown', handler);
+      return () => {
+        node.removeEventListener('click', handler);
+        node.removeEventListener('pointerdown', handler);
+      };
+    }
+  }, [setGameState]);
   const inventory = useGameStore((state) => state.inventory);
   const rainIntensity = useGameStore((state) => state.rainIntensity);
   const saveGame = useGameStore((state) => state.saveGame);
@@ -86,6 +103,7 @@ export function UI() {
           <Text style={styles.subtitle}>Protect the ecosystem. Build the ultimate dam.</Text>
           
           <Pressable 
+            ref={playButtonRef}
             style={({ pressed }) => [styles.startButton, pressed && styles.startButtonPressed]}
             onPress={() => setGameState('playing')}
           >
@@ -224,10 +242,11 @@ const styles = StyleSheet.create({
     paddingVertical: 16,
     borderRadius: 32,
     shadowColor: '#000',
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.3,
     shadowRadius: 6,
     marginBottom: 24,
+    ...Platform.select({
+      web: { zIndex: 9999, cursor: 'pointer' } as any,
+    }),
   },
   startButtonPressed: {
     backgroundColor: '#15803d', // darker green
