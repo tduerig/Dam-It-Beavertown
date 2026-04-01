@@ -1,12 +1,24 @@
+import { Platform, View, Text, StyleSheet } from 'react-native';
 import { useEffect, useRef } from 'react';
 import { useGameStore } from '../store';
 import { getTerrainHeight, getRiverCenter, RIVER_WIDTH, generateTreesForChunk, CHUNK_SIZE } from '../utils/terrain';
 import { waterEngine } from '../utils/WaterEngine';
 
 export function Minimap() {
-  const canvasRef = useRef<HTMLCanvasElement>(null);
+  if (Platform.OS !== 'web') {
+    return (
+      <View style={styles.nativeContainer}>
+        <View style={styles.header}><Text style={styles.headerText}>MINIMAP</Text></View>
+        <View style={styles.placeholder}><Text style={styles.placeholderText}>Map disabled on mobile MVP</Text></View>
+      </View>
+    );
+  }
+
+  // Web only implementation using canvas
+  const canvasRef = useRef<any>(null);
 
   useEffect(() => {
+    if (Platform.OS !== 'web') return;
     const canvas = canvasRef.current;
     if (!canvas) return;
     const ctx = canvas.getContext('2d');
@@ -17,8 +29,6 @@ export function Minimap() {
 
     const render = (time: number) => {
       animationFrameId = requestAnimationFrame(render);
-      
-      // Throttle to ~10 FPS for performance
       if (time - lastRender < 100) return;
       lastRender = time;
 
@@ -29,10 +39,8 @@ export function Minimap() {
 
       const size = 100;
       const halfSize = size / 2;
-      
       ctx.clearRect(0, 0, size, size);
 
-      // Draw terrain & water
       const imgData = ctx.createImageData(size, size);
       const data = imgData.data;
 
@@ -40,32 +48,22 @@ export function Minimap() {
         for (let z = 0; z < size; z++) {
           const worldX = px + (x - halfSize);
           const worldZ = pz + (z - halfSize);
-          
           const waterHeight = waterEngine.getSurfaceHeight(worldX, worldZ);
-          const isWater = waterHeight > -50; // -100 is returned when no water
+          const isWater = waterHeight > -50;
           
           const idx = (z * size + x) * 4;
-          
           if (isWater) {
-            data[idx] = 28;     // R
-            data[idx+1] = 163;  // G
-            data[idx+2] = 236;  // B
-            data[idx+3] = 255;  // A
+            data[idx] = 28; data[idx+1] = 163; data[idx+2] = 236; data[idx+3] = 255;
           } else {
-            data[idx] = 74;     // R
-            data[idx+1] = 93;   // G
-            data[idx+2] = 35;   // B
-            data[idx+3] = 255;  // A
+            data[idx] = 74; data[idx+1] = 93; data[idx+2] = 35; data[idx+3] = 255;
           }
         }
       }
       ctx.putImageData(imgData, 0, 0);
 
-      // Draw trees (available sticks)
       const chunkX = Math.floor(px / CHUNK_SIZE);
       const chunkZ = Math.floor(pz / CHUNK_SIZE);
-      
-      ctx.fillStyle = '#228B22'; // Forest Green
+      ctx.fillStyle = '#228B22';
       for (let cx = chunkX - 2; cx <= chunkX + 2; cx++) {
         for (let cz = chunkZ - 2; cz <= chunkZ + 2; cz++) {
           const trees = generateTreesForChunk(cx, cz);
@@ -82,7 +80,6 @@ export function Minimap() {
         }
       }
 
-      // Draw placed blocks
       for (const block of placedBlocks) {
         const mx = block.position[0] - px + halfSize;
         const mz = block.position[2] - pz + halfSize;
@@ -92,13 +89,11 @@ export function Minimap() {
         }
       }
 
-      // Draw player
       ctx.fillStyle = '#FF0000';
       ctx.beginPath();
       ctx.arc(halfSize, halfSize, 2, 0, Math.PI * 2);
       ctx.fill();
 
-      // Draw player direction
       ctx.strokeStyle = '#FF0000';
       ctx.lineWidth = 2;
       ctx.beginPath();
@@ -108,14 +103,62 @@ export function Minimap() {
     };
 
     animationFrameId = requestAnimationFrame(render);
-
     return () => cancelAnimationFrame(animationFrameId);
   }, []);
 
   return (
-    <div className="absolute bottom-4 right-4 border-4 border-amber-900 rounded-lg overflow-hidden bg-amber-100/50 shadow-lg pointer-events-auto">
-      <div className="bg-amber-900 text-amber-100 text-xs text-center py-1 font-bold tracking-wider">MINIMAP</div>
-      <canvas ref={canvasRef} width={100} height={100} className="w-40 h-40" style={{ imageRendering: 'pixelated' }} />
-    </div>
+    <View style={styles.nativeContainer} pointerEvents="none">
+      <View style={styles.header}><Text style={styles.headerText}>MINIMAP</Text></View>
+      {Platform.OS === 'web' && (
+        <View style={styles.canvasWrapper}>
+          <canvas ref={canvasRef} width={100} height={100} style={{ width: 160, height: 160, imageRendering: 'pixelated' }} />
+        </View>
+      )}
+    </View>
   );
 }
+
+const styles = StyleSheet.create({
+  nativeContainer: {
+    position: 'absolute',
+    bottom: 16,
+    right: 16,
+    borderWidth: 4,
+    borderColor: '#78350f',
+    borderRadius: 8,
+    overflow: 'hidden',
+    backgroundColor: 'rgba(254, 243, 199, 0.5)',
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.3,
+    shadowRadius: 4,
+  },
+  header: {
+    backgroundColor: '#78350f',
+    paddingVertical: 4,
+    alignItems: 'center',
+    zIndex: 10,
+  },
+  headerText: {
+    color: '#fef3c7',
+    fontSize: 10,
+    fontWeight: 'bold',
+    letterSpacing: 1,
+  },
+  placeholder: {
+    width: 160,
+    height: 160,
+    justifyContent: 'center',
+    alignItems: 'center',
+    backgroundColor: 'rgba(0,0,0,0.2)',
+  },
+  placeholderText: {
+    color: '#333',
+    fontSize: 10,
+    textAlign: 'center',
+  },
+  canvasWrapper: {
+    width: 160,
+    height: 160,
+  }
+});

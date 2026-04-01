@@ -1,36 +1,107 @@
+import { View, Text, StyleSheet } from 'react-native';
 import { useGameStore } from '../store';
 
 export function ElevationGauge() {
   const playerPos = useGameStore(state => state.playerPosition);
   const zPos = playerPos[2];
   
-  // Map Z from -300 (Peak) to +300 (Ocean)
-  // -300 -> 0% (Top)
-  // +300 -> 100% (Bottom)
   const elevationPercent = Math.max(0, Math.min(100, ((zPos + 300) / 600) * 100));
 
   return (
-    <div className="absolute bottom-4 right-48 w-12 h-40 border-4 border-amber-900 rounded-lg overflow-hidden bg-amber-100/50 shadow-lg pointer-events-auto flex flex-col">
-      <div className="bg-amber-900 text-amber-100 text-[10px] text-center py-1 font-bold tracking-wider z-10">ALT</div>
-      <div className="relative flex-1 w-full">
-        {/* Gradient Background representing biomes */}
-        <div 
-          className="absolute inset-0 w-full h-full" 
-          style={{ 
-            background: 'linear-gradient(to bottom, #ffffff 0%, #888888 25%, #4a5d23 50%, #e6d59d 85%, #1e3a8a 100%)' 
-          }} 
-        />
+    <View style={styles.container} pointerEvents="none">
+      <View style={styles.header}>
+        <Text style={styles.headerText}>ALT</Text>
+      </View>
+      <View style={styles.gaugeContainer}>
+        {/* React Native linear gradient requires expo-linear-gradient, using solid colors or simpler approach for now */}
+        <View style={[styles.biomeBackground, { height: '25%', backgroundColor: '#ffffff' }]} />
+        <View style={[styles.biomeBackground, { height: '25%', backgroundColor: '#888888', top: '25%' }]} />
+        <View style={[styles.biomeBackground, { height: '25%', backgroundColor: '#4a5d23', top: '50%' }]} />
+        <View style={[styles.biomeBackground, { height: '25%', backgroundColor: '#1e3a8a', top: '75%' }]} />
         
-        {/* Labels */}
-        <span className="absolute top-1 left-1 text-[8px] font-bold text-black/50">PEAK</span>
-        <span className="absolute bottom-1 left-1 text-[8px] font-bold text-white/80">SEA</span>
+        <Text style={styles.labelTop}>PEAK</Text>
+        <Text style={styles.labelBottom}>SEA</Text>
         
         {/* Player Marker */}
-        <div 
-          className="absolute left-0 w-full h-1 bg-red-500 shadow-[0_0_4px_black] transition-all duration-100"
-          style={{ top: `${elevationPercent}%`, transform: 'translateY(-50%)' }}
+        <View 
+          style={[
+            styles.marker, 
+            { top: `${elevationPercent}%` }
+          ]} 
         />
-      </div>
-    </div>
+      </View>
+    </View>
   );
 }
+
+const styles = StyleSheet.create({
+  container: {
+    position: 'absolute',
+    bottom: 16,
+    right: 180,
+    width: 48,
+    height: 160,
+    borderWidth: 4,
+    borderColor: '#78350f', // amber-900
+    borderRadius: 8,
+    overflow: 'hidden',
+    backgroundColor: 'rgba(254, 243, 199, 0.5)', // amber-100/50
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.3,
+    shadowRadius: 4,
+  },
+  header: {
+    backgroundColor: '#78350f',
+    paddingVertical: 4,
+    alignItems: 'center',
+    zIndex: 10,
+  },
+  headerText: {
+    color: '#fef3c7',
+    fontSize: 10,
+    fontWeight: 'bold',
+    letterSpacing: 1,
+  },
+  gaugeContainer: {
+    flex: 1,
+    position: 'relative',
+    width: '100%',
+  },
+  biomeBackground: {
+    position: 'absolute',
+    left: 0,
+    right: 0,
+  },
+  labelTop: {
+    position: 'absolute',
+    top: 4,
+    left: 4,
+    fontSize: 8,
+    fontWeight: 'bold',
+    color: 'rgba(0,0,0,0.5)',
+    zIndex: 2,
+  },
+  labelBottom: {
+    position: 'absolute',
+    bottom: 4,
+    left: 4,
+    fontSize: 8,
+    fontWeight: 'bold',
+    color: 'rgba(255,255,255,0.8)',
+    zIndex: 2,
+  },
+  marker: {
+    position: 'absolute',
+    left: 0,
+    width: '100%',
+    height: 4,
+    backgroundColor: '#ef4444', // red-500
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 0 },
+    shadowOpacity: 0.8,
+    shadowRadius: 2,
+    marginTop: -2,
+    zIndex: 5,
+  }
+});

@@ -8,6 +8,7 @@ export interface PlacedBlock {
   position: [number, number, number];
   rotation: [number, number, number];
   type: BlockType;
+  health?: number;
 }
 
 export interface DraggableLog {
@@ -210,20 +211,27 @@ export const useGameStore = create<GameState>((set, get) => ({
     };
     const json = JSON.stringify(saveData);
     
-    // Save to local storage as backup
-    localStorage.setItem('beaver_game_save', json);
-    
-    // Trigger file download
-    const blob = new Blob([json], { type: 'application/json' });
-    const url = URL.createObjectURL(blob);
-    const a = document.createElement('a');
-    a.href = url;
-    a.download = 'beaver_map.json';
-    a.click();
-    URL.revokeObjectURL(url);
+    // Fallbacks for React Native vs Web
+    if (typeof window !== 'undefined') {
+      localStorage.setItem('beaver_game_save', json);
+      
+      try {
+        const blob = new Blob([json], { type: 'application/json' });
+        const url = URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        a.href = url;
+        a.download = 'beaver_map.json';
+        a.click();
+        URL.revokeObjectURL(url);
+      } catch (e) {
+        console.warn("DOM Blob download unavailable in this environment");
+      }
+    } else {
+      console.log("Game Saved Native Stub: ", json.length, "bytes");
+    }
   },
   loadGame: (jsonData?: string) => {
-    const data = jsonData || localStorage.getItem('beaver_game_save');
+    const data = jsonData || (typeof window !== 'undefined' ? localStorage.getItem('beaver_game_save') : null);
     if (data) {
       try {
         const parsed = JSON.parse(data);

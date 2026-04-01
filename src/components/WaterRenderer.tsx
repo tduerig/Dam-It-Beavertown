@@ -1,4 +1,4 @@
-import { useRef, useMemo } from 'react';
+import { useRef, useMemo, useEffect } from 'react';
 import { useFrame } from '@react-three/fiber';
 import * as THREE from 'three';
 import { waterEngine, WATER_SIZE } from '../utils/WaterEngine';
@@ -16,12 +16,27 @@ export function WaterRenderer() {
     return g;
   }, []);
 
-  useFrame((state, delta) => {
-    const { playerPosition, placedBlocks, draggableLogs, rainIntensity } = useGameStore.getState();
+  // Decoupled Physics Loop: Runs at a fixed 30 TPS independent of the render thread.
+  // This satisfies the architectural mandate to prevent dropping frames.
+  useEffect(() => {
+    const PHYSICS_TICK_RATE = 1000 / 30; // 30 ticks per second
+    const interval = setInterval(() => {
+      const state = useGameStore.getState();
+      const dt = 1.0 / 30.0;
+      waterEngine.update(
+        state.playerPosition[0], 
+        state.playerPosition[2], 
+        state.placedBlocks, 
+        state.draggableLogs, 
+        dt, 
+        state.rainIntensity
+      );
+    }, PHYSICS_TICK_RATE);
     
-    // Update water simulation
-    waterEngine.update(playerPosition[0], playerPosition[2], placedBlocks, draggableLogs, Math.min(delta, 0.1), rainIntensity);
-    
+    return () => clearInterval(interval);
+  }, []);
+
+  useFrame((state, delta) => {    
     if (meshRef.current && geoRef.current) {
       // Snap mesh to the origin of the water engine grid
       meshRef.current.position.x = waterEngine.originX;
