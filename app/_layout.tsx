@@ -2,12 +2,6 @@ import { Stack } from 'expo-router';
 import { StatusBar } from 'expo-status-bar';
 import { GestureHandlerRootView } from 'react-native-gesture-handler';
 import { StyleSheet } from 'react-native';
-import * as Sentry from '@sentry/react-native';
-
-Sentry.init({
-  dsn: 'https://examplePublicKey@o0.ingest.sentry.io/0',
-  tracesSampleRate: 1.0,
-});
 
 function Layout() {
   return (
@@ -24,4 +18,4 @@ const styles = StyleSheet.create({
   }
 });
 
-export default Sentry.wrap(Layout);
+export default Layout;

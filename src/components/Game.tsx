@@ -11,7 +11,7 @@ import { Suspense } from 'react';
 
 export function Game() {
   return (
-    <Canvas shadows camera={{ position: [0, 10, 20], fov: 60 }}>
+    <Canvas shadows camera={{ position: [0, 10, 20], fov: 60 }} gl={{ antialias: false }}>
       <fog attach="fog" args={['#87a96b', 30, 80]} />
       <Suspense fallback={null}>
         <Environment preset="forest" background />

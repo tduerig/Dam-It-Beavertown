@@ -1,4 +1,5 @@
 import { useEffect, useRef, useCallback } from 'react';
+import { Platform } from 'react-native';
 import { useGameStore, BlockType } from '../store';
 import { getTerrainHeight, getBaseTerrainHeight, getRiverCenter, RIVER_WIDTH, CHUNK_SIZE, generateTreesForChunk } from '../utils/terrain';
 import * as THREE from 'three';
@@ -196,7 +197,7 @@ export function Interaction() {
       handleAction(e.code);
     };
 
-    if (typeof window !== 'undefined') {
+    if (Platform.OS === 'web' && typeof window !== 'undefined') {
       window.addEventListener('keydown', handleKeyDown);
       return () => window.removeEventListener('keydown', handleKeyDown);
     }

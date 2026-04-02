@@ -1,5 +1,6 @@
 import { useRef, useMemo, useEffect } from 'react';
 import { useFrame } from '@react-three/fiber';
+import { Platform } from 'react-native';
 import * as THREE from 'three';
 import { waterEngine, WATER_SIZE } from '../utils/WaterEngine';
 import { useGameStore } from '../store';
@@ -79,15 +80,25 @@ export function WaterRenderer() {
   return (
     <mesh ref={meshRef} receiveShadow>
       <bufferGeometry ref={geoRef} attach="geometry" {...geo} />
-      <meshPhysicalMaterial 
-        color="#4da6ff" 
-        transparent 
-        opacity={0.8} 
-        roughness={0.1} 
-        transmission={0.9} 
-        ior={1.33} 
-        side={THREE.DoubleSide} 
-      />
+      {Platform.OS === 'web' ? (
+        <meshPhysicalMaterial 
+          color="#4da6ff" 
+          transparent 
+          opacity={0.8} 
+          roughness={0.1} 
+          transmission={0.9} 
+          ior={1.33} 
+          side={THREE.DoubleSide} 
+        />
+      ) : (
+        <meshStandardMaterial
+          color="#4da6ff" 
+          transparent 
+          opacity={0.8} 
+          roughness={0.1} 
+          side={THREE.DoubleSide} 
+        />
+      )}
     </mesh>
   );
 }
