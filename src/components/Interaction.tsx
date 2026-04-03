@@ -83,7 +83,9 @@ export function Interaction() {
                   soundEngine.playChop();
                   
                   if (isBig && sticks === 1) {
-                    const fallYaw = state.playerRotation + Math.PI;
+                    const dx = tree.position[0] - playerVec.x;
+                    const dz = tree.position[2] - playerVec.z;
+                    const fallYaw = Math.atan2(dx, dz);
                     state.addDraggableLog([tree.position[0], tree.position[1] + 9.1, tree.position[2]], [0.01, fallYaw, 0]);
                     soundEngine.playFall();
                   }

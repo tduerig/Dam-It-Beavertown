@@ -180,32 +180,53 @@ export function UI() {
 
       {/* Action Buttons Overlay for Mobile specific interactions */}
       {isMobile && (
-        <View style={styles.mobileActions} pointerEvents="box-none">
-          {/* Action 1 */}
-          <Pressable
-            style={({ pressed }) => [styles.actionButton, pressed && styles.actionButtonPressed]}
-            onPressIn={() => setVirtualButton('action1', true)}
-            onPressOut={() => setVirtualButton('action1', false)}
-          >
-            <Hammer color="#fff" size={24} />
-          </Pressable>
-          {/* Action 2 */}
-          <Pressable
-            style={({ pressed }) => [styles.actionButton, pressed && styles.actionButtonPressed]}
-            onPressIn={() => setVirtualButton('action2', true)}
-            onPressOut={() => setVirtualButton('action2', false)}
-          >
-            <TreePine color="#fff" size={24} />
-          </Pressable>
-          {/* Action 3 */}
-          <Pressable
-            style={({ pressed }) => [styles.actionButton, pressed && styles.actionButtonPressed]}
-            onPressIn={() => setVirtualButton('action3', true)}
-            onPressOut={() => setVirtualButton('action3', false)}
-          >
-            <Droplets color="#fff" size={24} />
-          </Pressable>
-        </View>
+        <>
+          <View style={styles.mobileActionsLeft} pointerEvents="box-none">
+            {/* Jump */}
+            <Pressable
+              style={({ pressed }) => [styles.actionButton, pressed && styles.actionButtonPressed]}
+              onPressIn={() => setVirtualButton('jump', true)}
+              onPressOut={() => setVirtualButton('jump', false)}
+            >
+              <ArrowUp color="#fff" size={24} />
+            </Pressable>
+            {/* Crouch/Dive */}
+            <Pressable
+              style={({ pressed }) => [styles.actionButton, pressed && styles.actionButtonPressed]}
+              onPressIn={() => setVirtualButton('crouch', true)}
+              onPressOut={() => setVirtualButton('crouch', false)}
+            >
+              <ArrowDown color="#fff" size={24} />
+            </Pressable>
+          </View>
+
+          <View style={styles.mobileActionsRight} pointerEvents="box-none">
+            {/* Action 1 */}
+            <Pressable
+              style={({ pressed }) => [styles.actionButton, pressed && styles.actionButtonPressed]}
+              onPressIn={() => setVirtualButton('action1', true)}
+              onPressOut={() => setVirtualButton('action1', false)}
+            >
+              <Hammer color="#fff" size={24} />
+            </Pressable>
+            {/* Action 2 */}
+            <Pressable
+              style={({ pressed }) => [styles.actionButton, pressed && styles.actionButtonPressed]}
+              onPressIn={() => setVirtualButton('action2', true)}
+              onPressOut={() => setVirtualButton('action2', false)}
+            >
+              <TreePine color="#fff" size={24} />
+            </Pressable>
+            {/* Action 3 */}
+            <Pressable
+              style={({ pressed }) => [styles.actionButton, pressed && styles.actionButtonPressed]}
+              onPressIn={() => setVirtualButton('action3', true)}
+              onPressOut={() => setVirtualButton('action3', false)}
+            >
+              <Droplets color="#fff" size={24} />
+            </Pressable>
+          </View>
+        </>
       )}
 
       {/* Desktop Controls Helper */}
@@ -343,10 +364,18 @@ const styles = StyleSheet.create({
     fontWeight: 'bold',
     marginLeft: 6,
   },
-  mobileActions: {
+  mobileActionsLeft: {
     position: 'absolute',
-    bottom: 40,
-    right: 20,
+    bottom: 180, // Moved up to clear joystick
+    left: 40,
+    flexDirection: 'row',
+    gap: 12,
+    zIndex: 10,
+  },
+  mobileActionsRight: {
+    position: 'absolute',
+    bottom: 180, // Moved up to clear joystick
+    right: 40,
     flexDirection: 'row',
     gap: 12,
     zIndex: 10,
