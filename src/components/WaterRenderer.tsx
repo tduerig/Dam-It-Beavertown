@@ -21,7 +21,11 @@ export function WaterRenderer() {
   // This satisfies the architectural mandate to prevent dropping frames.
   useEffect(() => {
     const PHYSICS_TICK_RATE = 1000 / 30; // 30 ticks per second
+    let isUpdating = false;
     const interval = setInterval(() => {
+      if (isUpdating) return; // Prevent Hermes callback queue lockup on slow devices!
+      isUpdating = true;
+      
       const state = useGameStore.getState();
       const dt = 1.0 / 30.0;
       waterEngine.update(
@@ -32,6 +36,8 @@ export function WaterRenderer() {
         dt, 
         state.rainIntensity
       );
+      
+      isUpdating = false;
     }, PHYSICS_TICK_RATE);
     
     return () => clearInterval(interval);
@@ -73,7 +79,9 @@ export function WaterRenderer() {
           }
       }
       geoRef.current.attributes.position.needsUpdate = true;
-      geoRef.current.computeVertexNormals();
+      if (Platform.OS === 'web') {
+        geoRef.current.computeVertexNormals();
+      }
     }
   });
 

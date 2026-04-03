@@ -8,17 +8,22 @@ import { WaterRenderer } from './WaterRenderer';
 import { RainRenderer } from './RainRenderer';
 import { FloatingLogs } from './FloatingLogs';
 import { Suspense } from 'react';
+import { Platform } from 'react-native';
 
 export function Game() {
   return (
-    <Canvas shadows camera={{ position: [0, 10, 20], fov: 60 }} gl={{ antialias: false }}>
+    <Canvas shadows={Platform.OS === 'web'} camera={{ position: [0, 10, 20], fov: 60 }} gl={{ antialias: false }}>
       <fog attach="fog" args={['#87a96b', 30, 80]} />
       <Suspense fallback={null}>
-        <Environment preset="forest" background />
+        {Platform.OS === 'web' ? (
+          <Environment preset="forest" background />
+        ) : (
+          <color attach="background" args={['#87a96b']} />
+        )}
         
-        <ambientLight intensity={0.3} />
+        <ambientLight intensity={Platform.OS === 'web' ? 0.3 : 0.6} />
         <directionalLight
-          castShadow
+          castShadow={Platform.OS === 'web'}
           position={[50, 50, 50]}
           intensity={1.5}
           shadow-mapSize-width={2048}

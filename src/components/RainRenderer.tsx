@@ -3,7 +3,9 @@ import { useFrame } from '@react-three/fiber';
 import * as THREE from 'three';
 import { useGameStore } from '../store';
 
-const RAIN_COUNT = 5000;
+import { Platform } from 'react-native';
+
+const RAIN_COUNT = Platform.OS === 'web' ? 5000 : 1000;
 
 export function RainRenderer() {
   const meshRef = useRef<THREE.InstancedMesh>(null);

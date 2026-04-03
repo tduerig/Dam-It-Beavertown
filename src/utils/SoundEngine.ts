@@ -6,7 +6,7 @@ class SoundEngine {
     if (!this.ctx && (window.AudioContext || (window as any).webkitAudioContext)) {
       this.ctx = new (window.AudioContext || (window as any).webkitAudioContext)();
     }
-    if (this.ctx.state === 'suspended') {
+    if (this.ctx && this.ctx.state === 'suspended') {
       this.ctx.resume();
     }
   }

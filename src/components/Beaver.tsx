@@ -33,8 +33,8 @@ export function Beaver() {
 
   useFrame((state, delta) => {
     const now = performance.now();
-    // Use custom delta to avoid R3F's 0.1s cap which causes slow-motion on low framerates
-    const dt = Math.min((now - lastFrameTime.current) / 1000, 0.5);
+    // Use custom delta, strongly clamped to 0.05 to prevent physics springs from EXPLODING during initial render lag
+    const dt = Math.min((now - lastFrameTime.current) / 1000, 0.05);
     lastFrameTime.current = now;
 
     if (!groupRef.current || !bodyRef.current || !headRef.current || !tailRef.current || !armLRef.current || !armRRef.current) return;

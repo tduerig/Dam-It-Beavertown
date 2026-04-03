@@ -48,8 +48,15 @@ export function UI() {
     }
   }, []);
 
+  const [leftStick, setLeftStick] = useState({ x: 0, y: 0, active: false });
+  const [rightStick, setRightStick] = useState({ x: 0, y: 0, active: false });
+
   // Left side screen pan for Movement
   const leftPan = Gesture.Pan()
+    .runOnJS(true)
+    .onBegin(() => {
+      setLeftStick(prev => ({ ...prev, active: true }));
+    })
     .onUpdate((e) => {
       // Normalize to roughly -1 to 1 based on a 100px radius
       const maxDist = 100;
@@ -60,14 +67,20 @@ export function UI() {
         dx = (dx / dist) * maxDist;
         dy = (dy / dist) * maxDist;
       }
+      setLeftStick({ x: dx, y: dy, active: true });
       setVirtualJoystick(dx / maxDist, dy / maxDist);
     })
-    .onEnd(() => {
+    .onFinalize(() => {
+      setLeftStick({ x: 0, y: 0, active: false });
       setVirtualJoystick(0, 0);
     });
 
   // Right side screen pan for Camera
   const rightPan = Gesture.Pan()
+    .runOnJS(true)
+    .onBegin(() => {
+      setRightStick(prev => ({ ...prev, active: true }));
+    })
     .onUpdate((e) => {
       const maxDist = 100;
       let dx = e.translationX;
@@ -77,14 +90,17 @@ export function UI() {
         dx = (dx / dist) * maxDist;
         dy = (dy / dist) * maxDist;
       }
+      setRightStick({ x: dx, y: dy, active: true });
       setVirtualCamera(dx / maxDist, dy / maxDist);
     })
-    .onEnd(() => {
+    .onFinalize(() => {
+      setRightStick({ x: 0, y: 0, active: false });
       setVirtualCamera(0, 0);
     });
 
   // Tap for jumping like a dolphin
   const doubleTapJump = Gesture.Tap()
+    .runOnJS(true)
     .numberOfTaps(2)
     .onStart(() => {
       setVirtualButton('jump', true);
@@ -121,13 +137,23 @@ export function UI() {
         <View style={styles.hudContainer} pointerEvents="box-none">
           {/* Mobile Gesture Overlay */}
           {isMobile && (
-            <View style={styles.gestureOverlay} pointerEvents="box-none">
+        <View style={styles.gestureOverlay} pointerEvents="box-none">
           <GestureDetector gesture={gestureComposerLeft}>
-            <View style={styles.touchHalf} />
+            <View style={styles.touchHalf} pointerEvents="auto" />
           </GestureDetector>
           <GestureDetector gesture={gestureComposerRight}>
-            <View style={styles.touchHalf} />
+            <View style={styles.touchHalf} pointerEvents="auto" />
           </GestureDetector>
+
+          {/* Static Left Joystick */}
+          <View style={[styles.joystickBase, styles.joystickLeft]} pointerEvents="none">
+            <View style={[styles.joystickNub, { transform: [{ translateX: leftStick.x }, { translateY: leftStick.y }], opacity: leftStick.active ? 0.9 : 0.4 }]} />
+          </View>
+          
+          {/* Static Right Joystick */}
+          <View style={[styles.joystickBase, styles.joystickRight]} pointerEvents="none">
+            <View style={[styles.joystickNub, { transform: [{ translateX: rightStick.x }, { translateY: rightStick.y }], opacity: rightStick.active ? 0.9 : 0.4 }]} />
+          </View>
         </View>
       )}
 
@@ -356,8 +382,37 @@ const styles = StyleSheet.create({
     color: '#fff',
     fontSize: 12,
     marginBottom: 4,
+    opacity: 0.8,
   },
   controlsHighlight: {
     color: '#facc15', // yellow-400
-  }
+  },
+  joystickBase: {
+    position: 'absolute',
+    bottom: 40,
+    width: 120,
+    height: 120,
+    borderRadius: 60,
+    backgroundColor: 'rgba(255, 255, 255, 0.1)',
+    borderWidth: 2,
+    borderColor: 'rgba(255, 255, 255, 0.3)',
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  joystickLeft: {
+    left: 40,
+  },
+  joystickRight: {
+    right: 40,
+  },
+  joystickNub: {
+    width: 50,
+    height: 50,
+    borderRadius: 25,
+    backgroundColor: 'rgba(255, 255, 255, 0.8)',
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.3,
+    shadowRadius: 3,
+  },
 });
