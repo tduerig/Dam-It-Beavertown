@@ -1,9 +1,20 @@
 import { useFrame } from '@react-three/fiber';
-import { useGameStore } from '../store';
+import { useGameStore, PlacedBlock } from '../store';
 import { waterEngine } from '../utils/WaterEngine';
 import { getTerrainHeight } from '../utils/terrain';
 import * as THREE from 'three';
 import { useMemo, useRef } from 'react';
+
+function getEffectiveGroundHeight(x: number, z: number, placedBlocks: PlacedBlock[]) {
+  let h = getTerrainHeight(x, z);
+  for (const block of placedBlocks) {
+    if (Math.abs(x - block.position[0]) < 1.0 && Math.abs(z - block.position[2]) < 1.0) {
+      const blockTopY = block.position[1] + (block.type === 'mud' ? 0.25 : 0.4);
+      h = Math.max(h, blockTopY);
+    }
+  }
+  return h;
+}
 
 export const BRANCH_CONFIGS = [
   { y: 4.0, angle: 0, tilt: Math.PI/4, swivel: 0.1, scale: 0.8 },
@@ -123,7 +134,7 @@ export function DraggableLogs() {
     const dt = Math.min(delta, 0.1);
     if (!meshRef.current || !leavesMeshRef.current || !branchesMeshRef.current || !whittleMeshRef.current) return;
 
-    const { playerPosition, playerRotation } = useGameStore.getState();
+    const { playerPosition, playerRotation, placedBlocks } = useGameStore.getState();
 
     logs.forEach((log, i) => {
       let [lx, ly, lz] = log.position;
@@ -161,12 +172,12 @@ export function DraggableLogs() {
         
         // Height based on water or terrain
         const waterHeight = waterEngine.getSurfaceHeight(lx, lz);
-        const groundHeight = getTerrainHeight(lx, lz);
+        const groundHeight = getEffectiveGroundHeight(lx, lz, placedBlocks);
         
         if (waterHeight > groundHeight + 1) {
           ly = waterHeight; // Float
         } else {
-          ly = groundHeight + 1.12; // Drag on ground
+          ly = groundHeight + 0.4; // Drag on ground
         }
         
         // Mutate directly to avoid re-renders
@@ -176,17 +187,27 @@ export function DraggableLogs() {
         if (rx < Math.PI / 2) {
           // Falling animation
           const oldRx = rx;
-          // Start slow, accelerate as it falls.
-          const fallSpeed = 0.2 + Math.sin(rx) * 2.0;
+          // Start VERY slow, accelerate smoothly as it falls.
+          const fallSpeed = 0.15 + Math.pow(Math.sin(rx), 2) * 3.6;
           rx += fallSpeed * dt;
           if (rx > Math.PI / 2) rx = Math.PI / 2;
           
-          const groundHeight = getTerrainHeight(lx, lz);
-          // Center height goes from 5.6 to 1.12
-          ly = groundHeight + 1.12 + Math.cos(rx) * 4.48;
+          // Calculate ground height at the BASE of the tree, not the moving center
+          const baseX = lx - Math.sin(ry) * 7.7 * Math.sin(rx);
+          const baseZ = lz - Math.cos(ry) * 7.7 * Math.sin(rx);
+          const groundHeight = getEffectiveGroundHeight(baseX, baseZ, placedBlocks);
           
-          // Shift horizontally to keep base fixed
-          const horizontalShift = 5.6 * (Math.sin(rx) - Math.sin(oldRx));
+          // The pinch point (hinge) is 1.4 units above ground.
+          // As it falls, the hinge breaks and it slides down to rest flush with the ground.
+          // When flat (rx = PI/2), the log rests on its side, so its center is at groundHeight + 1.68.
+          const fallProgress = rx / (Math.PI / 2);
+          const pivotHeight = groundHeight + 1.4 + fallProgress * (1.68 - 1.4);
+          
+          // Center height
+          ly = pivotHeight + Math.cos(rx) * 7.7;
+          
+          // Shift horizontally to keep pivot fixed (relative to its sliding down)
+          const horizontalShift = 7.7 * (Math.sin(rx) - Math.sin(oldRx));
           lx += Math.sin(ry) * horizontalShift;
           lz += Math.cos(ry) * horizontalShift;
           
@@ -195,7 +216,8 @@ export function DraggableLogs() {
         } else {
           // Floating physics if in water
           const waterHeight = waterEngine.getSurfaceHeight(lx, lz);
-          const groundHeight = getTerrainHeight(lx, lz) + 1.12; // Log radius is ~1.12
+          const effectiveGroundHeight = getEffectiveGroundHeight(lx, lz, placedBlocks);
+          const groundHeight = effectiveGroundHeight + 0.4; // Log radius is ~0.4
           
           if (!log.isMudded) {
             if (waterHeight > ly - 1) {
@@ -212,6 +234,12 @@ export function DraggableLogs() {
                 const targetRot = Math.atan2(flow.x, flow.z);
                 ry += (targetRot - ry) * dt;
               }
+              
+              // If it touches the ground while in water, it gets mudded!
+              if (ly <= groundHeight + 0.1) {
+                log.isMudded = true; // Mutate locally to prevent spamming
+                useGameStore.getState().setLogMudded(log.id, true);
+              }
             } else {
               // Fall to ground
               if (ly > groundHeight) {
@@ -226,7 +254,7 @@ export function DraggableLogs() {
           } else {
             // Mudded log: just fall to ground if it's somehow above it, but don't float
             if (ly > groundHeight) {
-              ly -= 10 * delta;
+              ly -= 10 * dt;
               if (ly < groundHeight) {
                 ly = groundHeight;
               }
@@ -242,7 +270,7 @@ export function DraggableLogs() {
 
       // Render trunk
       dummy.position.set(lx, ly, lz);
-      dummy.rotation.set(rx, ry, rz);
+      dummy.rotation.set(rx, ry, rz, 'YXZ');
       dummy.scale.set(1, 1, 1);
       dummy.updateMatrix();
       meshRef.current!.setMatrixAt(i, dummy.matrix);
@@ -252,10 +280,15 @@ export function DraggableLogs() {
       let currentLeavesScale = leavesScales.current.get(log.id);
       if (currentLeavesScale === undefined) currentLeavesScale = 1;
       
-      // Leaves always melt away for downed logs. Faster in water.
-      const fadeRate = isFlooded ? 0.2 : (1 / 30); // 5s in water, 30s on land
-      currentLeavesScale = Math.max(0, currentLeavesScale - delta * fadeRate);
-      leavesScales.current.set(log.id, currentLeavesScale);
+      const prevLeavesScale = currentLeavesScale;
+      
+      // ONLY melt leaves if the log has finished falling!
+      if (rx >= Math.PI / 2 - 0.01) {
+        // Leaves melt away for downed logs. Faster in water.
+        const fadeRate = isFlooded ? 0.4 : 0.0375; // ~2.5s in water, ~26s on land
+        currentLeavesScale = Math.max(0, currentLeavesScale - dt * fadeRate);
+        leavesScales.current.set(log.id, currentLeavesScale);
+      }
       
       if (i < 1000) {
         leavesGeo.attributes.aDissolve.setX(i, currentLeavesScale);
@@ -266,11 +299,11 @@ export function DraggableLogs() {
       // The top of the log is along its local Y axis
       const logObj = new THREE.Object3D();
       logObj.position.set(lx, ly, lz);
-      logObj.rotation.set(rx, ry, rz);
+      logObj.rotation.set(rx, ry, rz, 'YXZ');
       
       // Leaves at the top half
       const leavesObj = new THREE.Object3D();
-      leavesObj.position.set(0, 2.8, 0); // Offset along local Y
+      leavesObj.position.set(0, 4.9, 0); // Offset along local Y
       leavesObj.scale.set(1, 1, 1);
       logObj.add(leavesObj);
       
@@ -296,6 +329,37 @@ export function DraggableLogs() {
       logObj.add(whittle);
       
       logObj.updateMatrixWorld(true);
+      
+      // Drop mud randomly as leaves disintegrate
+      if (prevLeavesScale > 0 && currentLeavesScale < prevLeavesScale) {
+        // We want to drop a thin, even layer.
+        // Do multiple small drops per frame based on the amount melted.
+        const expectedDrops = (prevLeavesScale - currentLeavesScale) * 150;
+        let dropsThisFrame = Math.floor(expectedDrops);
+        if (Math.random() < (expectedDrops - dropsThisFrame)) {
+          dropsThisFrame++;
+        }
+        
+        for (let d = 0; d < dropsThisFrame; d++) {
+          // Leaves are at local Y = 2.8, height = 14, radius = 7
+          // Base is at -4.2, tip is at 9.8
+          const localY = -4.2 + Math.random() * 14.0;
+          const progress = (localY + 4.2) / 14.0; // 0 at bottom, 1 at top
+          const maxRadius = 7.0 * (1 - progress); // 7 at bottom, 0 at top
+          
+          const angle = Math.random() * Math.PI * 2;
+          // Use sqrt(random) for uniform distribution in the circular cross-section
+          const radius = Math.sqrt(Math.random()) * maxRadius; 
+          const localX = Math.cos(angle) * radius;
+          const localZ = Math.sin(angle) * radius;
+          
+          const localPos = new THREE.Vector3(localX, localY, localZ);
+          logObj.localToWorld(localPos);
+          
+          // Thin, wide mud deposit
+          useGameStore.getState().modifyTerrain(localPos.x, localPos.z, 0.1, 1.5);
+        }
+      }
       
       branches.forEach((branch, bIdx) => {
         branchesMeshRef.current!.setMatrixAt(i * BRANCH_CONFIGS.length + bIdx, branch.matrixWorld);
