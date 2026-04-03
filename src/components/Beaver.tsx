@@ -188,10 +188,10 @@ export function Beaver() {
           
           // Check if player is within the length of the log
           // Log cylinder is from -5.6 to 5.6
-          // Leaves are from 2.1 to 16.1
+          // Leaves are from -2.1 to 11.9
           // We don't have direct access to leavesScales here, but we know:
           const hasLeaves = !log.isMudded;
-          const maxT = hasLeaves ? 15.0 : 5.6;
+          const maxT = hasLeaves ? 11.9 : 5.6;
           
           const actualT = t / lenXZ;
           
@@ -208,11 +208,16 @@ export function Beaver() {
               // Cylinder tapers from 1.68 (bottom, -5.6) to 1.12 (top, 5.6)
               const tNorm = (actualT + 5.6) / 11.2;
               radius = 1.68 * (1 - tNorm) + 1.12 * tNorm;
-            } else if (hasLeaves) {
-              // Leaves cone tapers from ~2.5 (at 5.6) to 0 (at 16.1)
+            } else {
+              radius = 0;
+            }
+            
+            if (hasLeaves && actualT > -2.1) {
+              // Leaves cone tapers to 0 at 11.9
               // Let's use a slightly wider base for the leaves so it feels structural
-              const tNorm = (actualT - 5.6) / (16.1 - 5.6);
-              radius = 2.0 * (1 - tNorm);
+              const tNorm = (actualT - (-2.1)) / (11.9 - (-2.1));
+              const leafRadius = 2.0 * (1 - tNorm);
+              radius = Math.max(radius, leafRadius);
             }
             
             if (distSq < radius * radius) {

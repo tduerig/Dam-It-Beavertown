@@ -23,6 +23,7 @@ export function Interaction() {
       
       for (const log of state.draggableLogs) {
         if (log.isMudded && !log.isDragged) continue; 
+        if (log.rotation[0] < Math.PI / 2 - 0.1) continue; // Cannot pick up logs that are still falling
         
         const logVec = new THREE.Vector3(...log.position);
         if (playerVec.distanceTo(logVec) < INTERACTION_DISTANCE + 6) {
@@ -82,10 +83,8 @@ export function Interaction() {
                   soundEngine.playChop();
                   
                   if (isBig && sticks === 1) {
-                    const dx = tree.position[0] - playerVec.x;
-                    const dz = tree.position[2] - playerVec.z;
-                    const fallYaw = Math.atan2(dx, dz);
-                    state.addDraggableLog([tree.position[0], tree.position[1] + 5.6, tree.position[2]], [0.01, fallYaw, 0]);
+                    const fallYaw = state.playerRotation + Math.PI;
+                    state.addDraggableLog([tree.position[0], tree.position[1] + 9.1, tree.position[2]], [0.01, fallYaw, 0]);
                     soundEngine.playFall();
                   }
                   
@@ -103,8 +102,8 @@ export function Interaction() {
       const riverX = getRiverCenter(playerVec.z);
       if (!collected && Math.abs(playerVec.x - riverX) < RIVER_WIDTH + 2) {
         const distance = 2;
-        const dx = Math.sin(state.playerRotation) * distance;
-        const dz = Math.cos(state.playerRotation) * distance;
+        const dx = Math.sin(state.playerRotation + Math.PI) * distance;
+        const dz = Math.cos(state.playerRotation + Math.PI) * distance;
         const digX = playerVec.x + dx;
         const digZ = playerVec.z + dz;
 
@@ -118,8 +117,8 @@ export function Interaction() {
       
       if (state.removeInventory(type, 1)) {
         const distance = 2;
-        const dx = Math.sin(state.playerRotation) * distance;
-        const dz = Math.cos(state.playerRotation) * distance;
+        const dx = Math.sin(state.playerRotation + Math.PI) * distance;
+        const dz = Math.cos(state.playerRotation + Math.PI) * distance;
         
         const placeX = playerVec.x + dx;
         const placeZ = playerVec.z + dz;
@@ -154,8 +153,8 @@ export function Interaction() {
           const snapZ = Math.round(placeZ * 2) / 2;
           const stickLength = 4.0;
           const halfLen = stickLength / 2;
-          const dirX = Math.sin(state.playerRotation);
-          const dirZ = Math.cos(state.playerRotation);
+          const dirX = Math.sin(state.playerRotation + Math.PI);
+          const dirZ = Math.cos(state.playerRotation + Math.PI);
           
           const p1x = snapX + dirX * halfLen;
           const p1z = snapZ + dirZ * halfLen;
@@ -178,7 +177,7 @@ export function Interaction() {
           
           const placePos: [number, number, number] = [snapX, placeY, snapZ];
           const qPitch = new THREE.Quaternion().setFromEuler(new THREE.Euler(Math.PI / 2 + pitch, 0, 0, 'XYZ'));
-          const qYaw = new THREE.Quaternion().setFromAxisAngle(new THREE.Vector3(0, 1, 0), state.playerRotation);
+          const qYaw = new THREE.Quaternion().setFromAxisAngle(new THREE.Vector3(0, 1, 0), state.playerRotation + Math.PI);
           qYaw.multiply(qPitch);
           
           const finalEuler = new THREE.Euler().setFromQuaternion(qYaw, 'XYZ');

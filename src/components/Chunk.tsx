@@ -172,7 +172,7 @@ export function Chunk({ chunkX, chunkZ }: { chunkX: number, chunkZ: number }) {
 
     const bGeo = new THREE.CylinderGeometry(0.1, 0.2, 1.5, 8);
     
-    const sGeo = new THREE.ConeGeometry(0.6, 1.0, 8);
+    const sGeo = new THREE.ConeGeometry(0.6, 0.5, 8);
     const sMat = new THREE.MeshStandardMaterial({ color: '#E6C280' });
 
     return { trunkGeo: tGeo, trunkMat: tMat, leavesGeo: lGeo, leavesMat: lMat, branchGeo: bGeo, stumpGeo: sGeo, stumpMat: sMat };
@@ -224,7 +224,7 @@ export function Chunk({ chunkX, chunkZ }: { chunkX: number, chunkZ: number }) {
       const isFlooded = waterHeight > tree.position[1] + (1 * scale); // Flooded if water is above base of trunk
       
       // Leaves
-      dummy.position.y += (4.5 * scale); // leaves offset
+      dummy.position.y += (3.75 * scale); // leaves offset
       
       // Scale leaves based on flooding only
       const targetLeavesScale = isFlooded ? 0 : 1;
@@ -310,7 +310,7 @@ export function Chunk({ chunkX, chunkZ }: { chunkX: number, chunkZ: number }) {
         // Base position
         dummy.position.set(
           tree.position[0] - chunkX * CHUNK_SIZE, 
-          tree.position[1] + (0.5 * scale), // stump offset
+          tree.position[1] + (0.25 * scale), // stump offset
           tree.position[2] - chunkZ * CHUNK_SIZE
         );
         
