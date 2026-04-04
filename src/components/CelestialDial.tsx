@@ -30,12 +30,12 @@ export function CelestialDial() {
       <View style={styles.dialFrame}>
         <View style={[styles.rotator, { transform: [{ rotate: `${rotationDegrees}deg` }] }]}>
           {/* Sun is at 0 degrees relative to rotator */}
-          <View style={[styles.iconWrapper, { transform: [{ translateX: -70 }, { rotate: `-${rotationDegrees}deg` }] }]}>
-            <Sun size={32} color="#fbbf24" fill="#fbbf24" strokeWidth={2} />
+          <View style={[styles.iconWrapper, { transform: [{ translateX: -40 }, { rotate: `-${rotationDegrees}deg` }] }]}>
+            <Sun size={20} color="#fbbf24" fill="#fbbf24" strokeWidth={2.5} />
           </View>
           {/* Moon is physically offset on the disc */}
-          <View style={[styles.iconWrapper, { transform: [{ translateX: 70 }, { rotate: `-${rotationDegrees}deg` }] }]}>
-            <Moon size={32} color="#94a3b8" fill="#e2e8f0" strokeWidth={2} />
+          <View style={[styles.iconWrapper, { transform: [{ translateX: 40 }, { rotate: `-${rotationDegrees}deg` }] }]}>
+            <Moon size={20} color="#94a3b8" fill="#e2e8f0" strokeWidth={2.5} />
           </View>
         </View>
         {/* Horizon Line Cover */}
@@ -51,21 +51,21 @@ const styles = StyleSheet.create({
     position: 'absolute',
     top: 20,
     right: 200,
-    width: 160,
-    height: 100,
+    width: 100,
+    height: 60,
     alignItems: 'center',
-    backgroundColor: 'rgba(0,0,0,0.6)',
+    backgroundColor: 'rgba(0,0,0,0.5)',
     borderRadius: 8,
-    borderWidth: 2,
+    borderWidth: 1,
     borderColor: '#3f3f46',
     overflow: 'hidden',
-    paddingTop: 12,
+    paddingTop: 8,
     pointerEvents: 'none',
   },
   dialFrame: {
-    width: 140,
-    height: 70,
-    borderRadius: 70,
+    width: 80,
+    height: 40,
+    borderRadius: 40,
     borderBottomLeftRadius: 0,
     borderBottomRightRadius: 0,
     position: 'relative',
@@ -74,8 +74,8 @@ const styles = StyleSheet.create({
     overflow: 'hidden',
   },
   rotator: {
-    width: 140,
-    height: 140,
+    width: 80,
+    height: 80,
     position: 'absolute',
     alignItems: 'center',
     justifyContent: 'center',
@@ -99,9 +99,9 @@ const styles = StyleSheet.create({
   },
   phaseText: {
     position: 'absolute',
-    bottom: 6,
-    fontSize: 16,
-    fontWeight: '800',
-    letterSpacing: 2,
+    bottom: 2,
+    fontSize: 14,
+    fontWeight: '900',
+    letterSpacing: 1,
   }
 });
