@@ -2,19 +2,22 @@ import { useMemo, useRef } from 'react';
 import { useFrame } from '@react-three/fiber';
 import * as THREE from 'three';
 import { CHUNK_SIZE, _treeCache } from '../utils/terrain';
+import { useGameStore } from '../store';
 
 const dummy = new THREE.Object3D();
 
 export function ChunkFlora({ chunkX, chunkZ }: { chunkX: number, chunkZ: number }) {
   const cacheKey = `${chunkX},${chunkZ}`;
   
+  const updateFlag = useGameStore(s => s.terrainOffsets['update_flag'] || 0);
+
   // Natively bind to the raw cache instead of relying on explicit Zustand states
   // since the ecology sweeps update the cache object directly without rerendering World 
   // via deep states.
   const flora = useMemo(() => {
     const raw = _treeCache[cacheKey] || [];
     return raw.filter((item: any) => item.type === 'lily' || item.type === 'cattail');
-  }, [chunkX, chunkZ, _treeCache[cacheKey]?.length]);
+  }, [chunkX, chunkZ, updateFlag]);
 
   const lilies = useMemo(() => flora.filter(f => f.type === 'lily'), [flora]);
   const cattails = useMemo(() => flora.filter(f => f.type === 'cattail'), [flora]);

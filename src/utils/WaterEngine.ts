@@ -229,7 +229,7 @@ export class WaterEngine {
     // Add draggable logs as obstacles
     for (const log of draggableLogs) {
       if (log.isDragged) continue; // Don't block water while being dragged
-      if (log.rotation[0] < Math.PI / 2 - 0.01) continue; // Don't block water while still falling
+      if (log.rotation[0] < 1.0) continue; // Any rotation over 1.0 radian (e.g. resting on slope) counts as fallen
       
       const bx = log.position[0];
       const by = log.position[1];
@@ -258,8 +258,8 @@ export class WaterEngine {
           const projZ = p1z + t * (p2z - p1z);
           const dist = Math.sqrt((wx - projX)**2 + (wz - projZ)**2);
           
-          if (dist < 1.4) { // Log radius is ~1.12, use 1.4 for solid wall
-            this.newT[x + z * this.size] = Math.max(this.newT[x + z * this.size], by + 1.12);
+          if (dist < 2.0) { // Log radius is ~1.12, use 2.0 for solid barrier overlapping grid diagonals
+            this.newT[x + z * this.size] = Math.max(this.newT[x + z * this.size], by + 1.8);
           }
         }
       }

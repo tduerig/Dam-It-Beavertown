@@ -195,7 +195,8 @@ export function Chunk({ chunkX, chunkZ }: { chunkX: number, chunkZ: number }) {
 
     activeTrees.forEach((tree, i) => {
       const isBig = tree.type === 'big';
-      const scale = isBig ? 2.8 : 1;
+      const isSapling = tree.type === 'sapling';
+      const scale = isBig ? 2.8 : (isSapling ? 0.4 : 1);
       
       // Calculate how many sticks are left to visually whittle the tree
       const maxSticks = isBig ? 12 : 3;

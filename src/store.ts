@@ -149,14 +149,16 @@ export const useGameStore = create<GameState>((set, get) => ({
   },
   
   eatSnack: (id, chunkKey) => set(state => {
+      let isSapling = false;
       if (_treeCache[chunkKey]) {
           const idx = _treeCache[chunkKey].findIndex((t: any) => t.id === id);
           if (idx !== -1) {
+              isSapling = _treeCache[chunkKey][idx].type === 'sapling';
               _treeCache[chunkKey].splice(idx, 1);
           }
       }
       return {
-          stats: { ...state.stats, snacksEaten: state.stats.snacksEaten + 1 },
+          stats: { ...state.stats, snacksEaten: isSapling ? state.stats.snacksEaten : state.stats.snacksEaten + 1 },
           terrainOffsets: { ...state.terrainOffsets, 'update_flag': Date.now() } 
       };
   }),

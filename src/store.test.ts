@@ -6,17 +6,17 @@ describe('useGameStore', () => {
   beforeEach(() => {
     // Reset store before each test
     useGameStore.setState({
-      gameState: 'menu',
+      gameState: 'start_menu',
       inventory: { sticks: 0, mud: 0 },
       rainIntensity: 0,
       playerPosition: [0, 5, 0],
-      blockPlacements: [],
-    });
+      placedBlocks: [],
+    } as any);
   });
 
-  it('should verify initial state is strictly "menu"', () => {
+  it('should verify initial state is strictly "start_menu"', () => {
     const state = useGameStore.getState();
-    assert.strictEqual(state.gameState, 'menu');
+    assert.strictEqual(state.gameState, 'start_menu');
     assert.strictEqual(state.inventory.sticks, 0);
     assert.strictEqual(state.inventory.mud, 0);
   });

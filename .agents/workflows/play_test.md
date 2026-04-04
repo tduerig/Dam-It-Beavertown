@@ -64,7 +64,4 @@ Construct a JSON Payload representing your QA findings:
 Return exactly this JSON.
 """
 
-## Post-Playtest Archiving (Primary Agent)
-After the subagent returns the payload and successfully captures its runtime artifacts, you MUST:
-1. Append a new `<div class="card">` block to `playtests/index.html` referencing the returned `stats` and formatting the `fps_series` directly into the Chart.js code block sequence (mirroring the format of prior entries).
-2. Copy the final screenshot and `webp` recording from the subagent's artifact folder to the `playtests/` directory and explicitly specify them in the `<img>` tags inside the newly created card.
+Add this result to playtests/index.html

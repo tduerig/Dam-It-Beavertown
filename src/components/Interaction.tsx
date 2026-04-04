@@ -74,9 +74,9 @@ export function Interaction() {
               const interactionDist = isBig ? INTERACTION_DISTANCE + 1 : INTERACTION_DISTANCE;
               
               if (playerVec.distanceTo(treeVec) < interactionDist) {
-                if (tree.type === 'lily' || tree.type === 'cattail') {
+                if (tree.type === 'lily' || tree.type === 'cattail' || tree.type === 'sapling') {
                   state.eatSnack(tree.id, `${cx},${cz}`);
-                  state.spawnParticles([tree.position[0], tree.position[1] + 0.5, tree.position[2]], '#2ecc71');
+                  state.spawnParticles([tree.position[0], tree.position[1] + 0.5, tree.position[2]], tree.type === 'sapling' ? '#8b4513' : '#2ecc71');
                   soundEngine.playSplash();
                   collected = true;
                   break;
