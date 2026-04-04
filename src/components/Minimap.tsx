@@ -61,7 +61,6 @@ export function MinimapLegend() {
     <View style={styles.legendContainer}>
       <Text style={styles.legendTitle}>MAP LEGEND</Text>
       <View style={styles.legendRow}><View style={[styles.colorBox, {backgroundColor: '#1ca3ec'}]} /><Text style={styles.legendText}>Water</Text></View>
-      <View style={styles.legendRow}><View style={[styles.colorBox, {backgroundColor: '#55c355'}]} /><Text style={styles.legendText}>Land</Text></View>
       <View style={styles.legendRow}><View style={[styles.colorBox, {backgroundColor: '#228b22'}]} /><Text style={styles.legendText}>Small Tree</Text></View>
       <View style={styles.legendRow}><View style={[styles.colorBox, {backgroundColor: '#0a640a'}]} /><Text style={styles.legendText}>Massive Oak</Text></View>
       <View style={styles.legendRow}><View style={[styles.colorBox, {backgroundColor: '#3d2817'}]} /><Text style={styles.legendText}>Mud</Text></View>
@@ -103,7 +102,7 @@ export function Minimap() {
             const sticks = treeSticks[tree.id] ?? (tree.type === 'big' ? 15 : 3);
             if (sticks > 0) {
               const mx = Math.floor(tree.position[0] - px + halfSize);
-              const mz = Math.floor(tree.position[2] - pz + halfSize);
+              const mz = Math.floor(pz - tree.position[2] + halfSize); // Flip Z: upstream=top
               
               if (mx >= 1 && mx < size-1 && mz >= 1 && mz < size-1) {
                   const treeColor = tree.type === 'big' ? {r: 10, g: 100, b: 10} : {r: 34, g: 139, b: 34};
@@ -121,7 +120,7 @@ export function Minimap() {
       // Plot placed blocks (Dams)
       for (const block of placedBlocks) {
         const mx = Math.floor(block.position[0] - px + halfSize);
-        const mz = Math.floor(block.position[2] - pz + halfSize);
+        const mz = Math.floor(pz - block.position[2] + halfSize); // Flip Z: upstream=top
         if (mx >= 1 && mx < size-1 && mz >= 1 && mz < size-1) {
            const color = block.type === 'stick' ? {r: 139, g: 69, b: 19} : {r: 61, g: 40, b: 23};
            for(let i=-1; i<=1; i++) {
@@ -135,7 +134,7 @@ export function Minimap() {
       // Plot DraggableLogs
       for (const log of draggableLogs) {
         const mx = Math.floor(log.position[0] - px + halfSize);
-        const mz = Math.floor(log.position[2] - pz + halfSize);
+        const mz = Math.floor(pz - log.position[2] + halfSize); // Flip Z: upstream=top
         if (mx >= 1 && mx < size-1 && mz >= 1 && mz < size-1) {
            const logColor = log.isMudded ? {r: 61, g: 40, b: 23} : {r: 139, g: 69, b: 19};
            for(let i=-1; i<=1; i++) {
@@ -177,7 +176,7 @@ export function Minimap() {
         if (overlay) return overlay;
 
         const worldX = px + (x - halfSize);
-        const worldZ = pz + (y - halfSize);
+        const worldZ = pz - (y - halfSize); // Flip Z: upstream (negative Z) = top of map
         const waterHeight = waterEngine.getSurfaceHeight(worldX, worldZ);
         
         // Deep blue for flooded, vibrant grass-green for land 
@@ -212,9 +211,7 @@ export function Minimap() {
          onHoverOut={() => setIsHovered(false)}
          style={styles.container}
       >
-        <View style={styles.header}>
-          <Text style={styles.headerText}>MINIMAP</Text>
-        </View>
+
         
         <View style={styles.statsPanel}>
           <Text style={styles.statsValue}>💧 {currentPct}%</Text>
@@ -264,18 +261,6 @@ const styles = StyleSheet.create({
   },
   hoverLegendPos: {
     marginRight: 12,
-  },
-  header: {
-    backgroundColor: '#78350f',
-    paddingVertical: 4,
-    alignItems: 'center',
-    zIndex: 10,
-  },
-  headerText: {
-    color: '#fef3c7',
-    fontSize: 10,
-    fontWeight: 'bold',
-    letterSpacing: 1,
   },
   statsPanel: {
     paddingVertical: 6,

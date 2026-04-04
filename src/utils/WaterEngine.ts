@@ -207,6 +207,7 @@ class WaterEngine {
     // Add draggable logs as obstacles
     for (const log of draggableLogs) {
       if (log.isDragged) continue; // Don't block water while being dragged
+      if (log.rotation[0] < Math.PI / 2 - 0.01) continue; // Don't block water while still falling
       
       const bx = log.position[0];
       const by = log.position[1];

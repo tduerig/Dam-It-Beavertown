@@ -60,7 +60,6 @@ const dummy = new THREE.Object3D();
 const dummyLog = new THREE.Object3D();
 const dummyLeaves = new THREE.Object3D();
 const dummyWhittle = new THREE.Object3D();
-const dummyWhittle2 = new THREE.Object3D();
 const dummyBranches: THREE.Object3D[] = [];
 for (let i = 0; i < 8; i++) {
   dummyBranches.push(new THREE.Object3D());
@@ -389,19 +388,13 @@ export function DraggableLogs() {
         branchesMeshRef.current!.setMatrixAt(i * 8 + bIdx, b.matrixWorld);
       });
       
+      // Pencil-end only at the bottom (root) of the log, not the crown
       dummyWhittle.position.set(0, -6.65, 0); 
       dummyWhittle.rotation.set(Math.PI, 0, 0); 
       dummyWhittle.scale.set(1, 1, 1);
       dummyWhittle.matrix.compose(dummyWhittle.position, dummyWhittle.quaternion, dummyWhittle.scale);
       dummyWhittle.matrixWorld.multiplyMatrices(dummyLog.matrixWorld, dummyWhittle.matrix);
-      whittleMeshRef.current!.setMatrixAt(i * 2, dummyWhittle.matrixWorld);
-
-      dummyWhittle2.position.set(0, 6.65, 0); 
-      dummyWhittle2.rotation.set(0, 0, 0); 
-      dummyWhittle2.scale.set(1, 1, 1);
-      dummyWhittle2.matrix.compose(dummyWhittle2.position, dummyWhittle2.quaternion, dummyWhittle2.scale);
-      dummyWhittle2.matrixWorld.multiplyMatrices(dummyLog.matrixWorld, dummyWhittle2.matrix);
-      whittleMeshRef.current!.setMatrixAt(i * 2 + 1, dummyWhittle2.matrixWorld);
+      whittleMeshRef.current!.setMatrixAt(i, dummyWhittle.matrixWorld);
       
       // Drop mud randomly as leaves disintegrate
       if (prevLeavesScale > 0 && currentLeavesScale < prevLeavesScale) {
@@ -414,11 +407,11 @@ export function DraggableLogs() {
         }
         
         for (let d = 0; d < dropsThisFrame; d++) {
-          // Leaves are at local Y = 2.8, height = 14, radius = 7
-          // Base is at -4.2, tip is at 9.8
-          const localY = -4.2 + Math.random() * 14.0;
-          const progress = (localY + 4.2) / 14.0; // 0 at bottom, 1 at top
-          const maxRadius = 7.0 * (1 - progress); // 7 at bottom, 0 at top
+          // Leaves cone: center at local Y=4.9, height=14, radius=7
+          // Cone base is at 4.9 - 7 = -2.1, tip at 4.9 + 7 = 11.9
+          const coneLocalY = -7.0 + Math.random() * 14.0; // -7 to +7 relative to cone center
+          const progress = (coneLocalY + 7.0) / 14.0; // 0 at base, 1 at tip
+          const maxRadius = 7.0 * (1 - progress); // 7 at base, 0 at tip
           
           const angle = Math.random() * Math.PI * 2;
           // Use sqrt(random) for uniform distribution in the circular cross-section
@@ -426,10 +419,11 @@ export function DraggableLogs() {
           const localX = Math.cos(angle) * radius;
           const localZ = Math.sin(angle) * radius;
           
-          const localPos = new THREE.Vector3(localX, localY, localZ);
+          // Offset by the leaves' position (4.9) relative to log center
+          const localPos = new THREE.Vector3(localX, coneLocalY + 4.9, localZ);
           dummyLog.localToWorld(localPos);
           
-          // Thin, wide mud deposit
+          // Thin, wide mud deposit matching the full leaf shadow
           useGameStore.getState().modifyTerrain(localPos.x, localPos.z, 0.1, 1.5);
         }
       }
@@ -451,7 +445,7 @@ export function DraggableLogs() {
       <instancedMesh ref={meshRef} args={[logGeo, logMat, logs.length]} castShadow receiveShadow frustumCulled={false} />
       <instancedMesh ref={leavesMeshRef} args={[leavesGeo, leavesMat, logs.length]} castShadow receiveShadow frustumCulled={false} />
       <instancedMesh ref={branchesMeshRef} args={[branchGeo, logMat, logs.length * BRANCH_CONFIGS.length]} castShadow receiveShadow frustumCulled={false} />
-      <instancedMesh ref={whittleMeshRef} args={[whittleGeo, whittleMat, logs.length * 2]} castShadow receiveShadow frustumCulled={false} />
+      <instancedMesh ref={whittleMeshRef} args={[whittleGeo, whittleMat, logs.length]} castShadow receiveShadow frustumCulled={false} />
     </group>
   );
 }
