@@ -3,14 +3,25 @@ import { useGameStore, PlacedBlock } from '../store';
 import { waterEngine } from '../utils/WaterEngine';
 import { getTerrainHeight } from '../utils/terrain';
 import * as THREE from 'three';
-import { useMemo, useRef } from 'react';
+import { useMemo, useRef, useEffect } from 'react';
 
-function getEffectiveGroundHeight(x: number, z: number, placedBlocks: PlacedBlock[]) {
+function getEffectiveGroundHeightFromHash(x: number, z: number, blockHash: Map<string, number>) {
   let h = getTerrainHeight(x, z);
-  for (const block of placedBlocks) {
-    if (Math.abs(x - block.position[0]) < 1.0 && Math.abs(z - block.position[2]) < 1.0) {
-      const blockTopY = block.position[1] + (block.type === 'mud' ? 0.25 : 0.4);
-      h = Math.max(h, blockTopY);
+  // Blocks are snapped to 0.5 increments. Check local neighborhood instead of global iteration array.
+  const snapX = Math.round(x * 2) / 2;
+  const snapZ = Math.round(z * 2) / 2;
+  
+  for (let dx = -1; dx <= 1; dx += 0.5) {
+    for (let dz = -1; dz <= 1; dz += 0.5) {
+      const bx = snapX + dx;
+      const bz = snapZ + dz;
+      // Precise physics boundary check natively
+      if (Math.abs(x - bx) < 1.0 && Math.abs(z - bz) < 1.0) {
+        const bh = blockHash.get(`${bx},${bz}`);
+        if (bh !== undefined && bh > h) {
+          h = bh;
+        }
+      }
     }
   }
   return h;
@@ -46,6 +57,14 @@ export const BRANCH_CONFIGS = [
 });
 
 const dummy = new THREE.Object3D();
+const dummyLog = new THREE.Object3D();
+const dummyLeaves = new THREE.Object3D();
+const dummyWhittle = new THREE.Object3D();
+const dummyWhittle2 = new THREE.Object3D();
+const dummyBranches: THREE.Object3D[] = [];
+for (let i = 0; i < 8; i++) {
+  dummyBranches.push(new THREE.Object3D());
+}
 
 export function DraggableLogs() {
   const logs = useGameStore(state => state.draggableLogs);
@@ -129,17 +148,67 @@ export function DraggableLogs() {
   const whittleMeshRef = useRef<THREE.InstancedMesh>(null);
   
   const leavesScales = useRef(new Map<string, number>());
+  const pivotHeightsRef = useRef(new Map<string, number>());
+  
+  const blockHashRef = useRef(new Map<string, number>());
+  
+  useEffect(() => {
+    let lastBlocks = useGameStore.getState().placedBlocks;
+    
+    const updateHash = (placedBlocks: PlacedBlock[]) => {
+      const map = new Map<string, number>();
+      for (const block of placedBlocks) {
+        const bx = block.position[0];
+        const bz = block.position[2];
+        const blockTopY = block.position[1] + (block.type === 'mud' ? 0.25 : 0.4);
+        const key = `${bx},${bz}`;
+        const existing = map.get(key);
+        if (existing === undefined || blockTopY > existing) {
+          map.set(key, blockTopY);
+        }
+      }
+      blockHashRef.current = map;
+    };
+    
+    updateHash(lastBlocks);
+
+    const unsub = useGameStore.subscribe((state) => {
+      if (state.placedBlocks !== lastBlocks) {
+        lastBlocks = state.placedBlocks;
+        updateHash(lastBlocks);
+      }
+    });
+    
+    return unsub;
+  }, []);
 
   useFrame((state, delta) => {
+    const { gameState } = useGameStore.getState();
+    if (gameState !== 'playing') return;
+
     const dt = Math.min(delta, 0.1);
     if (!meshRef.current || !leavesMeshRef.current || !branchesMeshRef.current || !whittleMeshRef.current) return;
 
     const { playerPosition, playerRotation, placedBlocks } = useGameStore.getState();
 
+    let needsInstanceUpdate = false;
+
     logs.forEach((log, i) => {
       let [lx, ly, lz] = log.position;
       let [rx, ry, rz] = log.rotation;
+      
+      let currentLeavesScale = leavesScales.current.get(log.id);
+      if (currentLeavesScale === undefined) currentLeavesScale = 1;
 
+      // SLEEP ZONE: If the log is cemented, flat on the ground, and leaves are fully decayed,
+      // it physically never moves again. Bypass all JS math and Matrix float calculations!
+      if (log.isMudded && !log.isDragged && rx >= Math.PI / 2 - 0.01 && currentLeavesScale === 0) {
+        return; 
+      }
+      
+      needsInstanceUpdate = true;
+
+      // Only check collision floats for active entities
       if (log.isDragged) {
         // We want the log to drag naturally.
         // The player grabs it by the pointy end.
@@ -172,7 +241,7 @@ export function DraggableLogs() {
         
         // Height based on water or terrain
         const waterHeight = waterEngine.getSurfaceHeight(lx, lz);
-        const groundHeight = getEffectiveGroundHeight(lx, lz, placedBlocks);
+        const groundHeight = getEffectiveGroundHeightFromHash(lx, lz, blockHashRef.current);
         
         if (waterHeight > groundHeight + 1) {
           ly = waterHeight; // Float
@@ -192,10 +261,14 @@ export function DraggableLogs() {
           rx += fallSpeed * dt;
           if (rx > Math.PI / 2) rx = Math.PI / 2;
           
-          // Calculate ground height at the BASE of the tree, not the moving center
-          const baseX = lx - Math.sin(ry) * 7.7 * Math.sin(rx);
-          const baseZ = lz - Math.cos(ry) * 7.7 * Math.sin(rx);
-          const groundHeight = getEffectiveGroundHeight(baseX, baseZ, placedBlocks);
+          // Calculate ground height at the BASE of the tree, cached!
+          let groundHeight = pivotHeightsRef.current.get(log.id);
+          if (groundHeight === undefined) {
+            const baseX = lx - Math.sin(ry) * 7.7 * Math.sin(rx);
+            const baseZ = lz - Math.cos(ry) * 7.7 * Math.sin(rx);
+            groundHeight = getEffectiveGroundHeightFromHash(baseX, baseZ, blockHashRef.current);
+            pivotHeightsRef.current.set(log.id, groundHeight);
+          }
           
           // The pinch point (hinge) is 1.4 units above ground.
           // As it falls, the hinge breaks and it slides down to rest flush with the ground.
@@ -216,7 +289,7 @@ export function DraggableLogs() {
         } else {
           // Floating physics if in water
           const waterHeight = waterEngine.getSurfaceHeight(lx, lz);
-          const effectiveGroundHeight = getEffectiveGroundHeight(lx, lz, placedBlocks);
+          const effectiveGroundHeight = getEffectiveGroundHeightFromHash(lx, lz, blockHashRef.current);
           const groundHeight = effectiveGroundHeight + 0.4; // Log radius is ~0.4
           
           if (!log.isMudded) {
@@ -268,26 +341,23 @@ export function DraggableLogs() {
         }
       }
 
-      // Render trunk
+      // Apply rotation updates
       dummy.position.set(lx, ly, lz);
       dummy.rotation.set(rx, ry, rz, 'YXZ');
       dummy.scale.set(1, 1, 1);
       dummy.updateMatrix();
       meshRef.current!.setMatrixAt(i, dummy.matrix);
       
-      // Leaves and branches logic
-      const isFlooded = waterEngine.getSurfaceHeight(lx, lz) > ly;
-      let currentLeavesScale = leavesScales.current.get(log.id);
-      if (currentLeavesScale === undefined) currentLeavesScale = 1;
-      
       const prevLeavesScale = currentLeavesScale;
       
       // ONLY melt leaves if the log has finished falling!
       if (rx >= Math.PI / 2 - 0.01) {
         // Leaves melt away for downed logs. Faster in water.
-        const fadeRate = isFlooded ? 0.4 : 0.0375; // ~2.5s in water, ~26s on land
+        const isFlooded = waterEngine.getSurfaceHeight(lx, lz) > ly;
+        const fadeRate = isFlooded ? 0.4 : 0.4; // ~2.5s on land and in water safely
         currentLeavesScale = Math.max(0, currentLeavesScale - dt * fadeRate);
         leavesScales.current.set(log.id, currentLeavesScale);
+        needsInstanceUpdate = true;
       }
       
       if (i < 1000) {
@@ -295,40 +365,43 @@ export function DraggableLogs() {
       }
       
       // Position leaves relative to log
-      // Log is 11.2 units long, rotated by rx, ry, rz
-      // The top of the log is along its local Y axis
-      const logObj = new THREE.Object3D();
-      logObj.position.set(lx, ly, lz);
-      logObj.rotation.set(rx, ry, rz, 'YXZ');
+      dummyLog.position.set(lx, ly, lz);
+      dummyLog.rotation.set(rx, ry, rz, 'YXZ');
+      dummyLog.updateMatrixWorld(true);
       
       // Leaves at the top half
-      const leavesObj = new THREE.Object3D();
-      leavesObj.position.set(0, 4.9, 0); // Offset along local Y
-      leavesObj.scale.set(1, 1, 1);
-      logObj.add(leavesObj);
+      dummyLeaves.position.set(0, 4.9, 0); 
+      dummyLeaves.scale.set(1, 1, 1);
+      dummyLeaves.rotation.set(0, 0, 0);
+      dummyLeaves.matrix.compose(dummyLeaves.position, dummyLeaves.quaternion, dummyLeaves.scale);
+      dummyLeaves.matrixWorld.multiplyMatrices(dummyLog.matrixWorld, dummyLeaves.matrix);
+      leavesMeshRef.current!.setMatrixAt(i, dummyLeaves.matrixWorld);
       
-      // Branches (always visible, but more obvious when leaves are gone)
-      const branches: THREE.Object3D[] = [];
-      BRANCH_CONFIGS.forEach((config) => {
-        const branch = new THREE.Object3D();
-        branch.position.set(...config.pos);
-        branch.quaternion.set(config.quat[0], config.quat[1], config.quat[2], config.quat[3]);
-        
-        // Scale branch based on leaves. When leaves are full (scale 1), branches are small (scale 0.1).
-        // When leaves are gone (scale 0), branches are full size (config.scale).
-        const branchScale = config.scale[0] * (0.1 + 0.9 * (1 - currentLeavesScale));
-        branch.scale.set(branchScale, branchScale, branchScale);
-        
-        logObj.add(branch);
-        branches.push(branch);
+      // Branches (locked scale to save dynamic matrix composition costs while falling)
+      BRANCH_CONFIGS.forEach((config, bIdx) => {
+        const branchScale = config.scale[0];
+        const b = dummyBranches[bIdx];
+        b.position.set(...config.pos);
+        b.quaternion.set(config.quat[0], config.quat[1], config.quat[2], config.quat[3]);
+        b.scale.set(branchScale, branchScale, branchScale);
+        b.matrix.compose(b.position, b.quaternion, b.scale);
+        b.matrixWorld.multiplyMatrices(dummyLog.matrixWorld, b.matrix);
+        branchesMeshRef.current!.setMatrixAt(i * 8 + bIdx, b.matrixWorld);
       });
       
-      const whittle = new THREE.Object3D();
-      whittle.position.set(0, -6.65, 0); // Bottom of 11.2-unit log is -5.6, cone is 2.1 units tall, so -5.6 - 1.05 = -6.65
-      whittle.rotation.set(Math.PI, 0, 0); // Point down
-      logObj.add(whittle);
-      
-      logObj.updateMatrixWorld(true);
+      dummyWhittle.position.set(0, -6.65, 0); 
+      dummyWhittle.rotation.set(Math.PI, 0, 0); 
+      dummyWhittle.scale.set(1, 1, 1);
+      dummyWhittle.matrix.compose(dummyWhittle.position, dummyWhittle.quaternion, dummyWhittle.scale);
+      dummyWhittle.matrixWorld.multiplyMatrices(dummyLog.matrixWorld, dummyWhittle.matrix);
+      whittleMeshRef.current!.setMatrixAt(i * 2, dummyWhittle.matrixWorld);
+
+      dummyWhittle2.position.set(0, 6.65, 0); 
+      dummyWhittle2.rotation.set(0, 0, 0); 
+      dummyWhittle2.scale.set(1, 1, 1);
+      dummyWhittle2.matrix.compose(dummyWhittle2.position, dummyWhittle2.quaternion, dummyWhittle2.scale);
+      dummyWhittle2.matrixWorld.multiplyMatrices(dummyLog.matrixWorld, dummyWhittle2.matrix);
+      whittleMeshRef.current!.setMatrixAt(i * 2 + 1, dummyWhittle2.matrixWorld);
       
       // Drop mud randomly as leaves disintegrate
       if (prevLeavesScale > 0 && currentLeavesScale < prevLeavesScale) {
@@ -354,27 +427,19 @@ export function DraggableLogs() {
           const localZ = Math.sin(angle) * radius;
           
           const localPos = new THREE.Vector3(localX, localY, localZ);
-          logObj.localToWorld(localPos);
+          dummyLog.localToWorld(localPos);
           
           // Thin, wide mud deposit
           useGameStore.getState().modifyTerrain(localPos.x, localPos.z, 0.1, 1.5);
         }
       }
-      
-      branches.forEach((branch, bIdx) => {
-        branchesMeshRef.current!.setMatrixAt(i * BRANCH_CONFIGS.length + bIdx, branch.matrixWorld);
-      });
-      
-      leavesMeshRef.current!.setMatrixAt(i, leavesObj.matrixWorld);
-      whittleMeshRef.current!.setMatrixAt(i, whittle.matrixWorld);
     });
 
-    meshRef.current.instanceMatrix.needsUpdate = true;
-    leavesMeshRef.current.instanceMatrix.needsUpdate = true;
-    branchesMeshRef.current.instanceMatrix.needsUpdate = true;
-    whittleMeshRef.current.instanceMatrix.needsUpdate = true;
-    
-    if (logs.length > 0) {
+    if (needsInstanceUpdate) {
+      meshRef.current.instanceMatrix.needsUpdate = true;
+      leavesMeshRef.current.instanceMatrix.needsUpdate = true;
+      branchesMeshRef.current.instanceMatrix.needsUpdate = true;
+      whittleMeshRef.current.instanceMatrix.needsUpdate = true;
       leavesGeo.attributes.aDissolve.needsUpdate = true;
     }
   });
@@ -386,7 +451,7 @@ export function DraggableLogs() {
       <instancedMesh ref={meshRef} args={[logGeo, logMat, logs.length]} castShadow receiveShadow frustumCulled={false} />
       <instancedMesh ref={leavesMeshRef} args={[leavesGeo, leavesMat, logs.length]} castShadow receiveShadow frustumCulled={false} />
       <instancedMesh ref={branchesMeshRef} args={[branchGeo, logMat, logs.length * BRANCH_CONFIGS.length]} castShadow receiveShadow frustumCulled={false} />
-      <instancedMesh ref={whittleMeshRef} args={[whittleGeo, whittleMat, logs.length]} castShadow receiveShadow frustumCulled={false} />
+      <instancedMesh ref={whittleMeshRef} args={[whittleGeo, whittleMat, logs.length * 2]} castShadow receiveShadow frustumCulled={false} />
     </group>
   );
 }

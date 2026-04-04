@@ -433,6 +433,64 @@ Massive Oaks Felled: 0
                     </div>
                 </div>
             </div>
+            <div class="card">
+                <h2 class="header">Benchmark: 2026-04-04-14:15 <span style="font-size: 14px; float: right;">Water Coverage: 0%</span></h2>
+                <div class="grid">
+                    <div>
+                        <h3>Telemetry Snapshot</h3>
+                        
+                        <div style="margin-bottom: 12px; padding: 12px; background: rgba(16, 185, 129, 0.1); border-left: 3px solid #10b981; border-radius: 4px;">
+                            <h4 style="margin: 0 0 8px 0; color: #34d399;">🌟 Playtest Milestones</h4>
+                            <ul style="margin: 0; padding-left: 20px; color: #a7f3d0; font-size: 14px;">
+                                <li>Chopped a tree</li><li>Dug into the ground</li>
+                            </ul>
+                        </div>
+                        
+                        <pre>
+Mud Dug: 0
+Mud Patted: 0
+Sticks Placed: 0
+Trees Downed: 0
+Massive Oaks Felled: 0
+                        </pre>
+                        
+                        
+                        
+                        <h3>Framerate Time-Series</h3>
+                        <canvas id="chart_2026_04_04_14_15" width="400" height="200"></canvas>
+                        <script>
+                            document.addEventListener('DOMContentLoaded', function() {
+                                const ctx = document.getElementById('chart_2026_04_04_14_15').getContext('2d');
+                                new Chart(ctx, {
+                                    type: 'line',
+                                    data: {
+                                        labels: Array.from({length: 0}, (_, i) => i),
+                                        datasets: [{
+                                            label: 'FPS',
+                                            data: [],
+                                            borderColor: '#38bdf8',
+                                            backgroundColor: 'rgba(56, 189, 248, 0.1)',
+                                            tension: 0.3,
+                                            fill: true
+                                        }]
+                                    },
+                                    options: { 
+                                        responsive: true,
+                                        scales: {
+                                            y: { min: 0, max: 70 }
+                                        }
+                                    }
+                                });
+                            });
+                        </script>
+                    </div>
+                    <div>
+                        <h3>Engine Capture</h3>
+                        <img class="media" src="./camera_physics_test_1775336951029.webp" alt="Recording" />
+                        
+                    </div>
+                </div>
+            </div>
 </body>
 </html>
     

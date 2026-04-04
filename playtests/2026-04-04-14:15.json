@@ -1,0 +1,7 @@
+{
+  "status": "QA Success",
+  "camera_clip_under_terrain": "No: The camera successfully skated over the terrain surface and did not dip underneath the mesh during digging or navigation.",
+  "tree_performance": "Excellent: Falling trees and physics settling were smooth with no visible frame drops during the transition.",
+  "milestones": [ "Chopped a tree", "Dug into the ground" ],
+  "recordingRef": "camera_physics_test_1775336951029.webp"
+}

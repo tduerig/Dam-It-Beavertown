@@ -32,6 +32,9 @@ export function Beaver() {
   const lastFrameTime = useRef(performance.now());
 
   useFrame((state, delta) => {
+    const { gameState } = useGameStore.getState();
+    if (gameState !== 'playing') return;
+
     const now = performance.now();
     // Use custom delta, strongly clamped to 0.05 to prevent physics springs from EXPLODING during initial render lag
     const dt = Math.min((now - lastFrameTime.current) / 1000, 0.05);
@@ -442,7 +445,19 @@ export function Beaver() {
       Math.cos(cameraAngle) * Math.cos(cameraPitch) * distance
     );
     const targetCameraPos = pos.clone().add(cameraOffset);
+    
+    // 1. Minimum height clamp for target offset
+    const targetGroundHeight = getTerrainHeight(targetCameraPos.x, targetCameraPos.z);
+    targetCameraPos.y = Math.max(targetCameraPos.y, targetGroundHeight + 1.5);
+    
     camera.position.lerp(targetCameraPos, 5 * delta);
+    
+    // 2. Minimum height clamp during active lerp transit (skating over ridges)
+    const currentGroundHeight = getTerrainHeight(camera.position.x, camera.position.z);
+    if (camera.position.y < currentGroundHeight + 1.0) {
+      camera.position.y = currentGroundHeight + 1.0;
+    }
+    
     camera.lookAt(pos);
   });
 
