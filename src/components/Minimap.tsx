@@ -22,12 +22,15 @@ function encodeB64(bytes: Uint8Array) {
 }
 
 function generateBMPb64(width: number, height: number, getPixel: (x: number, y: number) => {r:number, g:number, b:number}) {
-  const rowSize = width * 4; 
-  const fileSize = 54 + height * rowSize;
+  const rowSize = width * 3; 
+  const padding = (4 - (rowSize % 4)) % 4;
+  const rowStride = rowSize + padding;
+  const fileSize = 54 + height * rowStride;
   const buffer = new ArrayBuffer(fileSize);
   const view = new DataView(buffer);
   
-  view.setUint16(0, 0x4D42, false);
+  view.setUint8(0, 0x42); // 'B'
+  view.setUint8(1, 0x4D); // 'M'
   view.setUint32(2, fileSize, true);
   view.setUint32(10, 54, true); 
   
@@ -35,7 +38,7 @@ function generateBMPb64(width: number, height: number, getPixel: (x: number, y: 
   view.setUint32(18, width, true);
   view.setInt32(22, height, true); // Strictly positive height for better cross-platform decoder compat
   view.setUint16(26, 1, true);
-  view.setUint16(28, 32, true);
+  view.setUint16(28, 24, true);
   
   const bytes = new Uint8Array(buffer);
   let offset = 54;
@@ -46,8 +49,8 @@ function generateBMPb64(width: number, height: number, getPixel: (x: number, y: 
       bytes[offset++] = p.b;
       bytes[offset++] = p.g;
       bytes[offset++] = p.r;
-      bytes[offset++] = 255;
     }
+    offset += padding;
   }
   
   return 'data:image/bmp;base64,' + encodeB64(bytes);
