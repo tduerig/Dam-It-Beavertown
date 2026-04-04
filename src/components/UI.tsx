@@ -69,7 +69,7 @@ export function UI() {
 
   // Left side screen pan for Movement
   const leftPan = Gesture.Pan()
-    .hitSlop(40)
+    .hitSlop({ top: 0, bottom: 40, left: 40, right: 40 })
     .runOnJS(true)
     .onBegin(() => {
       setLeftStick(prev => ({ ...prev, active: true }));
@@ -94,7 +94,7 @@ export function UI() {
 
   // Right side screen pan for Camera
   const rightPan = Gesture.Pan()
-    .hitSlop(40)
+    .hitSlop({ top: 0, bottom: 40, left: 40, right: 40 })
     .runOnJS(true)
     .onBegin(() => {
       setRightStick(prev => ({ ...prev, active: true }));
