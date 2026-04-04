@@ -35,8 +35,10 @@ Beavertown is an isometric forest. Standard trees are light green cones. Massive
 - Hold down the `E` key or trigger it reliably without needing to spam it rapidly (auto-repeat is now built-in). Wait 2 seconds. The tree should collapse into draggable brown logs.
 - Press `Shift` to pick it up, and attempt to drag it using `w, a, s, d` into a body of blue water (the river). 
 
-**Step 4: The Report**
-Take a final screenshot. Stop the tracker: `cancelAnimationFrame(window.rf); window.gameStore.getState().setGameState('paused');`
+**Step 4: The Report & Visual Critique**
+Take a final screenshot. With a highly critical eye, deeply analyze all screenshots you've captured during this session. Look for any UI overlaps, unpleasant color mappings (like gross olive green blocks or jarring palettes), clipping errors, or graphical bugs.
+
+Stop the tracker: `cancelAnimationFrame(window.rf); window.gameStore.getState().setGameState('paused');`
 Extract the final stats using: `JSON.stringify(window.gameStore.getState().stats)`
 Extract the FPS arrays safely using: `JSON.stringify(window.fpsArray.slice(-30))`
 Construct a JSON Payload representing your QA findings:
@@ -52,7 +54,8 @@ Construct a JSON Payload representing your QA findings:
   "qa_report": {
      "oak_visibility": "Your subjective evaluation on finding the oak",
      "chopping_intuition": "How the chopping felt",
-     "physics_dragging": "Notes on dragging logs to river"
+     "physics_dragging": "Notes on dragging logs to river",
+     "visual_critique": "Your critical observations of any screenshot UI flaws, color issues, or graphical clipping."
   }
 }
 ```

@@ -134,11 +134,11 @@ export function Minimap() {
         const worldZ = pz + (y - halfSize);
         const waterHeight = waterEngine.getSurfaceHeight(worldX, worldZ);
         
-        // Deep blue for flooded, green for land 
+        // Deep blue for flooded, vibrant grass-green for land 
         if (waterHeight > -50) {
-          return {r: 28, g: 163, b: 236};
+          return {r: 28, g: 163, b: 236}; // River blue
         } else {
-          return {r: 74, g: 93, b: 35};
+          return {r: 85, g: 195, b: 85}; // Vibrant grass green
         }
       });
 
