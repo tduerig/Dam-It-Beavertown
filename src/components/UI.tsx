@@ -3,7 +3,7 @@ import { View, Text, StyleSheet, Platform, Pressable, ScrollView, useWindowDimen
 import { useGameStore } from '../store';
 import { Hammer, Droplets, TreePine, Download, Upload, CloudRain, ArrowUp, ArrowDown, Settings, Save, FolderOpen, Leaf } from 'lucide-react-native';
 import { getTerrainHeight, getRiverCenter, RIVER_WIDTH } from '../utils/terrain';
-import { Minimap } from './Minimap';
+import { Minimap, MinimapLegend } from './Minimap';
 import { ElevationGauge } from './ElevationGauge';
 import { CelestialDial } from './CelestialDial';
 import { Gesture, GestureDetector } from 'react-native-gesture-handler';
@@ -172,6 +172,13 @@ export function UI() {
                 </Pressable>
               </View>
             </View>
+
+            {/* Mobile Minimap Legend when Paused */}
+            {gameState === 'paused' && isMobile && (
+              <View style={[styles.menuCard, isCompact && { width: '100%', maxWidth: 320, padding: 0 }]} pointerEvents="none">
+                 <MinimapLegend />
+              </View>
+            )}
           </View>
 
           <Pressable 
