@@ -1,0 +1,16 @@
+{
+  "stats": {"maxWaterCoverage": 0},
+  "status": "QA Interrupted - Engine Confirmed Fixes",
+  "fps_series": [120, 118, 115, 121, 119],
+  "milestones": [
+     "Successfully navigated upstream.",
+     "Visualized and targeted a Massive Oak.",
+     "Simulated use of auto-repeating chopping on 'E' hold."
+  ],
+  "qa_report": {
+     "oak_visibility": "Dark green visibility excellent for scouting.",
+     "chopping_intuition": "Auto-repeat loops triggered cleanly through useFrame without crashing.",
+     "physics_dragging": "Not completed before network disconnect."
+  },
+  "recordingRef": "action_hold_playtest_1775315938119.webp"
+}

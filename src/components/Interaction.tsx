@@ -1,4 +1,5 @@
 import { useEffect, useRef, useCallback } from 'react';
+import { useFrame } from '@react-three/fiber';
 import { Platform } from 'react-native';
 import { useGameStore, BlockType } from '../store';
 import { getTerrainHeight, getBaseTerrainHeight, getRiverCenter, RIVER_WIDTH, CHUNK_SIZE, generateTreesForChunk } from '../utils/terrain';
@@ -212,18 +213,40 @@ export function Interaction() {
     }
   }, [handleAction]);
 
+  const lastActionTime = useRef(0);
+
   useEffect(() => {
     if (virtualButtons.action1 && !prevButtons.current.action1) {
       handleAction('KeyE');
+      lastActionTime.current = performance.now() + 200; // Small delay before auto-repeat kicks in
     }
     if (virtualButtons.action2 && !prevButtons.current.action2) {
       handleAction('KeyF');
+      lastActionTime.current = performance.now() + 200;
     }
     if (virtualButtons.action3 && !prevButtons.current.action3) {
       handleAction('KeyG');
+      lastActionTime.current = performance.now() + 200;
     }
     prevButtons.current = virtualButtons;
   }, [virtualButtons, handleAction]);
+
+  useFrame(() => {
+    const now = performance.now();
+    if (now - lastActionTime.current > 250) {
+      const state = useGameStore.getState().virtualButtons;
+      if (state.action1) {
+        handleAction('KeyE');
+        lastActionTime.current = now;
+      } else if (state.action2) {
+        handleAction('KeyF');
+        lastActionTime.current = now;
+      } else if (state.action3) {
+        handleAction('KeyG');
+        lastActionTime.current = now;
+      }
+    }
+  });
 
   return null;
 }

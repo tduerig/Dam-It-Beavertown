@@ -69,6 +69,7 @@ export function UI() {
 
   // Left side screen pan for Movement
   const leftPan = Gesture.Pan()
+    .hitSlop(40)
     .runOnJS(true)
     .onBegin(() => {
       setLeftStick(prev => ({ ...prev, active: true }));
@@ -93,6 +94,7 @@ export function UI() {
 
   // Right side screen pan for Camera
   const rightPan = Gesture.Pan()
+    .hitSlop(40)
     .runOnJS(true)
     .onBegin(() => {
       setRightStick(prev => ({ ...prev, active: true }));
@@ -195,22 +197,23 @@ export function UI() {
           {/* Mobile Gesture Overlay */}
           {isMobile && (
         <View style={styles.gestureOverlay} pointerEvents="box-none">
-          <GestureDetector gesture={gestureComposerLeft}>
-            <View style={styles.touchHalf} pointerEvents="auto" />
-          </GestureDetector>
-          <GestureDetector gesture={gestureComposerRight}>
-            <View style={styles.touchHalf} pointerEvents="auto" />
+          <GestureDetector gesture={doubleTapJump}>
+            <View style={StyleSheet.absoluteFill} pointerEvents="box-none" />
           </GestureDetector>
 
           {/* Static Left Joystick */}
-          <View style={[styles.joystickBase, styles.joystickLeft]} pointerEvents="none">
-            <View style={[styles.joystickNub, { transform: [{ translateX: leftStick.x }, { translateY: leftStick.y }], opacity: leftStick.active ? 0.9 : 0.4 }]} />
-          </View>
+          <GestureDetector gesture={leftPan}>
+            <View style={[styles.joystickBase, styles.joystickLeft]} pointerEvents="auto">
+              <View style={[styles.joystickNub, { transform: [{ translateX: leftStick.x }, { translateY: leftStick.y }], opacity: leftStick.active ? 0.9 : 0.4 }]} />
+            </View>
+          </GestureDetector>
           
           {/* Static Right Joystick */}
-          <View style={[styles.joystickBase, styles.joystickRight]} pointerEvents="none">
-            <View style={[styles.joystickNub, { transform: [{ translateX: rightStick.x }, { translateY: rightStick.y }], opacity: rightStick.active ? 0.9 : 0.4 }]} />
-          </View>
+          <GestureDetector gesture={rightPan}>
+            <View style={[styles.joystickBase, styles.joystickRight]} pointerEvents="auto">
+              <View style={[styles.joystickNub, { transform: [{ translateX: rightStick.x }, { translateY: rightStick.y }], opacity: rightStick.active ? 0.9 : 0.4 }]} />
+            </View>
+          </GestureDetector>
         </View>
       )}
 
