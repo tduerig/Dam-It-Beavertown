@@ -6,7 +6,7 @@ import { Platform } from 'react-native';
 export const WATER_SIZE = Platform.OS === 'web' ? 160 : 80;
 export const WATER_HALF = WATER_SIZE / 2;
 
-class WaterEngine {
+export class WaterEngine {
   size = WATER_SIZE;
   W = new Float32Array(this.size * this.size);
   T = new Float32Array(this.size * this.size);
@@ -25,6 +25,8 @@ class WaterEngine {
   lastOffsetsStamp = 0;
   lastBlocksCount = 0;
   lastLogsCount = 0;
+  lastOriginX: number | null = null;
+  lastOriginZ: number | null = null;
 
   update(px: number, pz: number, blocks: PlacedBlock[], draggableLogs: DraggableLog[], dt: number, rainIntensity: number = 0) {
     const newOx = Math.floor(px);
@@ -141,12 +143,18 @@ class WaterEngine {
     
     // Performance Optimization: Skip 25k loop overhead if nothing practically changed
     const stamp = offsets['update_flag'] as number || 0;
-    if (this.lastOffsetsStamp === stamp && this.lastBlocksCount === blocks.length && this.lastLogsCount === draggableLogs.length) {
+    if (this.lastOffsetsStamp === stamp && 
+        this.lastBlocksCount === blocks.length && 
+        this.lastLogsCount === draggableLogs.length &&
+        this.lastOriginX === this.originX &&
+        this.lastOriginZ === this.originZ) {
        return;
     }
     this.lastOffsetsStamp = stamp;
     this.lastBlocksCount = blocks.length;
     this.lastLogsCount = draggableLogs.length;
+    this.lastOriginX = this.originX;
+    this.lastOriginZ = this.originZ;
 
     const hasOffsets = Object.keys(offsets).length > 1; // accounting for 'update_flag'
 

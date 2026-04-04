@@ -236,6 +236,9 @@ export const useGameStore = create<GameState>((set, get) => ({
         }
       }
     }
+    
+    // Invalidate physics cache
+    newOffsets['update_flag'] = Date.now();
     return { 
       terrainOffsets: newOffsets,
       stats: {
