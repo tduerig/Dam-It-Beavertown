@@ -21,6 +21,10 @@ class WaterEngine {
   originX = 0;
   originZ = 0;
   initialized = false;
+  
+  lastOffsetsStamp = 0;
+  lastBlocksCount = 0;
+  lastLogsCount = 0;
 
   update(px: number, pz: number, blocks: PlacedBlock[], draggableLogs: DraggableLog[], dt: number, rainIntensity: number = 0) {
     const newOx = Math.floor(px);
@@ -47,8 +51,8 @@ class WaterEngine {
     
     // Run simulation steps (fixed time step for stability)
     const fixedDt = 1.0 / 60.0;
-    // Cap substeps aggressively at 4 to prevent CPU death-spiral on slow VMs
-    const steps = Math.min(Math.max(1, Math.ceil(dt / fixedDt)) * 4, 4);
+    // Cap substeps aggressively at 2 to prevent CPU death-spiral on slow VMs
+    const steps = Math.min(Math.max(1, Math.ceil(dt / fixedDt)), 2);
     for (let i = 0; i < steps; i++) {
       this.simulate();
     }
@@ -134,7 +138,17 @@ class WaterEngine {
   updateTerrain(blocks: PlacedBlock[], draggableLogs: DraggableLog[] = []) {
     // Retrieve the offsets from the state once per tick
     const offsets = useGameStore.getState().terrainOffsets;
-    const hasOffsets = Object.keys(offsets).length > 0;
+    
+    // Performance Optimization: Skip 25k loop overhead if nothing practically changed
+    const stamp = offsets['update_flag'] as number || 0;
+    if (this.lastOffsetsStamp === stamp && this.lastBlocksCount === blocks.length && this.lastLogsCount === draggableLogs.length) {
+       return;
+    }
+    this.lastOffsetsStamp = stamp;
+    this.lastBlocksCount = blocks.length;
+    this.lastLogsCount = draggableLogs.length;
+
+    const hasOffsets = Object.keys(offsets).length > 1; // accounting for 'update_flag'
 
     // Fast-path reconstruction from BaseTerrain Cache
     for (let i = 0; i < this.size * this.size; i++) {

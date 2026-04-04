@@ -126,7 +126,11 @@ export function Beaver() {
       let diff = targetRotation - currentRotation;
       while (diff < -Math.PI) diff += Math.PI * 2;
       while (diff > Math.PI) diff -= Math.PI * 2;
-      groupRef.current.rotation.y += diff * 10 * dt;
+      
+      // Anti-overshoot clamp for mobile lag spikes
+      const rotationStep = diff * 10 * dt;
+      const maxStep = Math.PI; // Don't snap more than 180 degrees in a single frame
+      groupRef.current.rotation.y += Math.max(-maxStep, Math.min(maxStep, rotationStep));
     }
 
     // Jumping
@@ -450,7 +454,9 @@ export function Beaver() {
     const targetGroundHeight = getTerrainHeight(targetCameraPos.x, targetCameraPos.z);
     targetCameraPos.y = Math.max(targetCameraPos.y, targetGroundHeight + 1.5);
     
-    camera.position.lerp(targetCameraPos, 5 * delta);
+    // Anti-overshoot clamp for camera
+    const lerpFactor = Math.min(1.0, 5 * delta);
+    camera.position.lerp(targetCameraPos, lerpFactor);
     
     // 2. Minimum height clamp during active lerp transit (skating over ridges)
     const currentGroundHeight = getTerrainHeight(camera.position.x, camera.position.z);
