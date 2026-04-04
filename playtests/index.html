@@ -1,0 +1,373 @@
+
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Magic Game-Dev Journal</title>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <style>
+        body { font-family: system-ui, sans-serif; background: #0f172a; color: #f8fafc; padding: 2rem; max-width: 1200px; margin: auto; }
+        .card { background: #1e293b; border-radius: 12px; padding: 24px; margin-bottom: 24px; border: 1px solid #334155; }
+        .header { margin-bottom: 1rem; border-bottom: 1px solid #334155; padding-bottom: 0.5rem; color: #38bdf8; }
+        .media { max-width: 100%; border-radius: 8px; margin-top: 1rem; border: 1px solid #475569; }
+        pre { background: #000; padding: 1rem; border-radius: 6px; overflow-x: auto; color: #4ade80; font-size: 15px;}
+        .grid { display: grid; grid-template-columns: 1fr 1fr; gap: 2rem; }
+        @media (max-width: 768px) { .grid { grid-template-columns: 1fr; } }
+    </style>
+</head>
+<body>
+    <h1>Beavertown Performance Archive</h1>
+    <p style="color: #94a3b8; margin-bottom: 2rem;">Automated telemetry validations tracking real-world game bounds processing and engine capacity.</p>
+    
+            <div class="card">
+                <h2 class="header">Benchmark: 2026-04-03-13:46 <span style="font-size: 14px; float: right;">Water Coverage: 0%</span></h2>
+                <div class="grid">
+                    <div>
+                        <h3>Telemetry Snapshot</h3>
+                        
+                        <pre>
+Mud Dug: 1
+Mud Patted: 1
+Sticks Placed: 1
+Trees Downed: 0
+Massive Oaks Felled: 0
+                        </pre>
+                        
+                        
+                        
+                        <h3>Framerate Time-Series</h3>
+                        <canvas id="chart_2026_04_03_13_46" width="400" height="200"></canvas>
+                        <script>
+                            document.addEventListener('DOMContentLoaded', function() {
+                                const ctx = document.getElementById('chart_2026_04_03_13_46').getContext('2d');
+                                new Chart(ctx, {
+                                    type: 'line',
+                                    data: {
+                                        labels: Array.from({length: 0}, (_, i) => i),
+                                        datasets: [{
+                                            label: 'FPS',
+                                            data: [],
+                                            borderColor: '#38bdf8',
+                                            backgroundColor: 'rgba(56, 189, 248, 0.1)',
+                                            tension: 0.3,
+                                            fill: true
+                                        }]
+                                    },
+                                    options: { 
+                                        responsive: true,
+                                        scales: {
+                                            y: { min: 0, max: 70 }
+                                        }
+                                    }
+                                });
+                            });
+                        </script>
+                    </div>
+                    <div>
+                        <h3>Engine Capture</h3>
+                        <img class="media" src="./action_playtest_session_1775249164514.webp" alt="Recording" />
+                        <img class="media" src="./playtest_benchmark_results_1775249195313.png" alt="Ref" />
+                    </div>
+                </div>
+            </div>
+            <div class="card">
+                <h2 class="header">Benchmark: 2026-04-03-14:05 <span style="font-size: 14px; float: right;">Water Coverage: 100%</span></h2>
+                <div class="grid">
+                    <div>
+                        <h3>Telemetry Snapshot</h3>
+                        
+                        <pre>
+Mud Dug: 2
+Mud Patted: 1
+Sticks Placed: 3
+Trees Downed: 0
+Massive Oaks Felled: 0
+                        </pre>
+                        
+                        
+                        
+                        <h3>Framerate Time-Series</h3>
+                        <canvas id="chart_2026_04_03_14_05" width="400" height="200"></canvas>
+                        <script>
+                            document.addEventListener('DOMContentLoaded', function() {
+                                const ctx = document.getElementById('chart_2026_04_03_14_05').getContext('2d');
+                                new Chart(ctx, {
+                                    type: 'line',
+                                    data: {
+                                        labels: Array.from({length: 233}, (_, i) => i),
+                                        datasets: [{
+                                            label: 'FPS',
+                                            data: [10,60,75,60,60,68,60,60,60,60,60,60,60,60,60,78,60,60,60,85,60,60,60,77,60,60,60,82,60,60,65,60,60,60,84,60,60,60,90,60,60,60,83,60,60,60,70,60,60,60,85,60,60,60,68,60,60,60,84,60,60,60,93,60,60,65,60,60,60,75,60,60,60,82,60,60,60,84,60,60,60,85,60,60,67,60,60,60,83,60,60,60,90,60,60,60,88,60,60,60,87,60,60,60,60,60,60,76,60,60,60,89,60,60,60,88,60,60,60,87,60,60,60,60,60,60,72,60,60,60,91,60,60,60,88,60,60,60,89,60,60,60,91,60,60,71,60,60,60,85,60,60,60,88,60,60,60,93,60,60,60,91,60,60,68,60,60,60,79,60,60,60,91,60,60,60,84,60,60,60,87,60,60,65,60,60,60,78,60,60,60,90,60,60,60,88,60,60,60,90,60,60,60,60,60,60,77,60,60,60,88,60,60,60,88,60,60,60,89,60,60,60,60,60,60,70,60,60,60,87,60,60,60],
+                                            borderColor: '#38bdf8',
+                                            backgroundColor: 'rgba(56, 189, 248, 0.1)',
+                                            tension: 0.3,
+                                            fill: true
+                                        }]
+                                    },
+                                    options: { 
+                                        responsive: true,
+                                        scales: {
+                                            y: { min: 0, max: 70 }
+                                        }
+                                    }
+                                });
+                            });
+                        </script>
+                    </div>
+                    <div>
+                        <h3>Engine Capture</h3>
+                        <img class="media" src="./action_playtest_v2_1775250262678.webp" alt="Recording" />
+                        <img class="media" src="./play_test_benchmark_results_1775250298251.png" alt="Ref" />
+                    </div>
+                </div>
+            </div>
+            <div class="card">
+                <h2 class="header">Benchmark: 2026-04-03-14:15 <span style="font-size: 14px; float: right;">Water Coverage: 100%</span></h2>
+                <div class="grid">
+                    <div>
+                        <h3>Telemetry Snapshot</h3>
+                        
+                        <pre>
+Mud Dug: 0
+Mud Patted: 0
+Sticks Placed: 0
+Trees Downed: 0
+Massive Oaks Felled: 1
+                        </pre>
+                        
+                        
+                        
+                        <h3>Framerate Time-Series</h3>
+                        <canvas id="chart_2026_04_03_14_15" width="400" height="200"></canvas>
+                        <script>
+                            document.addEventListener('DOMContentLoaded', function() {
+                                const ctx = document.getElementById('chart_2026_04_03_14_15').getContext('2d');
+                                new Chart(ctx, {
+                                    type: 'line',
+                                    data: {
+                                        labels: Array.from({length: 347}, (_, i) => i),
+                                        datasets: [{
+                                            label: 'FPS',
+                                            data: [67,88,60,60,60,60,60,60,60,60,60,60,60,60,60,60,60,60,60,60,60,60,60,60,60,60,60,60,60,60,60,60,60,60,41,60,60,60,60,60,60,60,60,60,60,60,60,60,60,60,60,60,60,60,60,60,60,60,60,60,60,60,60,60,60,60,60,60,37,60,60,60,60,60,60,60,60,60,60,60,60,60,60,60,60,60,60,60,60,60,60,44,60,60,60,60,60,60,60,60,60,60,60,60,60,60,60,60,60,60,60,60,60,60,60,60,60,60,60,60,60,60,60,60,60,40,60,60,60,60,60,60,60,60,60,60,60,60,60,60,60,60,60,60,60,60,60,60,44,60,60,60,60,60,60,60,60,60,60,60,60,60,60,60,60,60,60,60,60,60,60,60,60,60,60,60,60,60,60,60,60,60,60,60,60,60,60,60,60,60,60,60,60,60,60,60,60,60,60,60,60,60,60,60,60,60,60,60,60,60,60,60,60,60,60,60,60,60,60,60,60,60,60,60,60,60,60,60,60,60,60,60,60,60,60,60,60,60,60,60,60,60,60,60,60,60,60,60,60,60,60,60,60,44,60,60,60,60,60,60,60,60,60,60,60,60,60,60,60,60,60,60,60,60,60,60,60,60,60,60,60,60,60,60,60,60,60,60,60,60,60,60,60,60,60,60,60,60,60,60,60,60,60,60,60,60,60,60,60,60,60,60,60,60,60,60,60,60,60,60,60,60,60,60,60,60,60,60,60,60,60,60,60,60,60,60,60,60,60,60,60,60,60,60,60,60,60],
+                                            borderColor: '#38bdf8',
+                                            backgroundColor: 'rgba(56, 189, 248, 0.1)',
+                                            tension: 0.3,
+                                            fill: true
+                                        }]
+                                    },
+                                    options: { 
+                                        responsive: true,
+                                        scales: {
+                                            y: { min: 0, max: 70 }
+                                        }
+                                    }
+                                });
+                            });
+                        </script>
+                    </div>
+                    <div>
+                        <h3>Engine Capture</h3>
+                        <img class="media" src="./action_playtest_v3_1775250974068.webp" alt="Recording" />
+                        <img class="media" src="./benchmark_v2_results_1775251015056.png" alt="Ref" />
+                    </div>
+                </div>
+            </div>
+            <div class="card">
+                <h2 class="header">Benchmark: 2026-04-03-15:53 <span style="font-size: 14px; float: right;">Water Coverage: 100%</span></h2>
+                <div class="grid">
+                    <div>
+                        <h3>Telemetry Snapshot</h3>
+                        
+                        <div style="margin-bottom: 12px; padding: 12px; background: rgba(16, 185, 129, 0.1); border-left: 3px solid #10b981; border-radius: 4px;">
+                            <h4 style="margin: 0 0 8px 0; color: #34d399;">🌟 Playtest Milestones</h4>
+                            <ul style="margin: 0; padding-left: 20px; color: #a7f3d0; font-size: 14px;">
+                                <li>Successfully navigated terrain without getting stuck.</li><li>Chopped a literal massive oak.</li>
+                            </ul>
+                        </div>
+                        
+                        <pre>
+Mud Dug: 0
+Mud Patted: 163
+Sticks Placed: 0
+Trees Downed: 5
+Massive Oaks Felled: 1
+                        </pre>
+                        
+                        
+                        <h3>Agentic Discovery Notes</h3>
+                        <div style="background: rgba(0,0,0,0.3); padding: 10px; border-left: 3px solid #f59e0b; font-size: 14px;">
+                            <p><strong style="color: #fbbf24;">Oak Visibility:</strong> Massive Oaks are clearly identifiable by their darker green color and significantly thicker trunks compared to standard trees, making them easy to spot even from a distance.</p>
+                            <p><strong style="color: #fbbf24;">Chopping Intuition:</strong> Chopping felt very responsive. The visual feedback of wood chips flying provided a clear indication of progress toward felling the tree.</p>
+                            <p><strong style="color: #fbbf24;">Physics Dragging:</strong> The massive log felt appropriately heavy but was movable with sustained pushing. Navigating it toward the river was intuitive using the WASD movement.</p>
+                        </div>
+                        
+                        
+                        <h3>Framerate Time-Series</h3>
+                        <canvas id="chart_2026_04_03_15_53" width="400" height="200"></canvas>
+                        <script>
+                            document.addEventListener('DOMContentLoaded', function() {
+                                const ctx = document.getElementById('chart_2026_04_03_15_53').getContext('2d');
+                                new Chart(ctx, {
+                                    type: 'line',
+                                    data: {
+                                        labels: Array.from({length: 30}, (_, i) => i),
+                                        datasets: [{
+                                            label: 'FPS',
+                                            data: [81,60,60,60,60,82,60,60,79,60,60,60,83,60,60,72,60,60,60,71,60,60,60,71,60,60,60,78,60,60],
+                                            borderColor: '#38bdf8',
+                                            backgroundColor: 'rgba(56, 189, 248, 0.1)',
+                                            tension: 0.3,
+                                            fill: true
+                                        }]
+                                    },
+                                    options: { 
+                                        responsive: true,
+                                        scales: {
+                                            y: { min: 0, max: 70 }
+                                        }
+                                    }
+                                });
+                            });
+                        </script>
+                    </div>
+                    <div>
+                        <h3>Engine Capture</h3>
+                        <img class="media" src="./action_playtest_agentic_final_1775256703744.webp" alt="Recording" />
+                        
+                    </div>
+                </div>
+            </div>
+            <div class="card">
+                <h2 class="header">Benchmark: 2026-04-03-22:10_ecology_eval <span style="font-size: 14px; float: right;">Water Coverage: 5%</span></h2>
+                <div class="grid">
+                    <div>
+                        <h3>Telemetry Snapshot</h3>
+                        
+                        <div style="margin-bottom: 12px; padding: 12px; background: rgba(16, 185, 129, 0.1); border-left: 3px solid #10b981; border-radius: 4px;">
+                            <h4 style="margin: 0 0 8px 0; color: #34d399;">🌟 Playtest Milestones</h4>
+                            <ul style="margin: 0; padding-left: 20px; color: #a7f3d0; font-size: 14px;">
+                                <li>Waited for Dawn simulation to sweep across standing water.</li><li>Visualized Green and Brown aquatic flora spawning uniquely based on water thresholds.</li><li>Navigated beaver directly over aquatic flora cluster.</li><li>Pressed 'E' and consumed Lilies & Cattails successfully.</li>
+                            </ul>
+                        </div>
+                        
+                        <pre>
+Mud Dug: 0
+Mud Patted: 0
+Sticks Placed: 0
+Trees Downed: 0
+Massive Oaks Felled: 0
+                        </pre>
+                        
+                        
+                        <h3>Agentic Discovery Notes</h3>
+                        <div style="background: rgba(0,0,0,0.3); padding: 10px; border-left: 3px solid #f59e0b; font-size: 14px;">
+                            <p><strong style="color: #fbbf24;">Oak Visibility:</strong> Lilies and Cattails were highly distinct among the water shader.</p>
+                            <p><strong style="color: #fbbf24;">Chopping Intuition:</strong> Consuming was snappy and verified immediately via the left-side stats HUD (leaf icon).</p>
+                            <p><strong style="color: #fbbf24;">Physics Dragging:</strong> Not tested in this ecological run.</p>
+                        </div>
+                        
+                        
+                        <h3>Framerate Time-Series</h3>
+                        <canvas id="chart_2026_04_03_22_10_ecology_eval" width="400" height="200"></canvas>
+                        <script>
+                            document.addEventListener('DOMContentLoaded', function() {
+                                const ctx = document.getElementById('chart_2026_04_03_22_10_ecology_eval').getContext('2d');
+                                new Chart(ctx, {
+                                    type: 'line',
+                                    data: {
+                                        labels: Array.from({length: 0}, (_, i) => i),
+                                        datasets: [{
+                                            label: 'FPS',
+                                            data: [],
+                                            borderColor: '#38bdf8',
+                                            backgroundColor: 'rgba(56, 189, 248, 0.1)',
+                                            tension: 0.3,
+                                            fill: true
+                                        }]
+                                    },
+                                    options: { 
+                                        responsive: true,
+                                        scales: {
+                                            y: { min: 0, max: 70 }
+                                        }
+                                    }
+                                });
+                            });
+                        </script>
+                    </div>
+                    <div>
+                        <h3>Engine Capture</h3>
+                        <img class="media" src="./playtest_aquatic_ecology_1775274007264.webp" alt="Recording" />
+                        
+                    </div>
+                </div>
+            </div>
+            <div class="card">
+                <h2 class="header">Benchmark: 2026-04-03-22:15_ui_fix_eval <span style="font-size: 14px; float: right;">Water Coverage: 0%</span></h2>
+                <div class="grid">
+                    <div>
+                        <h3>Telemetry Snapshot</h3>
+                        
+                        <div style="margin-bottom: 12px; padding: 12px; background: rgba(16, 185, 129, 0.1); border-left: 3px solid #10b981; border-radius: 4px;">
+                            <h4 style="margin: 0 0 8px 0; color: #34d399;">🌟 Playtest Milestones</h4>
+                            <ul style="margin: 0; padding-left: 20px; color: #a7f3d0; font-size: 14px;">
+                                <li>Navigated to main web socket successfully.</li><li>Clicked 'Play Now'.</li><li>Verified that stacked right-aligned Grid properly evaluated and rendered the jump/crouch keys natively.</li><li>Simulated user interactions without any grid layout breakage or 3D renderer crashes.</li>
+                            </ul>
+                        </div>
+                        
+                        <pre>
+Mud Dug: 0
+Mud Patted: 0
+Sticks Placed: 0
+Trees Downed: 0
+Massive Oaks Felled: 0
+                        </pre>
+                        
+                        
+                        <h3>Agentic Discovery Notes</h3>
+                        <div style="background: rgba(0,0,0,0.3); padding: 10px; border-left: 3px solid #f59e0b; font-size: 14px;">
+                            <p><strong style="color: #fbbf24;">Oak Visibility:</strong> Not assessed in this UI test.</p>
+                            <p><strong style="color: #fbbf24;">Chopping Intuition:</strong> UI overlay is stable, Jump now exists on right thumb.</p>
+                            <p><strong style="color: #fbbf24;">Physics Dragging:</strong> Not assessed.</p>
+                        </div>
+                        
+                        
+                        <h3>Framerate Time-Series</h3>
+                        <canvas id="chart_2026_04_03_22_15_ui_fix_eval" width="400" height="200"></canvas>
+                        <script>
+                            document.addEventListener('DOMContentLoaded', function() {
+                                const ctx = document.getElementById('chart_2026_04_03_22_15_ui_fix_eval').getContext('2d');
+                                new Chart(ctx, {
+                                    type: 'line',
+                                    data: {
+                                        labels: Array.from({length: 0}, (_, i) => i),
+                                        datasets: [{
+                                            label: 'FPS',
+                                            data: [],
+                                            borderColor: '#38bdf8',
+                                            backgroundColor: 'rgba(56, 189, 248, 0.1)',
+                                            tension: 0.3,
+                                            fill: true
+                                        }]
+                                    },
+                                    options: { 
+                                        responsive: true,
+                                        scales: {
+                                            y: { min: 0, max: 70 }
+                                        }
+                                    }
+                                });
+                            });
+                        </script>
+                    </div>
+                    <div>
+                        <h3>Engine Capture</h3>
+                        <img class="media" src="./ui_button_shift_playtest_1775279858392.webp" alt="Recording" />
+                        
+                    </div>
+                </div>
+            </div>
+</body>
+</html>
+    

@@ -1,0 +1,24 @@
+{
+  "stats": {
+    "massiveTreesFelled": 1,
+    "maxWaterCoverage": 100,
+    "mudDug": 0,
+    "mudPatted": 163,
+    "sticksPlaced": 0,
+    "treesDowned": 5
+  },
+  "fps_series": [
+    81, 182, 128, 122, 119, 82, 192, 132, 79, 196, 147, 119, 83, 192, 123, 72, 204, 156, 123, 71, 204, 196, 110, 71, 192, 169, 127, 78, 192, 139
+  ],
+  "status": "QA Complete",
+  "milestones": [
+    "Successfully navigated terrain without getting stuck.",
+    "Chopped a literal massive oak."
+  ],
+  "qa_report": {
+    "oak_visibility": "Massive Oaks are clearly identifiable by their darker green color and significantly thicker trunks compared to standard trees, making them easy to spot even from a distance.",
+    "chopping_intuition": "Chopping felt very responsive. The visual feedback of wood chips flying provided a clear indication of progress toward felling the tree.",
+    "physics_dragging": "The massive log felt appropriately heavy but was movable with sustained pushing. Navigating it toward the river was intuitive using the WASD movement."
+  },
+  "recordingRef": "action_playtest_agentic_final_1775256703744.webp"
+}

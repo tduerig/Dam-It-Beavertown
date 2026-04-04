@@ -1,0 +1,16 @@
+{
+  "stats": {"maxWaterCoverage": 0},
+  "status": "QA Complete",
+  "milestones": [
+     "Navigated to main web socket successfully.",
+     "Clicked 'Play Now'.",
+     "Verified that stacked right-aligned Grid properly evaluated and rendered the jump/crouch keys natively.",
+     "Simulated user interactions without any grid layout breakage or 3D renderer crashes."
+  ],
+  "qa_report": {
+     "oak_visibility": "Not assessed in this UI test.",
+     "chopping_intuition": "UI overlay is stable, Jump now exists on right thumb.",
+     "physics_dragging": "Not assessed."
+  },
+  "recordingRef": "ui_button_shift_playtest_1775279858392.webp"
+}

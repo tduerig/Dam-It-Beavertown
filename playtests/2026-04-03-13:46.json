@@ -1,0 +1,20 @@
+{
+  "stats": {
+    "mudDug": 1,
+    "mudPatted": 1,
+    "treesDowned": 0,
+    "sticksPlaced": 1,
+    "massiveTreesFelled": 0,
+    "maxWaterCoverage": 0
+  },
+  "settings": {
+    "showStatsOverlay": true,
+    "physicsSubsteps": 4,
+    "reflectionsActive": false
+  },
+  "fps_estimated": "Visible",
+  "status": "Benchmark Completion Successful",
+  "recordingRef": "action_playtest_session_1775249164514.webp",
+  "screenshotRef": "playtest_benchmark_results_1775249195313.png",
+  "timestamp": "2026-04-03T13:46:00-07:00"
+}

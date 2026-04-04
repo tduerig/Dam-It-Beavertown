@@ -1,0 +1,16 @@
+{
+  "stats": {"maxWaterCoverage": 5, "snacksEaten": 1 },
+  "status": "QA Complete",
+  "milestones": [
+     "Waited for Dawn simulation to sweep across standing water.",
+     "Visualized Green and Brown aquatic flora spawning uniquely based on water thresholds.",
+     "Navigated beaver directly over aquatic flora cluster.",
+     "Pressed 'E' and consumed Lilies & Cattails successfully."
+  ],
+  "qa_report": {
+     "oak_visibility": "Lilies and Cattails were highly distinct among the water shader.",
+     "chopping_intuition": "Consuming was snappy and verified immediately via the left-side stats HUD (leaf icon).",
+     "physics_dragging": "Not tested in this ecological run."
+  },
+  "recordingRef": "playtest_aquatic_ecology_1775274007264.webp"
+}
