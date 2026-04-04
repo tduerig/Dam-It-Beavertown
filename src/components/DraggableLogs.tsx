@@ -354,7 +354,7 @@ export function DraggableLogs() {
       if (rx >= Math.PI / 2 - 0.01) {
         // Leaves melt away for downed logs. Faster in water.
         const isFlooded = waterEngine.getSurfaceHeight(lx, lz) > ly;
-        const fadeRate = isFlooded ? 0.4 : 0.4; // ~2.5s on land and in water safely
+        const fadeRate = isFlooded ? 0.4 : 0.0375; // ~2.5s in water safely, restore slow 26s cinematic decay on land
         currentLeavesScale = Math.max(0, currentLeavesScale - dt * fadeRate);
         leavesScales.current.set(log.id, currentLeavesScale);
         needsInstanceUpdate = true;
@@ -377,9 +377,9 @@ export function DraggableLogs() {
       dummyLeaves.matrixWorld.multiplyMatrices(dummyLog.matrixWorld, dummyLeaves.matrix);
       leavesMeshRef.current!.setMatrixAt(i, dummyLeaves.matrixWorld);
       
-      // Branches (locked scale to save dynamic matrix composition costs while falling)
+      // Branches (always visible, but more obvious when leaves are gone)
       BRANCH_CONFIGS.forEach((config, bIdx) => {
-        const branchScale = config.scale[0];
+        const branchScale = config.scale[0] * (0.1 + 0.9 * (1 - currentLeavesScale));
         const b = dummyBranches[bIdx];
         b.position.set(...config.pos);
         b.quaternion.set(config.quat[0], config.quat[1], config.quat[2], config.quat[3]);
