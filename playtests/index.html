@@ -21,6 +21,71 @@
     <p style="color: #94a3b8; margin-bottom: 2rem;">Automated telemetry validations tracking real-world game bounds processing and engine capacity.</p>
     
             <div class="card">
+                <h2 class="header">Benchmark: 2026-04-04-16:40_ecology_physics <span style="font-size: 14px; float: right;">Water Coverage: 100%</span></h2>
+                <div class="grid">
+                    <div>
+                        <h3>Telemetry Snapshot</h3>
+                        
+                        <div style="margin-bottom: 12px; padding: 12px; background: rgba(16, 185, 129, 0.1); border-left: 3px solid #10b981; border-radius: 4px;">
+                            <h4 style="margin: 0 0 8px 0; color: #34d399;">🌟 Playtest Milestones</h4>
+                            <ul style="margin: 0; padding-left: 20px; color: #a7f3d0; font-size: 14px;">
+                                <li>Successfully navigated terrain without getting stuck.</li><li>Chopped a literal massive oak.</li>
+                            </ul>
+                        </div>
+                        
+                        <pre>
+Mud Dug: 0
+Mud Patted: 228
+Sticks Placed: 0
+Trees Downed: 2
+Massive Oaks Felled: 2
+                        </pre>
+                        
+                        <h3>Agentic Discovery Notes</h3>
+                        <div style="background: rgba(0,0,0,0.3); padding: 10px; border-left: 3px solid #f59e0b; font-size: 14px;">
+                            <p><strong style="color: #fbbf24;">Oak Visibility:</strong> Massive Oaks were easily spotted in the upland areas; their thicker, darker brown trunks and larger green canopies provided good visual contrast against the smaller, lighter green standard trees.</p>
+                            <p><strong style="color: #fbbf24;">Chopping Intuition:</strong> Chopping felt very natural; the progress feedback was clear as the tree eventually collapsed into draggable logs. The visual transition from standing tree to logs was seamless.</p>
+                            <p><strong style="color: #fbbf24;">Physics Dragging:</strong> Dragging physics felt heavy and impactful, which is appropriate for a 'massive' log. The collision with the terrain was stable, and dropping logs into the water for dam construction worked exactly as intended.</p>
+                            <p><strong style="color: #fbbf24;">Visual Critique:</strong> The isometric 3D style is charming and coherent. I noticed minor visual clipping when the beaver walked through the large felled canopies, but it didn't impact the navigation. The water rendering is particularly impressive for a WebGL project.</p>
+                        </div>
+                        
+                        <h3>Framerate Time-Series</h3>
+                        <canvas id="chart_2026_04_04_16_40" width="400" height="200"></canvas>
+                        <script>
+                            document.addEventListener('DOMContentLoaded', function() {
+                                const ctx = document.getElementById('chart_2026_04_04_16_40').getContext('2d');
+                                new Chart(ctx, {
+                                    type: 'line',
+                                    data: {
+                                        labels: Array.from({length: 30}, (_, i) => i),
+                                        datasets: [{
+                                            label: 'FPS',
+                                            data: [72, 109, 87, 127, 68, 115, 87, 109, 68, 127, 73, 114, 84, 106, 81, 115, 83, 112, 78, 108, 79, 103, 88, 112, 75, 106, 81, 106, 78, 105],
+                                            borderColor: '#38bdf8',
+                                            backgroundColor: 'rgba(56, 189, 248, 0.1)',
+                                            tension: 0.3,
+                                            fill: true
+                                        }]
+                                    },
+                                    options: { 
+                                        responsive: true,
+                                        scales: {
+                                            y: { min: 0, max: 140 }
+                                        }
+                                    }
+                                });
+                            });
+                        </script>
+                    </div>
+                    <div>
+                        <h3>Engine Capture</h3>
+                        <img class="media" src="./playtest_v7_1775345766060.webp" alt="Recording" />
+                        <img class="media" src="./final_gameplay_state_1775345876800.png" alt="Ref" />
+                    </div>
+                </div>
+            </div>
+    
+            <div class="card">
                 <h2 class="header">Benchmark: 2026-04-03-13:46 <span style="font-size: 14px; float: right;">Water Coverage: 0%</span></h2>
                 <div class="grid">
                     <div>
