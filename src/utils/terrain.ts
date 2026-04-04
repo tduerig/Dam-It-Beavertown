@@ -68,7 +68,12 @@ export function getTerrainHeight(x: number, z: number): number {
 
 
 
+export const _treeCache: Record<string, any[]> = {};
+
 export function generateTreesForChunk(chunkX: number, chunkZ: number) {
+  const cacheKey = `${chunkX},${chunkZ}`;
+  if (_treeCache[cacheKey]) return _treeCache[cacheKey];
+
   const trees = [];
   const offsetX = chunkX * CHUNK_SIZE;
   const offsetZ = chunkZ * CHUNK_SIZE;
@@ -96,5 +101,9 @@ export function generateTreesForChunk(chunkX: number, chunkZ: number) {
       }
     }
   }
+  
+  _treeCache[cacheKey] = trees;
   return trees;
 }
+
+

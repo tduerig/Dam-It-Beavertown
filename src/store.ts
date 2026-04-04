@@ -1,5 +1,8 @@
 import { create } from 'zustand';
 import * as THREE from 'three';
+import AsyncStorage from '@react-native-async-storage/async-storage';
+import { getTerrainHeight, getRiverCenter, RIVER_WIDTH, _treeCache } from './utils/terrain';
+import { propagateForest } from './utils/ecology';
 
 export type BlockType = 'stick' | 'mud';
 
@@ -27,10 +30,24 @@ export interface ParticleEmitter {
 }
 
 interface GameState {
-  gameState: 'menu' | 'playing';
+  gameState: 'start_menu' | 'playing' | 'paused';
   inventory: {
     sticks: number;
     mud: number;
+  };
+  stats: {
+    mudDug: number;
+    mudPatted: number;
+    treesDowned: number;
+    sticksPlaced: number;
+    massiveTreesFelled: number;
+    maxWaterCoverage: number;
+    snacksEaten: number;
+  };
+  settings: {
+    showStatsOverlay: boolean;
+    physicsSubsteps: number;
+    reflectionsActive: boolean;
   };
   placedBlocks: PlacedBlock[];
   draggableLogs: DraggableLog[];
@@ -45,9 +62,17 @@ interface GameState {
   particleEmitters: ParticleEmitter[];
   virtualJoystick: { x: number, y: number };
   virtualCamera: { x: number, y: number };
-  virtualCamera: { x: number, y: number };
   virtualButtons: { jump: boolean, crouch: boolean, action1: boolean, action2: boolean, action3: boolean };
-  setGameState: (state: 'menu' | 'playing') => void;
+  timeOfDay: number;
+  dayLength: number;
+  setGameState: (state: 'start_menu' | 'playing' | 'paused') => void;
+  updateTimeOfDay: (dt: number) => void;
+  triggerEcologyTick: () => void;
+  updateMaxWaterCoverage: (val: number) => void;
+  eatSnack: (id: string, chunkKey: string) => void;
+  setSetting: (key: keyof GameState['settings'], value: any) => void;
+  saveGame: () => Promise<void>;
+  loadGame: () => Promise<void>;
   setVirtualJoystick: (x: number, y: number) => void;
   setVirtualCamera: (x: number, y: number) => void;
   setVirtualButton: (button: 'jump' | 'crouch' | 'action1' | 'action2' | 'action3', value: boolean) => void;
@@ -69,15 +94,27 @@ interface GameState {
   setCameraPitch: (val: number) => void;
   chopTree: (id: string, isBig?: boolean) => void;
   triggerAction: (type: 'gather' | 'place', blockType?: BlockType) => void;
-  saveGame: () => void;
-  loadGame: (jsonData?: string) => void;
 }
 
 export const useGameStore = create<GameState>((set, get) => ({
-  gameState: 'menu',
+  gameState: 'start_menu',
   inventory: {
     sticks: 0,
     mud: 0,
+  },
+  stats: {
+    mudDug: 0,
+    mudPatted: 0,
+    treesDowned: 0,
+    sticksPlaced: 0,
+    massiveTreesFelled: 0,
+    maxWaterCoverage: 0,
+    snacksEaten: 0,
+  },
+  settings: {
+    showStatsOverlay: false,
+    physicsSubsteps: 4,
+    reflectionsActive: false,
   },
   placedBlocks: [],
   draggableLogs: [],
@@ -93,7 +130,83 @@ export const useGameStore = create<GameState>((set, get) => ({
   virtualButtons: { jump: false, crouch: false, action1: false, action2: false, action3: false },
   terrainOffsets: {},
   particleEmitters: [],
+  timeOfDay: 0,
+  dayLength: 300, // 5 minutes real-time for testing purposes
   setGameState: (state) => set({ gameState: state }),
+  
+  updateTimeOfDay: (dt) => set((state) => {
+    // 75% Day / 25% Night mapping
+    let newTime = state.timeOfDay + (dt / state.dayLength);
+    if (newTime >= 1.0) {
+        newTime = newTime % 1.0;
+        state.triggerEcologyTick(); // Evolve map at the break of dawn!
+    }
+    return { timeOfDay: newTime };
+  }),
+  
+  triggerEcologyTick: () => {
+      propagateForest();
+  },
+  
+  eatSnack: (id, chunkKey) => set(state => {
+      if (_treeCache[chunkKey]) {
+          const idx = _treeCache[chunkKey].findIndex((t: any) => t.id === id);
+          if (idx !== -1) {
+              _treeCache[chunkKey].splice(idx, 1);
+          }
+      }
+      return {
+          stats: { ...state.stats, snacksEaten: state.stats.snacksEaten + 1 },
+          terrainOffsets: { ...state.terrainOffsets, 'update_flag': Date.now() } 
+      };
+  }),
+
+  setSetting: (key, value) => set(state => ({
+    settings: { ...state.settings, [key]: value }
+  })),
+
+  saveGame: async () => {
+    const { inventory, stats, settings, placedBlocks, draggableLogs, treeSticks, playerPosition, playerRotation, terrainOffsets, timeOfDay } = get();
+    const saveState = {
+      inventory, stats, settings, placedBlocks, draggableLogs, treeSticks, playerPosition, playerRotation, terrainOffsets, timeOfDay
+    };
+    try {
+      await AsyncStorage.setItem('beavertown_save', JSON.stringify(saveState));
+    } catch (e) {
+      console.warn("Save Error:", e);
+    }
+  },
+
+  loadGame: async () => {
+    try {
+      const data = await AsyncStorage.getItem('beavertown_save');
+      if (data) {
+        const loadedState = JSON.parse(data);
+        set({
+          inventory: loadedState.inventory,
+          stats: loadedState.stats,
+          settings: loadedState.settings,
+          placedBlocks: loadedState.placedBlocks,
+          draggableLogs: loadedState.draggableLogs,
+          treeSticks: loadedState.treeSticks,
+          playerPosition: loadedState.playerPosition,
+          playerRotation: loadedState.playerRotation,
+          terrainOffsets: loadedState.terrainOffsets,
+          gameState: 'paused', // Automatically pause so player can orient themselves
+        });
+      }
+    } catch (e) {
+      console.warn("Load Error:", e);
+    }
+  },
+
+  updateMaxWaterCoverage: (val) => set((state) => {
+    if (val > state.stats.maxWaterCoverage) {
+      return { stats: { ...state.stats, maxWaterCoverage: val } };
+    }
+    return state;
+  }),
+
   setVirtualJoystick: (x, y) => set({ virtualJoystick: { x, y } }),
   setVirtualCamera: (x, y) => set({ virtualCamera: { x, y } }),
   setVirtualButton: (button, value) => set((state) => ({ virtualButtons: { ...state.virtualButtons, [button]: value } })),
@@ -123,7 +236,14 @@ export const useGameStore = create<GameState>((set, get) => ({
         }
       }
     }
-    return { terrainOffsets: newOffsets };
+    return { 
+      terrainOffsets: newOffsets,
+      stats: {
+        ...state.stats,
+        mudDug: amount < 0 ? state.stats.mudDug + 1 : state.stats.mudDug,
+        mudPatted: amount > 0 ? state.stats.mudPatted + 1 : state.stats.mudPatted,
+      }
+    };
   }),
   addInventory: (type, amount) =>
     set((state) => ({
@@ -152,6 +272,10 @@ export const useGameStore = create<GameState>((set, get) => ({
         ...state.placedBlocks,
         { id: Math.random().toString(36).substring(7), position, rotation, type },
       ],
+      stats: {
+        ...state.stats,
+        sticksPlaced: type === 'stick' ? state.stats.sticksPlaced + 1 : state.stats.sticksPlaced,
+      }
     })),
   removeBlock: (id) =>
     set((state) => ({
@@ -200,59 +324,23 @@ export const useGameStore = create<GameState>((set, get) => ({
       const maxSticks = isBig ? 12 : 3;
       const current = state.treeSticks[id] ?? maxSticks;
       if (current > 0) {
+        if (current === 1) { // Tree fell
+          return { 
+            treeSticks: { ...state.treeSticks, [id]: 0 },
+            stats: { 
+              ...state.stats, 
+              treesDowned: state.stats.treesDowned + 1,
+              massiveTreesFelled: isBig ? state.stats.massiveTreesFelled + 1 : state.stats.massiveTreesFelled 
+            }
+          };
+        }
         return { treeSticks: { ...state.treeSticks, [id]: current - 1 } };
       }
       return state;
     }),
-  triggerAction: (type, blockType) => set({ lastAction: { type, blockType, time: Date.now() } }),
-  saveGame: () => {
-    const state = get();
-    const saveData = {
-      inventory: state.inventory,
-      placedBlocks: state.placedBlocks,
-      treeSticks: state.treeSticks,
-      playerPosition: state.playerPosition,
-      playerRotation: state.playerRotation,
-    };
-    const json = JSON.stringify(saveData);
-    
-    // Fallbacks for React Native vs Web
-    if (typeof window !== 'undefined') {
-      localStorage.setItem('beaver_game_save', json);
-      
-      try {
-        const blob = new Blob([json], { type: 'application/json' });
-        const url = URL.createObjectURL(blob);
-        const a = document.createElement('a');
-        a.href = url;
-        a.download = 'beaver_map.json';
-        a.click();
-        URL.revokeObjectURL(url);
-      } catch (e) {
-        console.warn("DOM Blob download unavailable in this environment");
-      }
-    } else {
-      console.log("Game Saved Native Stub: ", json.length, "bytes");
-    }
-  },
-  loadGame: (jsonData?: string) => {
-    const data = jsonData || (typeof window !== 'undefined' ? localStorage.getItem('beaver_game_save') : null);
-    if (data) {
-      try {
-        const parsed = JSON.parse(data);
-        set({
-          inventory: parsed.inventory,
-          placedBlocks: parsed.placedBlocks,
-          treeSticks: parsed.treeSticks,
-          playerPosition: parsed.playerPosition,
-          playerRotation: parsed.playerRotation,
-        });
-      } catch (e) {
-        console.error("Failed to load game", e);
-        alert("Failed to load map file. It might be corrupted.");
-      }
-    } else if (!jsonData) {
-      alert("No saved game found in local storage.");
-    }
-  },
+  triggerAction: (type: 'gather' | 'place', blockType?: BlockType) => set({ lastAction: { type, blockType, time: Date.now() } }),
 }));
+
+if (typeof window !== 'undefined') {
+  (window as any).gameStore = useGameStore;
+}

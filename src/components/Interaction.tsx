@@ -73,25 +73,33 @@ export function Interaction() {
               const interactionDist = isBig ? INTERACTION_DISTANCE + 1 : INTERACTION_DISTANCE;
               
               if (playerVec.distanceTo(treeVec) < interactionDist) {
-                const maxSticks = isBig ? 12 : 3;
-                const sticks = state.treeSticks[tree.id] ?? maxSticks;
-                if (sticks > 0) {
-                  state.chopTree(tree.id, isBig);
-                  state.addInventory('stick', 1);
-                  state.triggerAction('gather', 'stick');
-                  state.spawnParticles([tree.position[0], tree.position[1] + 0.5, tree.position[2]], '#D2B48C');
-                  soundEngine.playChop();
-                  
-                  if (isBig && sticks === 1) {
-                    const dx = tree.position[0] - playerVec.x;
-                    const dz = tree.position[2] - playerVec.z;
-                    const fallYaw = Math.atan2(dx, dz);
-                    state.addDraggableLog([tree.position[0], tree.position[1] + 9.1, tree.position[2]], [0.01, fallYaw, 0]);
-                    soundEngine.playFall();
-                  }
-                  
+                if (tree.type === 'lily' || tree.type === 'cattail') {
+                  state.eatSnack(tree.id, `${cx},${cz}`);
+                  state.spawnParticles([tree.position[0], tree.position[1] + 0.5, tree.position[2]], '#2ecc71');
+                  soundEngine.playSplash();
                   collected = true;
                   break;
+                } else {
+                  const maxSticks = isBig ? 12 : 3;
+                  const sticks = state.treeSticks[tree.id] ?? maxSticks;
+                  if (sticks > 0) {
+                    state.chopTree(tree.id, isBig);
+                    state.addInventory('stick', 1);
+                    state.triggerAction('gather', 'stick');
+                    state.spawnParticles([tree.position[0], tree.position[1] + 0.5, tree.position[2]], '#D2B48C');
+                    soundEngine.playChop();
+                    
+                    if (isBig && sticks === 1) {
+                      const dx = tree.position[0] - playerVec.x;
+                      const dz = tree.position[2] - playerVec.z;
+                      const fallYaw = Math.atan2(dx, dz);
+                      state.addDraggableLog([tree.position[0], tree.position[1] + 9.1, tree.position[2]], [0.01, fallYaw, 0]);
+                      soundEngine.playFall();
+                    }
+                    
+                    collected = true;
+                    break;
+                  }
                 }
               }
             }

@@ -380,6 +380,16 @@ class WaterEngine {
     return -100;
   }
 
+  getWaterDepth(wx: number, wz: number): number {
+    const x = Math.floor(wx) - this.originX + WATER_HALF;
+    const z = Math.floor(wz) - this.originZ + WATER_HALF;
+    if (x >= 0 && x < this.size && z >= 0 && z < this.size) {
+      const idx = x + z * this.size;
+      return this.W[idx];
+    }
+    return 0;
+  }
+
   getVelocity(wx: number, wz: number): { x: number, z: number } {
     const x = Math.floor(wx) - this.originX + WATER_HALF;
     const z = Math.floor(wz) - this.originZ + WATER_HALF;

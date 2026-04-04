@@ -1,14 +1,20 @@
 import React, { useEffect, useState, useRef } from 'react';
-import { View, Text, StyleSheet, Platform, Pressable } from 'react-native';
+import { View, Text, StyleSheet, Platform, Pressable, ScrollView, useWindowDimensions } from 'react-native';
 import { useGameStore } from '../store';
-import { Hammer, Droplets, TreePine, Download, Upload, CloudRain, ArrowUp, ArrowDown } from 'lucide-react-native';
+import { Hammer, Droplets, TreePine, Download, Upload, CloudRain, ArrowUp, ArrowDown, Settings, Save, FolderOpen, Leaf } from 'lucide-react-native';
+import { getTerrainHeight, getRiverCenter, RIVER_WIDTH } from '../utils/terrain';
 import { Minimap } from './Minimap';
 import { ElevationGauge } from './ElevationGauge';
+import { CelestialDial } from './CelestialDial';
 import { Gesture, GestureDetector } from 'react-native-gesture-handler';
 
 export function UI() {
+  const { width: windowWidth, height: windowHeight } = useWindowDimensions();
+  const isCompact = windowWidth < 600 || windowHeight < 600;
+
   const gameState = useGameStore((state) => state.gameState);
   const setGameState = useGameStore((state) => state.setGameState);
+  const setPlayerPosition = useGameStore((state) => state.setPlayerPosition);
   
   // React 19 RN-Web SyntheticEvent Bypass
   const playButtonRef = useRef<any>(null);
@@ -16,7 +22,14 @@ export function UI() {
   useEffect(() => {
     if (Platform.OS === 'web' && playButtonRef.current) {
       const node = playButtonRef.current as HTMLElement;
-      const handler = () => setGameState('playing');
+      const handler = () => {
+        if (gameState === 'start_menu') {
+            const spawnZ = 15;
+            const spawnX = getRiverCenter(spawnZ) + RIVER_WIDTH + 4;
+            setPlayerPosition([spawnX, getTerrainHeight(spawnX, spawnZ) + 1, spawnZ]);
+        }
+        setGameState('playing');
+      };
       node.addEventListener('click', handler);
       // Fallback for pointer environments
       node.addEventListener('pointerdown', handler);
@@ -30,6 +43,9 @@ export function UI() {
   const rainIntensity = useGameStore((state) => state.rainIntensity);
   const saveGame = useGameStore((state) => state.saveGame);
   const loadGame = useGameStore((state) => state.loadGame);
+  const stats = useGameStore((state) => state.stats);
+  const settings = useGameStore((state) => state.settings);
+  const setSetting = useGameStore((state) => state.setSetting);
 
   const setVirtualJoystick = useGameStore((state) => state.setVirtualJoystick);
   const setVirtualCamera = useGameStore((state) => state.setVirtualCamera);
@@ -112,24 +128,65 @@ export function UI() {
 
   return (
     <View style={styles.container} pointerEvents="box-none">
-      {/* Start Menu Overlay */}
-      {gameState === 'menu' && (
-        <View style={styles.startMenu} pointerEvents="auto">
-          <Text style={styles.title}>Dam It! Beavertown</Text>
-          <Text style={styles.subtitle}>Protect the ecosystem. Build the ultimate dam.</Text>
+      {/* Start & Pause Menu Overlay */}
+      {(gameState === 'start_menu' || gameState === 'paused') && (
+        <ScrollView 
+          style={styles.startMenuWrapper} 
+          contentContainerStyle={[styles.startMenu, isCompact && { paddingVertical: 40 }]} 
+          pointerEvents="auto"
+        >
+          <Text style={[styles.title, isCompact && { fontSize: 32 }]}>{gameState === 'paused' ? 'PAUSED' : 'Dam It! Beavertown'}</Text>
+          {gameState === 'start_menu' && <Text style={[styles.subtitle, isCompact && { fontSize: 14, marginBottom: 16 }]}>Protect the ecosystem. Build the ultimate dam.</Text>}
           
+          <View style={[styles.menuBlocksContainer, isCompact && { flexDirection: 'column', gap: 12 }]}>
+            {/* Stats Block */}
+            <View style={[styles.menuCard, isCompact && { width: '100%', maxWidth: 320, padding: 12 }]}>
+              <Text style={styles.menuCardTitle}>Lifetime Stats</Text>
+              <Text style={styles.menuStatText}>Max Water Coverage: <Text style={styles.controlsHighlight}>{stats.maxWaterCoverage}%</Text></Text>
+              <Text style={styles.menuStatText}>Mud Dug: <Text style={styles.controlsHighlight}>{stats.mudDug}</Text></Text>
+              <Text style={styles.menuStatText}>Mud Patted: <Text style={styles.controlsHighlight}>{stats.mudPatted}</Text></Text>
+              <Text style={styles.menuStatText}>Trees Downed: <Text style={styles.controlsHighlight}>{stats.treesDowned}</Text></Text>
+              <Text style={styles.menuStatText}>Sticks Placed: <Text style={styles.controlsHighlight}>{stats.sticksPlaced}</Text></Text>
+              <Text style={styles.menuStatText}>Massive Oaks Felled: <Text style={styles.controlsHighlight}>{stats.massiveTreesFelled}</Text></Text>
+              <Text style={styles.menuStatText}>Snacks Eaten: <Text style={styles.controlsHighlight}>{stats.snacksEaten}</Text></Text>
+            </View>
+
+            {/* Save / Load & Settings Block */}
+            <View style={[styles.menuCard, isCompact && { width: '100%', maxWidth: 320, padding: 12 }]}>
+              <Text style={styles.menuCardTitle}>Settings & State</Text>
+              <Pressable style={styles.settingsToggleButton} onPress={() => setSetting('showStatsOverlay', !settings.showStatsOverlay)}>
+                <Text style={styles.settingsToggleText}>
+                  Perf Stats Overlay: {settings.showStatsOverlay ? 'ENABLED' : 'DISABLED'}
+                </Text>
+              </Pressable>
+              <View style={[styles.saveLoadRow, isCompact && { marginTop: 8 }]}>
+                <Pressable style={styles.saveLoadBtn} onPress={() => saveGame()}>
+                  <Save color="#fff" size={20} />
+                  <Text style={styles.saveLoadText}>Save</Text>
+                </Pressable>
+                <Pressable style={styles.saveLoadBtn} onPress={() => loadGame()}>
+                  <FolderOpen color="#fff" size={20} />
+                  <Text style={styles.saveLoadText}>Load</Text>
+                </Pressable>
+              </View>
+            </View>
+          </View>
+
           <Pressable 
             ref={playButtonRef}
-            style={({ pressed }) => [styles.startButton, pressed && styles.startButtonPressed]}
-            onPress={() => setGameState('playing')}
+            style={({ pressed }) => [styles.startButton, pressed && styles.startButtonPressed, isCompact && { paddingHorizontal: 32 }]}
+            onPress={() => {
+            if (gameState === 'start_menu') {
+                const spawnZ = 15;
+                const spawnX = getRiverCenter(spawnZ) + RIVER_WIDTH + 4;
+                setPlayerPosition([spawnX, getTerrainHeight(spawnX, spawnZ) + 1, spawnZ]);
+            }
+            setGameState('playing');
+          }}
           >
-            <Text style={styles.startButtonText}>PLAY NOW</Text>
+            <Text style={[styles.startButtonText, isCompact && { fontSize: 18 }]}>{gameState === 'paused' ? 'RESUME SIMULATION' : 'PLAY NOW'}</Text>
           </Pressable>
-          
-          <Pressable style={styles.loadButton} onPress={() => loadGame()}>
-            <Text style={styles.loadButtonText}>Load Saved Map</Text>
-          </Pressable>
-        </View>
+        </ScrollView>
       )}
 
       {/* Main Game UI Overlay */}
@@ -161,70 +218,85 @@ export function UI() {
       <View style={styles.crosshair} pointerEvents="none" />
 
       {/* HUD: Inventory & Environment */}
-      <View style={styles.hudTopLeft} pointerEvents="box-none">
-        <View style={styles.statsBox}>
-          <View style={styles.statRow}>
-            <TreePine color="#d97706" size={24} />
-            <Text style={styles.statText}>{inventory.sticks}</Text>
-          </View>
-          <View style={styles.statRow}>
-            <Droplets color="#78350f" size={24} />
-            <Text style={styles.statText}>{inventory.mud}</Text>
-          </View>
-          <View style={[styles.statRow, styles.borderLeft]}>
-            <CloudRain color={rainIntensity > 0 ? '#60a5fa' : '#6b7280'} size={24} />
-            <Text style={styles.statText}>{Math.round(rainIntensity * 100)}%</Text>
+      {gameState === 'playing' && (
+        <View style={styles.hudTopLeft} pointerEvents="box-none">
+          <View style={styles.statsBox}>
+            <View style={styles.statRow}>
+              <TreePine color="#d97706" size={24} />
+              <Text style={styles.statText}>{inventory.sticks}</Text>
+            </View>
+            <View style={styles.statRow}>
+              <Droplets color="#78350f" size={24} />
+              <Text style={styles.statText}>{inventory.mud}</Text>
+            </View>
+            <View style={styles.statRow}>
+              <Leaf color="#2ecc71" size={24} />
+              <Text style={styles.statText}>{stats.snacksEaten}</Text>
+            </View>
+            <View style={[styles.statRow, styles.borderLeft]}>
+              <CloudRain color={rainIntensity > 0 ? '#60a5fa' : '#6b7280'} size={24} />
+              <Text style={styles.statText}>{Math.round(rainIntensity * 100)}%</Text>
+            </View>
+            <Pressable 
+              style={[styles.statRow, styles.borderLeft, { marginRight: 0 }]} 
+              onPress={() => setGameState('paused')}
+            >
+              <Settings color="#9ca3af" size={24} />
+            </Pressable>
           </View>
         </View>
-      </View>
+      )}
 
       {/* Action Buttons Overlay for Mobile specific interactions */}
       {isMobile && (
         <>
-          <View style={styles.mobileActionsLeft} pointerEvents="box-none">
-            {/* Jump */}
-            <Pressable
-              style={({ pressed }) => [styles.actionButton, pressed && styles.actionButtonPressed]}
-              onPressIn={() => setVirtualButton('jump', true)}
-              onPressOut={() => setVirtualButton('jump', false)}
-            >
-              <ArrowUp color="#fff" size={24} />
-            </Pressable>
-            {/* Crouch/Dive */}
-            <Pressable
-              style={({ pressed }) => [styles.actionButton, pressed && styles.actionButtonPressed]}
-              onPressIn={() => setVirtualButton('crouch', true)}
-              onPressOut={() => setVirtualButton('crouch', false)}
-            >
-              <ArrowDown color="#fff" size={24} />
-            </Pressable>
-          </View>
+
 
           <View style={styles.mobileActionsRight} pointerEvents="box-none">
-            {/* Action 1 */}
-            <Pressable
-              style={({ pressed }) => [styles.actionButton, pressed && styles.actionButtonPressed]}
-              onPressIn={() => setVirtualButton('action1', true)}
-              onPressOut={() => setVirtualButton('action1', false)}
-            >
-              <Hammer color="#fff" size={24} />
-            </Pressable>
-            {/* Action 2 */}
-            <Pressable
-              style={({ pressed }) => [styles.actionButton, pressed && styles.actionButtonPressed]}
-              onPressIn={() => setVirtualButton('action2', true)}
-              onPressOut={() => setVirtualButton('action2', false)}
-            >
-              <TreePine color="#fff" size={24} />
-            </Pressable>
-            {/* Action 3 */}
-            <Pressable
-              style={({ pressed }) => [styles.actionButton, pressed && styles.actionButtonPressed]}
-              onPressIn={() => setVirtualButton('action3', true)}
-              onPressOut={() => setVirtualButton('action3', false)}
-            >
-              <Droplets color="#fff" size={24} />
-            </Pressable>
+            <View style={styles.actionRow}>
+              {/* Jump */}
+              <Pressable
+                style={({ pressed }) => [styles.actionButton, pressed && styles.actionButtonPressed]}
+                onPressIn={() => setVirtualButton('jump', true)}
+                onPressOut={() => setVirtualButton('jump', false)}
+              >
+                <ArrowUp color="#fff" size={24} />
+              </Pressable>
+              {/* Crouch/Dive */}
+              <Pressable
+                style={({ pressed }) => [styles.actionButton, pressed && styles.actionButtonPressed]}
+                onPressIn={() => setVirtualButton('crouch', true)}
+                onPressOut={() => setVirtualButton('crouch', false)}
+              >
+                <ArrowDown color="#fff" size={24} />
+              </Pressable>
+            </View>
+            <View style={styles.actionRow}>
+              {/* Action 1 */}
+              <Pressable
+                style={({ pressed }) => [styles.actionButton, pressed && styles.actionButtonPressed]}
+                onPressIn={() => setVirtualButton('action1', true)}
+                onPressOut={() => setVirtualButton('action1', false)}
+              >
+                <Hammer color="#fff" size={24} />
+              </Pressable>
+              {/* Action 2 */}
+              <Pressable
+                style={({ pressed }) => [styles.actionButton, pressed && styles.actionButtonPressed]}
+                onPressIn={() => setVirtualButton('action2', true)}
+                onPressOut={() => setVirtualButton('action2', false)}
+              >
+                <TreePine color="#fff" size={24} />
+              </Pressable>
+              {/* Action 3 */}
+              <Pressable
+                style={({ pressed }) => [styles.actionButton, pressed && styles.actionButtonPressed]}
+                onPressIn={() => setVirtualButton('action3', true)}
+                onPressOut={() => setVirtualButton('action3', false)}
+              >
+                <Droplets color="#fff" size={24} />
+              </Pressable>
+            </View>
           </View>
         </>
       )}
@@ -245,6 +317,7 @@ export function UI() {
       {/* Map & Gauge */}
       <ElevationGauge />
       <Minimap />
+      <CelestialDial />
         </View>
       )}
     </View>
@@ -259,12 +332,16 @@ const styles = StyleSheet.create({
   hudContainer: {
     ...StyleSheet.absoluteFillObject,
   },
-  startMenu: {
+  startMenuWrapper: {
     ...StyleSheet.absoluteFillObject,
     backgroundColor: 'rgba(56, 189, 248, 0.85)', // translucent sky blue
+    zIndex: 100,
+  },
+  startMenu: {
+    flexGrow: 1,
     justifyContent: 'center',
     alignItems: 'center',
-    zIndex: 100,
+    padding: 16,
   },
   title: {
     fontSize: 48,
@@ -280,8 +357,70 @@ const styles = StyleSheet.create({
     fontSize: 18,
     color: '#0284c7', // darker blue
     fontWeight: '600',
-    marginBottom: 48,
+    marginBottom: 32,
     textAlign: 'center'
+  },
+  menuBlocksContainer: {
+    flexDirection: 'row',
+    gap: 24,
+    marginBottom: 32,
+    flexWrap: 'wrap',
+    justifyContent: 'center',
+  },
+  menuCard: {
+    backgroundColor: 'rgba(0,0,0,0.4)',
+    padding: 20,
+    borderRadius: 16,
+    width: 250,
+  },
+  menuCardTitle: {
+    color: '#fef3c7',
+    fontSize: 18,
+    fontWeight: 'bold',
+    marginBottom: 12,
+    borderBottomWidth: 1,
+    borderBottomColor: 'rgba(255,255,255,0.2)',
+    paddingBottom: 8,
+  },
+  menuStatText: {
+    color: '#fff',
+    fontSize: 14,
+    marginBottom: 6,
+  },
+  saveLoadRow: {
+    flexDirection: 'row',
+    gap: 12,
+    marginTop: 16,
+  },
+  saveLoadBtn: {
+    flex: 1,
+    backgroundColor: 'rgba(56, 189, 248, 0.3)',
+    borderRadius: 8,
+    padding: 10,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 6,
+    borderWidth: 1,
+    borderColor: 'rgba(255,255,255,0.2)'
+  },
+  saveLoadText: {
+    color: '#fff',
+    fontWeight: 'bold',
+    fontSize: 14
+  },
+  settingsToggleButton: {
+    backgroundColor: 'rgba(245, 158, 11, 0.3)',
+    borderRadius: 8,
+    padding: 10,
+    alignItems: 'center',
+    borderWidth: 1,
+    borderColor: 'rgba(245, 158, 11, 0.5)'
+  },
+  settingsToggleText: {
+    color: '#facc15',
+    fontWeight: 'bold',
+    fontSize: 12
   },
   startButton: {
     backgroundColor: '#16a34a', // lush green
@@ -364,21 +503,18 @@ const styles = StyleSheet.create({
     fontWeight: 'bold',
     marginLeft: 6,
   },
-  mobileActionsLeft: {
-    position: 'absolute',
-    bottom: 180, // Moved up to clear joystick
-    left: 40,
-    flexDirection: 'row',
-    gap: 12,
-    zIndex: 10,
-  },
   mobileActionsRight: {
     position: 'absolute',
     bottom: 180, // Moved up to clear joystick
     right: 40,
-    flexDirection: 'row',
+    flexDirection: 'column',
+    alignItems: 'flex-end',
     gap: 12,
     zIndex: 10,
+  },
+  actionRow: {
+    flexDirection: 'row',
+    gap: 12,
   },
   actionButton: {
     width: 64,
