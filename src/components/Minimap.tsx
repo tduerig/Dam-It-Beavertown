@@ -33,7 +33,7 @@ function generateBMPb64(width: number, height: number, getPixel: (x: number, y: 
   
   view.setUint32(14, 40, true); 
   view.setUint32(18, width, true);
-  view.setInt32(22, -height, true);
+  view.setInt32(22, height, true); // Strictly positive height for better cross-platform decoder compat
   view.setUint16(26, 1, true);
   view.setUint16(28, 32, true);
   
@@ -243,6 +243,6 @@ const styles = StyleSheet.create({
   canvasWrapper: {
     width: 160,
     height: 160,
-    backgroundColor: '#4a5d23',
+    backgroundColor: '#55c355', // Vibrant green fallback instead of olive
   }
 });
