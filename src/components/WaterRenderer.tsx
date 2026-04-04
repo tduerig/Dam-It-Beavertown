@@ -22,11 +22,14 @@ export function WaterRenderer() {
   useEffect(() => {
     const PHYSICS_TICK_RATE = 1000 / 30; // 30 ticks per second
     let isUpdating = false;
+    let tickCount = 0;
     const interval = setInterval(() => {
+      const state = useGameStore.getState();
+      if (state.gameState !== 'playing') return;
+      
       if (isUpdating) return; // Prevent Hermes callback queue lockup on slow devices!
       isUpdating = true;
       
-      const state = useGameStore.getState();
       const dt = 1.0 / 30.0;
       waterEngine.update(
         state.playerPosition[0], 
@@ -37,13 +40,28 @@ export function WaterRenderer() {
         state.rainIntensity
       );
       
+      // Every ~2.5 seconds (75 ticks), scan 10,000 blocks for absolute max layout water coverage natively without locking the matrix
+      tickCount++;
+      if (tickCount >= 75) {
+        tickCount = 0;
+        let waterCount = 0;
+        for (let i = 0; i < WATER_SIZE * WATER_SIZE; i++) {
+          if (waterEngine.W[i] > -50.0) waterCount++;
+        }
+        const pct = Math.round((waterCount / Math.max(1, WATER_SIZE * WATER_SIZE)) * 100);
+        state.updateMaxWaterCoverage(pct);
+      }
+      
       isUpdating = false;
     }, PHYSICS_TICK_RATE);
     
     return () => clearInterval(interval);
   }, []);
 
-  useFrame((state, delta) => {    
+  useFrame((state, delta) => { 
+    const { gameState } = useGameStore.getState();
+    if (gameState !== 'playing') return;
+       
     if (meshRef.current && geoRef.current) {
       // Snap mesh to the origin of the water engine grid
       meshRef.current.position.x = waterEngine.originX;

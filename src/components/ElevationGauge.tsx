@@ -1,11 +1,18 @@
 import { View, Text, StyleSheet } from 'react-native';
+import { useEffect, useState } from 'react';
 import { useGameStore } from '../store';
 
 export function ElevationGauge() {
-  const playerPos = useGameStore(state => state.playerPosition);
-  const zPos = playerPos[2];
+  const [elevationPercent, setElevationPercent] = useState(50);
   
-  const elevationPercent = Math.max(0, Math.min(100, ((zPos + 300) / 600) * 100));
+  useEffect(() => {
+    let intervalId = setInterval(() => {
+      const zPos = useGameStore.getState().playerPosition[2];
+      const percent = Math.max(0, Math.min(100, ((zPos + 300) / 600) * 100));
+      setElevationPercent(Math.round(percent));
+    }, 100);
+    return () => clearInterval(intervalId);
+  }, []);
 
   return (
     <View style={styles.container} pointerEvents="none">
@@ -37,8 +44,8 @@ export function ElevationGauge() {
 const styles = StyleSheet.create({
   container: {
     position: 'absolute',
-    bottom: 16,
-    right: 180,
+    top: 16,
+    left: 184, // 16px edge margin + 160px minimap width + 8px gap
     width: 48,
     height: 160,
     borderWidth: 4,

@@ -5,7 +5,6 @@ import { Hammer, Droplets, TreePine, Download, Upload, CloudRain, ArrowUp, Arrow
 import { getTerrainHeight, getRiverCenter, RIVER_WIDTH } from '../utils/terrain';
 import { Minimap, MinimapLegend } from './Minimap';
 import { ElevationGauge } from './ElevationGauge';
-import { CelestialDial } from './CelestialDial';
 import { Gesture, GestureDetector } from 'react-native-gesture-handler';
 
 export function UI() {
@@ -327,7 +326,6 @@ export function UI() {
       {/* Map & Gauge */}
       <ElevationGauge />
       <Minimap />
-      <CelestialDial />
         </View>
       )}
     </View>
@@ -485,9 +483,12 @@ const styles = StyleSheet.create({
   },
   hudTopLeft: {
     position: 'absolute',
-    top: 40,
-    left: 20,
+    top: 16,
+    left: 0,
+    right: 0,
+    alignItems: 'center',
     zIndex: 10,
+    pointerEvents: 'box-none'
   },
   statsBox: {
     flexDirection: 'row',

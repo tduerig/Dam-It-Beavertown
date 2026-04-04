@@ -3,6 +3,7 @@ import { useEffect, useState, useRef } from 'react';
 import { useGameStore } from '../store';
 import { CHUNK_SIZE, generateTreesForChunk } from '../utils/terrain';
 import { waterEngine } from '../utils/WaterEngine';
+import { Sun, Moon } from 'lucide-react-native';
 
 const chars = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/';
 function encodeB64(bytes: Uint8Array) {
@@ -75,6 +76,14 @@ export function Minimap() {
   const [coverage, setCoverage] = useState<{current: number, max: number}>({current: 0, max: 0});
   const [maxRecord, setMaxRecord] = useState(0);
   const [isHovered, setIsHovered] = useState(false);
+  const [timeOfDay, setTimeOfDay] = useState(0);
+
+  useEffect(() => {
+    const unsub = useGameStore.subscribe((state) => {
+        setTimeOfDay(state.timeOfDay);
+    });
+    return unsub;
+  }, []);
 
   const pulseScale = useRef(new Animated.Value(1)).current;
 
@@ -213,11 +222,20 @@ export function Minimap() {
       >
 
         
-        <View style={styles.statsPanel}>
-          <Text style={styles.statsValue}>💧 {currentPct}%</Text>
-          <Animated.Text style={[styles.statsHigh, { transform: [{ scale: pulseScale }] }]}>
-             (Peak: {peakPct}%)
-          </Animated.Text>
+        <View style={[styles.statsPanel, { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' }]}>
+          <View style={{ flexDirection: 'row', alignItems: 'center' }}>
+            <Text style={styles.statsValue}>💧 {currentPct}%</Text>
+            <Animated.Text style={[styles.statsHigh, { transform: [{ scale: pulseScale }] }]}>
+               (Peak: {peakPct}%)
+            </Animated.Text>
+          </View>
+          <View style={{ paddingRight: 4 }}>
+            {timeOfDay >= 0.75 && timeOfDay < 0.95 ? (
+               <Moon size={14} color="#94a3b8" fill="#e2e8f0" strokeWidth={2.5} />
+            ) : (
+               <Sun size={14} color="#fbbf24" fill="#fbbf24" strokeWidth={2.5} />
+            )}
+          </View>
         </View>
 
         <View style={styles.canvasWrapper}>

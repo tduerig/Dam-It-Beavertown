@@ -9,10 +9,16 @@ import { RainRenderer } from './RainRenderer';
 import { FloatingLogs } from './FloatingLogs';
 import { Suspense } from 'react';
 import { Platform } from 'react-native';
+import { useGameStore } from '../store';
+import { Stats } from '@react-three/drei';
+import { LightingSystem } from './LightingSystem';
 
 export function Game() {
+  const showStats = useGameStore(state => state.settings.showStatsOverlay);
+
   return (
     <Canvas shadows={Platform.OS === 'web'} camera={{ position: [0, 10, 20], fov: 60 }} gl={{ antialias: false }}>
+      {showStats && <Stats className="stats-overlay" />}
       <fog attach="fog" args={['#87a96b', 30, 80]} />
       <Suspense fallback={null}>
         {Platform.OS === 'web' ? (
@@ -21,19 +27,7 @@ export function Game() {
           <color attach="background" args={['#87a96b']} />
         )}
         
-        <ambientLight intensity={Platform.OS === 'web' ? 0.3 : 0.6} />
-        <directionalLight
-          castShadow={Platform.OS === 'web'}
-          position={[50, 50, 50]}
-          intensity={1.5}
-          shadow-mapSize-width={2048}
-          shadow-mapSize-height={2048}
-          shadow-camera-far={100}
-          shadow-camera-left={-50}
-          shadow-camera-right={50}
-          shadow-camera-top={50}
-          shadow-camera-bottom={-50}
-        />
+        <LightingSystem />
 
         <World />
         <WaterRenderer />

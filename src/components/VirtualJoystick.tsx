@@ -76,6 +76,8 @@ export function VirtualJoystick({ onMove, className = '' }: VirtualJoystickProps
   };
 
   useEffect(() => {
+    if (typeof document === 'undefined') return;
+
     const handleTouchMove = (e: TouchEvent) => handleMove(e);
     const handleTouchEnd = (e: TouchEvent) => handleEnd(e);
     const handleMouseMove = (e: MouseEvent) => handleMove(e);
