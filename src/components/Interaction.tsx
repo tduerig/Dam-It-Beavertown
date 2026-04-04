@@ -218,22 +218,22 @@ export function Interaction() {
   useEffect(() => {
     if (virtualButtons.action1 && !prevButtons.current.action1) {
       handleAction('KeyE');
-      lastActionTime.current = performance.now() + 200; // Small delay before auto-repeat kicks in
+      lastActionTime.current = performance.now() + 150; // Small delay before auto-repeat kicks in
     }
     if (virtualButtons.action2 && !prevButtons.current.action2) {
       handleAction('KeyF');
-      lastActionTime.current = performance.now() + 200;
+      lastActionTime.current = performance.now() + 150;
     }
     if (virtualButtons.action3 && !prevButtons.current.action3) {
       handleAction('KeyG');
-      lastActionTime.current = performance.now() + 200;
+      lastActionTime.current = performance.now() + 150;
     }
     prevButtons.current = virtualButtons;
   }, [virtualButtons, handleAction]);
 
   useFrame(() => {
     const now = performance.now();
-    if (now - lastActionTime.current > 250) {
+    if (now - lastActionTime.current > 80) {
       const state = useGameStore.getState().virtualButtons;
       if (state.action1) {
         handleAction('KeyE');

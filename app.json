@@ -3,7 +3,7 @@
     "name": ".tmp-expo",
     "slug": ".tmp-expo",
     "version": "1.0.0",
-    "orientation": "portrait",
+    "orientation": "landscape",
     "icon": "./assets/images/icon.png",
     "scheme": "tmpexpo",
     "userInterfaceStyle": "automatic",

@@ -241,10 +241,10 @@ export function Minimap() {
 const styles = StyleSheet.create({
   nativeWrapper: {
     position: 'absolute',
-    bottom: 16,
-    right: 16,
+    top: 100,
+    left: 16,
     flexDirection: 'row',
-    alignItems: 'flex-end',
+    alignItems: 'flex-start',
     pointerEvents: 'box-none',
     zIndex: 50,
   },
