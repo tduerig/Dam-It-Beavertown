@@ -3,13 +3,12 @@ import { useFrame } from '@react-three/fiber';
 import * as THREE from 'three';
 import { useGameStore } from '../store';
 
-import { Platform } from 'react-native';
+import { getRenderConfig } from '../utils/qualityTier';
 
-const RAIN_COUNT = Platform.OS === 'web' ? 5000 : 1000;
+const RAIN_COUNT = getRenderConfig().rainCount;
 
 export function RainRenderer() {
   const meshRef = useRef<THREE.InstancedMesh>(null);
-  const dummy = useMemo(() => new THREE.Object3D(), []);
   
   // Store individual drop positions and speeds
   const drops = useMemo(() => {
@@ -37,26 +36,34 @@ export function RainRenderer() {
     }
     
     // Show drops proportional to intensity
-    meshRef.current.count = Math.floor(RAIN_COUNT * rainIntensity);
+    const count = Math.floor(RAIN_COUNT * rainIntensity);
+    meshRef.current.count = count;
     
-    for (let i = 0; i < meshRef.current.count; i++) {
+    // Direct Float32Array write — skip Object3D.updateMatrix() entirely.
+    // Rain drops don't rotate, so the matrix is a simple scale+translate:
+    // [sx, 0, 0, 0,  0, sy, 0, 0,  0, 0, sz, 0,  tx, ty, tz, 1]
+    const array = meshRef.current.instanceMatrix.array as Float32Array;
+    const sx = 0.05, sz = 0.05, sy = 1.0;
+    
+    for (let i = 0; i < count; i++) {
       const drop = drops[i];
       
       // Fall down
       drop.y -= drop.speed * delta;
       
-      // Reset if hit ground (approximate)
+      // Reset if hit ground
       if (drop.y < -5) {
         drop.y = 40 + Math.random() * 10;
-        // Re-center around player when resetting
         drop.x = playerPosition[0] + (Math.random() - 0.5) * 80;
         drop.z = playerPosition[2] + (Math.random() - 0.5) * 80;
       }
       
-      dummy.position.set(drop.x, drop.y, drop.z);
-      dummy.scale.set(0.05, 1.0, 0.05); // Thin, long drops
-      dummy.updateMatrix();
-      meshRef.current.setMatrixAt(i, dummy.matrix);
+      // Write directly to the matrix array (column-major order)
+      const off = i * 16;
+      array[off]     = sx;  array[off + 1] = 0;   array[off + 2]  = 0;  array[off + 3]  = 0;
+      array[off + 4] = 0;   array[off + 5] = sy;  array[off + 6]  = 0;  array[off + 7]  = 0;
+      array[off + 8] = 0;   array[off + 9] = 0;   array[off + 10] = sz; array[off + 11] = 0;
+      array[off + 12] = drop.x; array[off + 13] = drop.y; array[off + 14] = drop.z; array[off + 15] = 1;
     }
     
     meshRef.current.instanceMatrix.needsUpdate = true;

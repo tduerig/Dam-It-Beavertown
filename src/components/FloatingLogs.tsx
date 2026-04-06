@@ -6,6 +6,7 @@ import { waterEngine } from '../utils/WaterEngine';
 import { getTerrainHeight } from '../utils/terrain';
 
 const dummy = new THREE.Object3D();
+const _playerPosScratch = new THREE.Vector3();
 
 export function FloatingLogs() {
   const removeBlock = useGameStore(state => state.removeBlock);
@@ -49,7 +50,7 @@ export function FloatingLogs() {
           id: block.id,
           position: new THREE.Vector3(...block.position),
           rotation: new THREE.Euler(...block.rotation),
-          velocity: new THREE.Vector3(0, 0, 0)
+          velocity: new THREE.Vector3(0, 0, 0),
         });
       });
     }
@@ -65,7 +66,7 @@ export function FloatingLogs() {
         
         // Despawn if too far from player or deep in the sea
         const playerPos = useGameStore.getState().playerPosition;
-        const distToPlayer = log.position.distanceTo(new THREE.Vector3(...playerPos));
+        const distToPlayer = log.position.distanceTo(_playerPosScratch.set(playerPos[0], playerPos[1], playerPos[2]));
         if (distToPlayer > 150 || log.position.z > 250) {
           logs.splice(i, 1);
           i--;

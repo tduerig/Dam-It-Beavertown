@@ -3,7 +3,9 @@ import { useEffect, useState, useRef } from 'react';
 import { useGameStore } from '../store';
 import { CHUNK_SIZE, generateTreesForChunk } from '../utils/terrain';
 import { waterEngine } from '../utils/WaterEngine';
+import { woodEngine } from '../utils/woodEngine';
 import { Sun, Moon } from 'lucide-react-native';
+import { getRenderConfig } from '../utils/qualityTier';
 
 const chars = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/';
 function encodeB64(bytes: Uint8Array) {
@@ -88,27 +90,28 @@ export function Minimap() {
   const pulseScale = useRef(new Animated.Value(1)).current;
 
   useEffect(() => {
-    const size = 100;
-    const halfSize = size / 2;
+    const renderCfg = getRenderConfig();
+    const size = renderCfg.minimapResolution;
+    const halfSize = Math.floor(size / 2);
     
     const interval = setInterval(() => {
       const state = useGameStore.getState();
       const [px, py, pz] = state.playerPosition;
       const placedBlocks = state.placedBlocks;
       const draggableLogs = state.draggableLogs;
-      const treeSticks = state.treeSticks;
       
       // Calculate local features map
       const chunkMap = new Map<string, {r:number, g:number, b:number}>();
       
       // Plot Trees
-      const chunkX = Math.floor(px / CHUNK_SIZE);
-      const chunkZ = Math.floor(pz / CHUNK_SIZE);
+      const chunkX = Math.floor((px + CHUNK_SIZE / 2) / CHUNK_SIZE);
+      const chunkZ = Math.floor((pz + CHUNK_SIZE / 2) / CHUNK_SIZE);
       for (let cx = chunkX - 2; cx <= chunkX + 2; cx++) {
         for (let cz = chunkZ - 2; cz <= chunkZ + 2; cz++) {
           const trees = generateTreesForChunk(cx, cz);
           for (const tree of trees) {
-            const sticks = treeSticks[tree.id] ?? (tree.type === 'big' ? 15 : 3);
+            const isBig = tree.type === 'big';
+            const sticks = woodEngine.getSticks(tree.id, isBig);
             if (sticks > 0) {
               const mx = Math.floor(tree.position[0] - px + halfSize);
               const mz = Math.floor(pz - tree.position[2] + halfSize); // Flip Z: upstream=top
@@ -197,7 +200,7 @@ export function Minimap() {
       });
 
       setMapSource(bmpData);
-    }, 250); // Fluid 4FPS mapping prevents CPU overload fully mapped natively
+    }, renderCfg.minimapUpdateMs);
     
     return () => clearInterval(interval);
   }, []);

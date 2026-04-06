@@ -96,6 +96,7 @@ describe('WaterEngine primitive physics', () => {
 
     // Build a massive mud pillar using the explicit blocks array (like placing Mud via G key)
     const blocks = [{
+      id: 'test_mud',
       type: 'mud' as const,
       position: [0, initialT + 10, 0] as [number, number, number],
       rotation: [0, 0, 0] as [number, number, number]

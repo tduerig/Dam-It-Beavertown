@@ -1,9 +1,11 @@
-import { getTerrainHeight, getBaseTerrainHeight, getRiverCenter, RIVER_WIDTH } from './terrain';
-import { PlacedBlock, DraggableLog, useGameStore } from '../store';
+import { getTerrainHeight, getBaseTerrainHeight, getRiverCenter } from './terrain';
+import { globalTerrainConfig } from './terrainConfig';
+import { PlacedBlock, DraggableLog } from '../store';
+import { getUpdateFlag, hasAnyOffsets, getOffset } from './terrainOffsets';
 
-import { Platform } from 'react-native';
+import { getSimConfig } from './qualityTier';
 
-export const WATER_SIZE = Platform.OS === 'web' ? 160 : 80;
+export const WATER_SIZE = getSimConfig().waterSize;
 export const WATER_HALF = WATER_SIZE / 2;
 
 export class WaterEngine {
@@ -73,9 +75,9 @@ export class WaterEngine {
         this.VZ[x + z * this.size] = 0;
         
         const riverX = getRiverCenter(wz);
-        if (Math.abs(wx - riverX) < RIVER_WIDTH) {
+        if (Math.abs(wx - riverX) < globalTerrainConfig.riverWidth) {
           // Calculate bank height to fill river up to the banks
-          const bankHeight = getTerrainHeight(riverX + RIVER_WIDTH, wz);
+          const bankHeight = getTerrainHeight(riverX + globalTerrainConfig.riverWidth, wz);
           this.W[x + z * this.size] = Math.max(0, bankHeight - 0.5 - hFull);
         } else {
           this.W[x + z * this.size] = 0;
@@ -118,8 +120,8 @@ export class WaterEngine {
           newVZ[idx] = 0;
           
           const riverX = getRiverCenter(wz);
-          if (Math.abs(wx - riverX) < RIVER_WIDTH) {
-            const bankHeight = getTerrainHeight(riverX + RIVER_WIDTH, wz);
+          if (Math.abs(wx - riverX) < globalTerrainConfig.riverWidth) {
+            const bankHeight = getTerrainHeight(riverX + globalTerrainConfig.riverWidth, wz);
             newW[idx] = Math.max(0, bankHeight - 0.5 - hFull);
           } else {
             newW[idx] = 0;
@@ -138,11 +140,10 @@ export class WaterEngine {
   }
 
   updateTerrain(blocks: PlacedBlock[], draggableLogs: DraggableLog[] = []) {
-    // Retrieve the offsets from the state once per tick
-    const offsets = useGameStore.getState().terrainOffsets;
+    // Read the stamp from the module-scope terrain offsets engine
+    const stamp = getUpdateFlag();
     
     // Performance Optimization: Skip 25k loop overhead if nothing practically changed
-    const stamp = offsets['update_flag'] as number || 0;
     if (this.lastOffsetsStamp === stamp && 
         this.lastBlocksCount === blocks.length && 
         this.lastLogsCount === draggableLogs.length &&
@@ -156,7 +157,7 @@ export class WaterEngine {
     this.lastOriginX = this.originX;
     this.lastOriginZ = this.originZ;
 
-    const hasOffsets = Object.keys(offsets).length > 1; // accounting for 'update_flag'
+    const offsetsExist = hasAnyOffsets();
 
     // Fast-path reconstruction from BaseTerrain Cache
     for (let i = 0; i < this.size * this.size; i++) {
@@ -167,14 +168,14 @@ export class WaterEngine {
         
         let h = this.T_base[i];
         
-        if (hasOffsets) {
+        if (offsetsExist) {
             const x0 = Math.floor(wx); const x1 = x0 + 1;
             const z0 = Math.floor(wz); const z1 = z0 + 1;
             const tx = wx - x0; const tz = wz - z0;
-            const v00 = offsets[`${x0},${z0}`] || 0;
-            const v10 = offsets[`${x1},${z0}`] || 0;
-            const v01 = offsets[`${x0},${z1}`] || 0;
-            const v11 = offsets[`${x1},${z1}`] || 0;
+            const v00 = getOffset(`${x0},${z0}`);
+            const v10 = getOffset(`${x1},${z0}`);
+            const v01 = getOffset(`${x0},${z1}`);
+            const v11 = getOffset(`${x1},${z1}`);
             const nx0 = v00 * (1 - tx) + v10 * tx;
             const nx1 = v01 * (1 - tx) + v11 * tx;
             h += nx0 * (1 - tz) + nx1 * tz;
@@ -182,6 +183,7 @@ export class WaterEngine {
         
         this.newT[i] = h;
     }
+
     
     for (const block of blocks) {
       const bx = block.position[0];
@@ -259,7 +261,7 @@ export class WaterEngine {
           const dist = Math.sqrt((wx - projX)**2 + (wz - projZ)**2);
           
           if (dist < 2.0) { // Log radius is ~1.12, use 2.0 for solid barrier overlapping grid diagonals
-            this.newT[x + z * this.size] = Math.max(this.newT[x + z * this.size], by + 1.8);
+            this.newT[x + z * this.size] = Math.max(this.newT[x + z * this.size], by + 2.0); // Allow moderate overtopping unless mudded
           }
         }
       }
@@ -275,13 +277,25 @@ export class WaterEngine {
     }
   }
 
-  simulate() {
-    const K = 0.25; // Stable flow rate (max 0.25 for 2D grid to prevent oscillation)
-    // Clear outFlow buffer to prevent carrying over previous simulation tick data
-    this.outFlow.fill(0);
+  simulate(bandStart?: number, bandEnd?: number) {
+    const K = 0.25;
+    const zStart = bandStart ?? 1;
+    const zEnd = bandEnd ?? (this.size - 1);
+    const isFullPass = (zStart <= 1 && zEnd >= this.size - 1);
     
-    for (let x = 1; x < this.size - 1; x++) {
-      for (let z = 1; z < this.size - 1; z++) {
+    // Clear outFlow buffer — only clear the band we're processing + 1 row margin
+    // for neighbor lookups. Full clear is needed on full pass.
+    if (isFullPass) {
+      this.outFlow.fill(0);
+    } else {
+      const clearStart = Math.max(0, zStart - 1) * this.size * 4;
+      const clearEnd = Math.min(this.size, zEnd + 1) * this.size * 4;
+      this.outFlow.fill(0, clearStart, clearEnd);
+    }
+    
+    // Pass 1: Compute outflow for band (needs full neighbor read access)
+    for (let z = Math.max(1, zStart); z < Math.min(this.size - 1, zEnd); z++) {
+      for (let x = 1; x < this.size - 1; x++) {
         const idx = x + z * this.size;
         if (this.W[idx] <= 0.001) continue;
         
@@ -313,11 +327,10 @@ export class WaterEngine {
       }
     }
     
-    this.VX.fill(0);
-    this.VZ.fill(0);
-    
-    for (let x = 1; x < this.size - 1; x++) {
-      for (let z = 1; z < this.size - 1; z++) {
+    // Pass 2: Apply flow + velocity + source/sink/absorption (merged for cache locality)
+    const SEA_LEVEL = -15;
+    for (let z = Math.max(1, zStart); z < Math.min(this.size - 1, zEnd); z++) {
+      for (let x = 1; x < this.size - 1; x++) {
         const idx = x + z * this.size;
         const outIdx = idx * 4;
         
@@ -332,7 +345,11 @@ export class WaterEngine {
         const inL = this.outFlow[((x - 1) + z * this.size) * 4 + 1];
         
         // Deep Occupancy Culling: Skip math completely for permanently dry cells
-        if (this.W[idx] <= 0.001 && inT === 0 && inR === 0 && inB === 0 && inL === 0) continue;
+        if (this.W[idx] <= 0.001 && inT === 0 && inR === 0 && inB === 0 && inL === 0) {
+          this.VX[idx] = 0;
+          this.VZ[idx] = 0;
+          continue;
+        }
         
         this.W[idx] += (inT + inR + inB + inL) - (outT + outR + outB + outL);
         if (this.W[idx] < 0) this.W[idx] = 0;
@@ -340,54 +357,54 @@ export class WaterEngine {
         if (this.W[idx] > 0.01) {
           this.VX[idx] = (inL + outR - outL - inR) * 10; 
           this.VZ[idx] = (inT + outB - outT - inB) * 10;
+        } else {
+          this.VX[idx] = 0;
+          this.VZ[idx] = 0;
+        }
+        
+        // Ground absorption (merged into application pass for cache locality)
+        const terrainH = this.T[idx];
+        if (terrainH < SEA_LEVEL) {
+          const targetW = SEA_LEVEL - terrainH;
+          if (this.W[idx] < targetW) {
+            this.W[idx] += (targetW - this.W[idx]) * 0.05;
+          }
+        } else if (this.W[idx] > 0) {
+          this.W[idx] = Math.max(0, this.W[idx] - 0.0001);
         }
       }
     }
     
-    // Source and Sink
+    // Source and Sink (always full-width, runs on applicable rows within band)
     for (let x = 0; x < this.size; x++) {
       const wx = this.originX - WATER_HALF + x;
       
-      // Upstream Source
-      const sourceZ = 1;
-      const globalSourceZ = this.originZ - WATER_HALF + sourceZ;
-      const riverX = getRiverCenter(globalSourceZ);
-      
-      // Only inject water if we are below the snowline (Z > -140)
-      if (globalSourceZ > -140 && Math.abs(wx - riverX) < RIVER_WIDTH) {
-        const idx = x + sourceZ * this.size;
-        this.W[idx] += 0.12; // Inject water (decreased by 20% from 0.15)
-        if (this.W[idx] > 10.0) this.W[idx] = 10.0; 
+      // Upstream Source (row 1)
+      if (zStart <= 1 && zEnd > 1) {
+        const sourceZ = 1;
+        const globalSourceZ = this.originZ - WATER_HALF + sourceZ;
+        const riverX = getRiverCenter(globalSourceZ);
+        
+        if (globalSourceZ > -140 && Math.abs(wx - riverX) < globalTerrainConfig.riverWidth) {
+          const idx = x + sourceZ * this.size;
+          this.W[idx] += 0.12;
+          if (this.W[idx] > 10.0) this.W[idx] = 10.0; 
+        }
       }
       
-      // Downstream Sink
-      const sinkZ1 = this.size - 2;
-      const sinkZ2 = this.size - 1;
-      this.W[x + sinkZ1 * this.size] *= 0.8;
-      this.W[x + sinkZ2 * this.size] = 0;
+      // Downstream Sink (last 2 rows)
+      if (zEnd >= this.size - 1) {
+        const sinkZ1 = this.size - 2;
+        const sinkZ2 = this.size - 1;
+        this.W[x + sinkZ1 * this.size] *= 0.8;
+        this.W[x + sinkZ2 * this.size] = 0;
+      }
     }
 
-    // East/West Sinks (to drain rain water that flows off the sides)
-    for (let z = 0; z < this.size; z++) {
+    // East/West Sinks (within band)
+    for (let z = zStart; z < zEnd; z++) {
       this.W[0 + z * this.size] = 0;
       this.W[this.size - 1 + z * this.size] = 0;
-    }
-
-    // Ground absorption & Ocean fill
-    const SEA_LEVEL = -15;
-    for (let i = 0; i < this.size * this.size; i++) {
-      const terrainH = this.T[i];
-      
-      // Ocean fill
-      if (terrainH < SEA_LEVEL) {
-        const targetW = SEA_LEVEL - terrainH;
-        if (this.W[i] < targetW) {
-          this.W[i] += (targetW - this.W[i]) * 0.05; // Fill up to sea level
-        }
-      } else if (this.W[i] > 0) {
-        // Ground absorption (slowly drains rain pools)
-        this.W[i] = Math.max(0, this.W[i] - 0.0001);
-      }
     }
   }
 

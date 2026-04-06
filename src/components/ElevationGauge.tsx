@@ -44,7 +44,7 @@ export function ElevationGauge() {
 const styles = StyleSheet.create({
   container: {
     position: 'absolute',
-    top: 16,
+    top: 100, // Matches minimap top position
     left: 184, // 16px edge margin + 160px minimap width + 8px gap
     width: 48,
     height: 160,

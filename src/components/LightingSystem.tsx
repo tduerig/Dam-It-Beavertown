@@ -3,6 +3,10 @@ import { useFrame, useThree } from '@react-three/fiber';
 import { useGameStore } from '../store';
 import { Platform } from 'react-native';
 import * as THREE from 'three';
+import { getGraphicsConfig } from '../utils/qualityTier';
+
+const envColorDay = new THREE.Color('#87a96b');
+const envColorNight = new THREE.Color('#1a2421');
 
 export function LightingSystem() {
   const lightRef = useRef<THREE.DirectionalLight>(null);
@@ -10,9 +14,6 @@ export function LightingSystem() {
   const timeOfDay = useGameStore(state => state.timeOfDay);
   const updateTimeOfDay = useGameStore(state => state.updateTimeOfDay);
   const lastHourRef = useRef(-1);
-
-  const envColorDay = new THREE.Color('#87a96b');
-  const envColorNight = new THREE.Color('#1a2421');
 
   // Manual tick for game loop time
   useFrame((state, delta) => {
@@ -72,7 +73,8 @@ export function LightingSystem() {
     lightRef.current.intensity = intensity;
     
     // Smoothly interpolate background ambient sky color natively without reloading presets
-    if (Platform.OS !== 'web') {
+    const gfx = getGraphicsConfig();
+    if (!gfx.useEnvironmentMap) {
         const bg = state.scene.background;
         if (bg instanceof THREE.Color) {
             bg.lerpColors(envColorNight, envColorDay, Math.min(1, intensity / 1.5));
@@ -84,16 +86,18 @@ export function LightingSystem() {
     }
   });
 
+  const gfxConfig = getGraphicsConfig();
+
   return (
     <>
-      <ambientLight intensity={Platform.OS === 'web' ? 0.3 : 0.6} />
+      <ambientLight intensity={gfxConfig.shadowsEnabled ? 0.3 : 0.6} />
       <directionalLight
         ref={lightRef}
-        castShadow={Platform.OS === 'web'}
+        castShadow={gfxConfig.shadowsEnabled}
         position={[50, 50, 50]}
         intensity={1.5}
-        shadow-mapSize-width={2048}
-        shadow-mapSize-height={2048}
+        shadow-mapSize-width={gfxConfig.shadowMapSize}
+        shadow-mapSize-height={gfxConfig.shadowMapSize}
         shadow-camera-far={120}
         shadow-camera-left={-60}
         shadow-camera-right={60}

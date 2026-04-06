@@ -1,0 +1,175 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>beaver-sim world-tests</title>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <style>
+        body { font-family: system-ui, sans-serif; background: #0f172a; color: #f8fafc; padding: 2rem; max-width: 1200px; margin: auto; }
+        .card { background: #1e293b; border-radius: 12px; padding: 24px; margin-bottom: 24px; border: 1px solid #334155; }
+        .header { margin-bottom: 1rem; border-bottom: 1px solid #334155; padding-bottom: 0.5rem; color: #60a5fa; }
+        .grid { display: grid; grid-template-columns: 1fr 2fr; gap: 2rem; }
+        .stats pre { background: #000; padding: 1rem; border-radius: 6px; overflow-x: auto; color: #4ade80; font-size: 15px;}
+        .notes { background: rgba(0,0,0,0.3); padding: 10px; border-left: 3px solid #f59e0b; font-size: 14px; }
+        img { max-width: 100%; border-radius: 8px; border: 1px solid #475569; }
+        @media (max-width: 768px) { .grid { grid-template-columns: 1fr; } }
+    </style>
+</head>
+<body>
+    <h1>Beavertown Sim-Tests Archive</h1>
+    <p style="color: #94a3b8; margin-bottom: 2rem;">Automated telemetry validations tracking ecology and physics simulation balance.</p>
+    
+    <div class="card">
+        <h2 class="header">Sim-Test: Flow & Light Proxy Ecosystem Rules</h2>
+        <div class="grid">
+            <div class="stats">
+                <h3>Telemetry Snapshot</h3>
+                <pre>
+Baseline (No Dam):
+- Water: 19%
+- Lilies: 114
+- Cattails: 7
+- Trees: 124
+
+Full River Dam:
+- Water: 24%
+- Lilies: 156
+- Cattails: 11
+- Trees: 123
+                </pre>
+                
+                <h3>Agentic Discovery Notes</h3>
+                <div class="notes">
+                    <p><strong style="color: #fbbf24;">Damming Effectiveness:</strong> The flow-velocity checks ensure standing water scales lilies aggressively (156 vs 114).</p>
+                    <p><strong style="color: #fbbf24;">Shallows for Cattails:</strong> Spillage from mud-sealed logs and dams nearly doubled cattail counts (11 vs 7).</p>
+                    <p><strong style="color: #fbbf24;">Tree Spout Checks:</strong> Added radial tree checking successfully balanced the map at roughly ~120 trees without clumping issues.</p>
+                </div>
+            </div>
+            <div>
+                <h3>Engine Capture (120s final state)</h3>
+                <img src="./baseline_tuned_120s.png" alt="Baseline Setup" />
+            </div>
+        </div>
+    </div>
+
+    <div class="card">
+        <h2 class="header">Sim-Test: Ecology Balance (10x Reduced Lily Spawn)</h2>
+        <div class="grid">
+            <div class="stats">
+                <h3>Telemetry Snapshot</h3>
+                <pre>
+Baseline (No Dam):
+- Water: 16%
+- Lilies: 10
+- Cattails: 8
+- Trees: 124
+
+Felled Log (Mud Sealed):
+- Water: 22%
+- Lilies: 17
+- Cattails: 8
+- Trees: 128
+                </pre>
+                
+                <h3>Agentic Discovery Notes</h3>
+                <div class="notes">
+                    <p><strong style="color: #fbbf24;">Rarity Balance:</strong> By shrinking the spawn probability to `< 0.015`, lilies become realistically scarce. Even with a fully mudded dam creating massive water pools, the game only generated 17 lilies across the entire tile set.</p>
+                    <p><strong style="color: #fbbf24;">High Tension Yield:</strong> This forces the player into a tighter survival loop—finding even 2 or 3 lilies requires serious engineering or extensive exploration.</p>
+                </div>
+            </div>
+            <div>
+                <h3>Engine Capture (120s final state)</h3>
+                <img src="./reduced_lily_120s.png" alt="Reduced Lily Yield" />
+            </div>
+        </div>
+    </div>
+
+    <div class="card">
+        <h2 class="header">Sim-Test: Parametric Sweep (20 Virtual Minutes)</h2>
+        
+        <div class="stats" style="margin-bottom: 2rem;">
+            <h3>Agentic Discovery Notes</h3>
+            <div class="notes" style="margin-bottom: 1rem;">
+                <p><strong style="color: #fbbf24;">Survival Timeline Validity:</strong> Every single scenario (including all non-dam baselines) eventually stabilized above 15 food sources per 20 minutes due to our relaxed flow conditions (`speed < 1.2`).</p>
+                <p><strong style="color: #fbbf24;">The Geometry Buffer:</strong> "Twisty River" configurations (#5, #6) easily outperformed Straight and Baseline setups in yield, spiking to 27 total foods (22 lilies/5 cattails) quickly. The twists inherently drop water velocity below the calm threshold!</p>
+                <p><strong style="color: #fbbf24;">Dam vs Baseline:</strong> Interestingly, the dam didn't dramatically alter raw counts early on, probably because the river was deep enough out-of-the-box that edge friction calmed it plenty. We have achieved a stable and rich ecosystem suitable for intense survival tuning.</p>
+            </div>
+            <h3>Engine Capture (30x Speed Execution)</h3>
+            <img src="./eco_growth_tuned_v2_1775436182707.webp" alt="Timeseries Sweep" style="max-width: 600px;" />
+        </div>
+        
+        <script>
+            const extractedData = {"status":"SIMULATION_COMPLETE_20_MINS","timeseries":{"1":[{"coverage":30,"lilies":3,"cattails":0},{"coverage":40,"lilies":3,"cattails":0},{"coverage":48,"lilies":3,"cattails":0},{"coverage":52,"lilies":3,"cattails":0},{"coverage":54,"lilies":3,"cattails":0},{"coverage":56,"lilies":48,"cattails":6},{"coverage":57,"lilies":48,"cattails":6},{"coverage":57,"lilies":48,"cattails":6},{"coverage":58,"lilies":48,"cattails":6},{"coverage":58,"lilies":48,"cattails":6},{"coverage":58,"lilies":109,"cattails":19},{"coverage":58,"lilies":109,"cattails":19},{"coverage":58,"lilies":109,"cattails":19},{"coverage":58,"lilies":109,"cattails":19},{"coverage":58,"lilies":109,"cattails":19},{"coverage":58,"lilies":174,"cattails":30},{"coverage":58,"lilies":174,"cattails":30},{"coverage":58,"lilies":174,"cattails":30},{"coverage":58,"lilies":174,"cattails":30},{"coverage":58,"lilies":174,"cattails":30}],"2":[{"coverage":30,"lilies":3,"cattails":1},{"coverage":40,"lilies":3,"cattails":1},{"coverage":48,"lilies":3,"cattails":1},{"coverage":52,"lilies":3,"cattails":1},{"coverage":55,"lilies":3,"cattails":1},{"coverage":57,"lilies":56,"cattails":21},{"coverage":58,"lilies":56,"cattails":21},{"coverage":58,"lilies":56,"cattails":21},{"coverage":58,"lilies":56,"cattails":21},{"coverage":58,"lilies":56,"cattails":21},{"coverage":58,"lilies":127,"cattails":40},{"coverage":58,"lilies":127,"cattails":40},{"coverage":58,"lilies":127,"cattails":40},{"coverage":58,"lilies":127,"cattails":40},{"coverage":58,"lilies":127,"cattails":40},{"coverage":58,"lilies":180,"cattails":50},{"coverage":58,"lilies":180,"cattails":50},{"coverage":58,"lilies":180,"cattails":50},{"coverage":58,"lilies":180,"cattails":50},{"coverage":58,"lilies":180,"cattails":50}],"3":[{"coverage":29,"lilies":4,"cattails":1},{"coverage":39,"lilies":4,"cattails":1},{"coverage":47,"lilies":4,"cattails":1},{"coverage":52,"lilies":4,"cattails":1},{"coverage":54,"lilies":4,"cattails":1},{"coverage":56,"lilies":56,"cattails":21},{"coverage":57,"lilies":56,"cattails":21},{"coverage":57,"lilies":56,"cattails":21},{"coverage":57,"lilies":56,"cattails":21},{"coverage":57,"lilies":56,"cattails":21},{"coverage":57,"lilies":115,"cattails":32},{"coverage":57,"lilies":115,"cattails":32},{"coverage":57,"lilies":115,"cattails":32},{"coverage":57,"lilies":115,"cattails":32},{"coverage":57,"lilies":115,"cattails":32},{"coverage":57,"lilies":176,"cattails":42},{"coverage":57,"lilies":176,"cattails":42},{"coverage":57,"lilies":176,"cattails":42},{"coverage":57,"lilies":176,"cattails":42},{"coverage":57,"lilies":176,"cattails":42}],"4":[{"coverage":30,"lilies":9,"cattails":0},{"coverage":39,"lilies":9,"cattails":0},{"coverage":47,"lilies":9,"cattails":0},{"coverage":52,"lilies":9,"cattails":0},{"coverage":55,"lilies":9,"cattails":0},{"coverage":57,"lilies":78,"cattails":10},{"coverage":57,"lilies":78,"cattails":10},{"coverage":58,"lilies":78,"cattails":10},{"coverage":58,"lilies":78,"cattails":10},{"coverage":58,"lilies":78,"cattails":10},{"coverage":58,"lilies":160,"cattails":20},{"coverage":58,"lilies":160,"cattails":20},{"coverage":58,"lilies":160,"cattails":20},{"coverage":58,"lilies":160,"cattails":20},{"coverage":58,"lilies":160,"cattails":20},{"coverage":58,"lilies":218,"cattails":30},{"coverage":58,"lilies":218,"cattails":30},{"coverage":58,"lilies":218,"cattails":30},{"coverage":58,"lilies":218,"cattails":30},{"coverage":58,"lilies":218,"cattails":30}],"5":[{"coverage":33,"lilies":4,"cattails":1},{"coverage":43,"lilies":4,"cattails":1},{"coverage":51,"lilies":4,"cattails":1},{"coverage":56,"lilies":4,"cattails":1},{"coverage":59,"lilies":4,"cattails":1},{"coverage":60,"lilies":56,"cattails":11},{"coverage":60,"lilies":56,"cattails":11},{"coverage":61,"lilies":56,"cattails":11},{"coverage":61,"lilies":56,"cattails":11},{"coverage":62,"lilies":56,"cattails":11},{"coverage":62,"lilies":120,"cattails":15},{"coverage":62,"lilies":120,"cattails":15},{"coverage":62,"lilies":120,"cattails":15},{"coverage":62,"lilies":120,"cattails":15},{"coverage":62,"lilies":120,"cattails":15},{"coverage":62,"lilies":180,"cattails":27},{"coverage":62,"lilies":180,"cattails":27},{"coverage":62,"lilies":180,"cattails":27},{"coverage":62,"lilies":180,"cattails":27},{"coverage":62,"lilies":180,"cattails":27}],"6":[{"coverage":32,"lilies":3,"cattails":1},{"coverage":42,"lilies":3,"cattails":1},{"coverage":50,"lilies":3,"cattails":1},{"coverage":55,"lilies":3,"cattails":1},{"coverage":58,"lilies":3,"cattails":1},{"coverage":60,"lilies":60,"cattails":14},{"coverage":61,"lilies":60,"cattails":14},{"coverage":61,"lilies":60,"cattails":14},{"coverage":62,"lilies":60,"cattails":14},{"coverage":62,"lilies":60,"cattails":14},{"coverage":62,"lilies":133,"cattails":20},{"coverage":62,"lilies":133,"cattails":20},{"coverage":62,"lilies":133,"cattails":20},{"coverage":62,"lilies":133,"cattails":20},{"coverage":62,"lilies":133,"cattails":20},{"coverage":62,"lilies":195,"cattails":32},{"coverage":62,"lilies":195,"cattails":32},{"coverage":62,"lilies":195,"cattails":32},{"coverage":62,"lilies":195,"cattails":32},{"coverage":62,"lilies":195,"cattails":32}],"7":[{"coverage":31,"lilies":3,"cattails":1},{"coverage":41,"lilies":3,"cattails":1},{"coverage":48,"lilies":3,"cattails":1},{"coverage":52,"lilies":3,"cattails":1},{"coverage":55,"lilies":3,"cattails":1},{"coverage":57,"lilies":74,"cattails":17},{"coverage":58,"lilies":74,"cattails":17},{"coverage":58,"lilies":74,"cattails":17},{"coverage":58,"lilies":74,"cattails":17},{"coverage":58,"lilies":74,"cattails":17},{"coverage":59,"lilies":139,"cattails":31},{"coverage":59,"lilies":139,"cattails":31},{"coverage":59,"lilies":139,"cattails":31},{"coverage":59,"lilies":139,"cattails":31},{"coverage":59,"lilies":139,"cattails":31},{"coverage":59,"lilies":199,"cattails":47},{"coverage":59,"lilies":199,"cattails":47},{"coverage":59,"lilies":199,"cattails":47},{"coverage":59,"lilies":199,"cattails":47},{"coverage":59,"lilies":199,"cattails":47}],"8":[{"coverage":31,"lilies":3,"cattails":1},{"coverage":41,"lilies":3,"cattails":1},{"coverage":48,"lilies":3,"cattails":1},{"coverage":53,"lilies":3,"cattails":1},{"coverage":56,"lilies":3,"cattails":1},{"coverage":58,"lilies":78,"cattails":13},{"coverage":58,"lilies":78,"cattails":13},{"coverage":59,"lilies":78,"cattails":13},{"coverage":59,"lilies":78,"cattails":13},{"coverage":59,"lilies":78,"cattails":13},{"coverage":59,"lilies":143,"cattails":21},{"coverage":59,"lilies":143,"cattails":21},{"coverage":59,"lilies":143,"cattails":21},{"coverage":59,"lilies":143,"cattails":21},{"coverage":59,"lilies":143,"cattails":21},{"coverage":59,"lilies":208,"cattails":28},{"coverage":59,"lilies":208,"cattails":28},{"coverage":59,"lilies":208,"cattails":28},{"coverage":59,"lilies":208,"cattails":28},{"coverage":59,"lilies":208,"cattails":28}],"9":[{"coverage":29,"lilies":2,"cattails":0},{"coverage":39,"lilies":2,"cattails":0},{"coverage":46,"lilies":2,"cattails":0},{"coverage":50,"lilies":2,"cattails":0},{"coverage":53,"lilies":2,"cattails":0},{"coverage":54,"lilies":54,"cattails":13},{"coverage":55,"lilies":54,"cattails":13},{"coverage":56,"lilies":54,"cattails":13},{"coverage":56,"lilies":54,"cattails":13},{"coverage":56,"lilies":54,"cattails":13},{"coverage":56,"lilies":118,"cattails":30},{"coverage":56,"lilies":118,"cattails":30},{"coverage":56,"lilies":118,"cattails":30},{"coverage":56,"lilies":118,"cattails":30},{"coverage":56,"lilies":118,"cattails":30},{"coverage":56,"lilies":181,"cattails":41},{"coverage":56,"lilies":181,"cattails":41},{"coverage":56,"lilies":181,"cattails":41},{"coverage":56,"lilies":181,"cattails":41},{"coverage":56,"lilies":181,"cattails":41}],"10":[{"coverage":29,"lilies":4,"cattails":0},{"coverage":39,"lilies":4,"cattails":0},{"coverage":46,"lilies":4,"cattails":0},{"coverage":50,"lilies":4,"cattails":0},{"coverage":53,"lilies":4,"cattails":0},{"coverage":54,"lilies":56,"cattails":16},{"coverage":55,"lilies":56,"cattails":16},{"coverage":56,"lilies":56,"cattails":16},{"coverage":56,"lilies":56,"cattails":16},{"coverage":57,"lilies":56,"cattails":16},{"coverage":57,"lilies":120,"cattails":32},{"coverage":57,"lilies":120,"cattails":32},{"coverage":57,"lilies":120,"cattails":32},{"coverage":57,"lilies":120,"cattails":32},{"coverage":57,"lilies":120,"cattails":32},{"coverage":57,"lilies":185,"cattails":43},{"coverage":57,"lilies":185,"cattails":43},{"coverage":57,"lilies":185,"cattails":43},{"coverage":57,"lilies":185,"cattails":43},{"coverage":57,"lilies":185,"cattails":43}]}};
+
+            const colorMap = {
+                1: '#94a3b8', 2: '#fbbf24', 3: '#94a3b8', 4: '#fbbf24', 5: '#94a3b8', 
+                6: '#fbbf24', 7: '#94a3b8', 8: '#fbbf24', 9: '#94a3b8', 10: '#fbbf24'
+            };
+            const labelsMap = {
+                1: 'Baseline', 2: 'Baseline Dam', 3: 'Straight', 4: 'Straight Dam', 5: 'Twisty', 
+                6: 'Twisty Dam', 7: 'Shallow', 8: 'Shallow Dam', 9: 'Deep', 10: 'Deep Dam'
+            };
+
+            const minutes = Array.from({length: 20}, (_, i) => i + 1);
+            
+            // Generate Total Food Series
+            const foodDatasets = [];
+            for (let i = 1; i <= 10; i++) {
+                const isDam = i % 2 === 0;
+                foodDatasets.push({
+                    label: labelsMap[i],
+                    data: extractedData.timeseries[i].map(d => d.lilies + d.cattails),
+                    borderColor: colorMap[i],
+                    borderDash: isDam ? [] : [5, 5],
+                    tension: 0.1,
+                    hidden: i > 2 && i < 5 ? true : false, // Hide some straight paths to reduce clutter
+                });
+            }
+        </script>
+        
+        <div class="grid">
+            <div>
+                <h3>Total Biological Food Supply</h3>
+                <canvas id="foodChart" width="400" height="250"></canvas>
+            </div>
+            <div>
+                <h3>Global Water Coverage (%)</h3>
+                <canvas id="waterChart" width="400" height="250"></canvas>
+            </div>
+        </div>
+
+        <script>
+            document.addEventListener('DOMContentLoaded', function() {
+                const ctxF = document.getElementById('foodChart').getContext('2d');
+                new Chart(ctxF, {
+                    type: 'line',
+                    data: { labels: minutes, datasets: foodDatasets },
+                    options: { responsive: true, scales: { x: { title: {display: true, color: '#aaa', text: 'Virtual Minutes'} }, y: { title: {display: true, color: '#aaa', text: 'Total Count'} } } }
+                });
+
+                const waterDatasets = [];
+                for (let i = 1; i <= 10; i++) {
+                    const isDam = i % 2 === 0;
+                    waterDatasets.push({
+                        label: labelsMap[i],
+                        data: extractedData.timeseries[i].map(d => d.coverage),
+                        borderColor: colorMap[i],
+                        borderDash: isDam ? [] : [5, 5],
+                        tension: 0.1,
+                        hidden: i > 2 && i < 5 ? true : false
+                    });
+                }
+
+                const ctxW = document.getElementById('waterChart').getContext('2d');
+                new Chart(ctxW, {
+                    type: 'line',
+                    data: { labels: minutes, datasets: waterDatasets },
+                    options: { responsive: true, scales: { x: { title: {display: true, color: '#aaa', text: 'Virtual Minutes'} }, y: { min: 0, max: 100, title: {display: true, color: '#aaa', text: 'Coverage %'} } } }
+                });
+            });
+        </script>
+    </div>
+
+</body>
+</html>

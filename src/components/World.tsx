@@ -1,10 +1,12 @@
+import { useEffect } from 'react';
 import { useGameStore } from '../store';
 import { CHUNK_SIZE } from '../utils/terrain';
 import { Chunk } from './Chunk';
-import { ChunkFlora } from './ChunkFlora';
+import { GlobalFlora } from './GlobalFlora';
 import { DraggableLogs } from './DraggableLogs';
 
 import { Particles } from './Particles';
+import { getRenderConfig } from '../utils/qualityTier';
 
 export function World() {
   // Only re-render chunks when the player crosses a 40-meter threshold boundary natively
@@ -17,17 +19,24 @@ export function World() {
   const chunkZ = parseInt(chunkZStr, 10);
 
   const chunks = [];
-  const viewDistance = 3; // 7x7 grid for infinite terrain feel
+  const viewDistance = getRenderConfig().chunkViewDistance;
   for (let x = -viewDistance; x <= viewDistance; x++) {
     for (let z = -viewDistance; z <= viewDistance; z++) {
       chunks.push(<Chunk key={`${chunkX + x}_${chunkZ + z}`} chunkX={chunkX + x} chunkZ={chunkZ + z} />);
-      chunks.push(<ChunkFlora key={`flora_${chunkX + x}_${chunkZ + z}`} chunkX={chunkX + x} chunkZ={chunkZ + z} />);
     }
   }
+
+  useEffect(() => {
+    // Initial bloom on spawn so the world isn't totally barren!
+    setTimeout(() => {
+        useGameStore.getState().triggerEcologyTick();
+    }, 2000);
+  }, []);
 
   return (
     <group>
       {chunks}
+      <GlobalFlora />
       <DraggableLogs />
       <Particles />
     </group>

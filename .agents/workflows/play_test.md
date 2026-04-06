@@ -32,13 +32,14 @@ Beavertown is an isometric forest. Standard trees are light green cones. Massive
 - Keep going until you are directly adjacent to a Massive Oak. Note your subjective difficulty in finding it or any other navigation challenges.
 
 **Step 3: Chopping & Dragging**
-- **IMPORTANT KEYBINDINGS:** `E` is Chop. `F` is Place Stick. `Spacebar` is Jump!
+- **IMPORTANT KEYBINDINGS:** `E` is Chop/Dig. `F` is Place Stick. `G` is Mud. `Spacebar` is Jump!
 - Oak trees should collapse into draggable brown logs.
 - Press `E` to pick it up, and attempt to drag it using `w, a, s, d` into a body of blue water (the river). 
 - Mud over it, building up water, place sticks in the water
+- Seek out and eat a Lily and a Cat-Tail
 
 **Step 4: The Report & Visual Critique**
-Take a final screenshot. With a highly critical eye, deeply analyze all screenshots you've captured during this session. Look for any UI overlaps, unpleasant color mappings (like gross olive green blocks or jarring palettes), clipping errors, or graphical bugs.
+Take a final screenshot including your dam and water build-up. With a highly critical eye, deeply analyze all screenshots you've captured during this session. Look for any UI overlaps, unpleasant color mappings (like gross olive green blocks or jarring palettes), clipping errors, or graphical bugs.
 
 Stop the tracker: `cancelAnimationFrame(window.rf); window.gameStore.getState().setGameState('paused');`
 Extract the final stats using: `JSON.stringify(window.gameStore.getState().stats)`
@@ -64,4 +65,4 @@ Construct a JSON Payload representing your QA findings:
 Return exactly this JSON.
 """
 
-Add this result to playtests/index.html
+Mandatory: Append this result to playtests/index.html where we track all playtests.

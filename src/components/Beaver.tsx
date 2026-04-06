@@ -12,6 +12,54 @@ const SPEED = 5;
 const JUMP_FORCE = 8;
 const GRAVITY = 20;
 
+// Pre-allocated scratch objects (AP-1 fix: eliminates per-frame GC pressure)
+const _moveDir = new THREE.Vector3();
+const _rotatedMove = new THREE.Vector3();
+const _cameraOffset = new THREE.Vector3();
+const _targetCameraPos = new THREE.Vector3();
+const _logMatrix = new THREE.Matrix4();
+const _branchMatrix = new THREE.Matrix4();
+const _bPos = new THREE.Vector3();
+const _bQuat = new THREE.Quaternion();
+const _bScale = new THREE.Vector3();
+const _bDir = new THREE.Vector3();
+const _logEulerScratch = new THREE.Euler();
+const _logQuatScratch = new THREE.Quaternion();
+const _logScaleScratch = new THREE.Vector3(1, 1, 1);
+const _logPosScratch = new THREE.Vector3();
+
+// Spatial hash for O(1) block collision lookups
+const BLOCK_CELL_SIZE = 2; // 2-unit grid cells
+function blockHashKey(x: number, z: number): string {
+  return `${Math.floor(x / BLOCK_CELL_SIZE)},${Math.floor(z / BLOCK_CELL_SIZE)}`;
+}
+
+function buildBlockHash(blocks: any[]): Map<string, any[]> {
+  const hash = new Map<string, any[]>();
+  for (const block of blocks) {
+    const key = blockHashKey(block.position[0], block.position[2]);
+    let arr = hash.get(key);
+    if (!arr) { arr = []; hash.set(key, arr); }
+    arr.push(block);
+  }
+  return hash;
+}
+
+function getBlocksNear(hash: Map<string, any[]>, x: number, z: number): any[] {
+  // Check 3×3 neighborhood of grid cells to catch blocks near cell boundaries
+  const cx = Math.floor(x / BLOCK_CELL_SIZE);
+  const cz = Math.floor(z / BLOCK_CELL_SIZE);
+  let result: any[] = [];
+  for (let dx = -1; dx <= 1; dx++) {
+    for (let dz = -1; dz <= 1; dz++) {
+      const key = `${cx + dx},${cz + dz}`;
+      const arr = hash.get(key);
+      if (arr) result = result.concat(arr);
+    }
+  }
+  return result;
+}
+
 export function Beaver() {
   const groupRef = useRef<THREE.Group>(null);
   const bodyRef = useRef<THREE.Group>(null);
@@ -30,6 +78,10 @@ export function Beaver() {
 
   const lastWeeTime = useRef(0);
   const lastFrameTime = useRef(performance.now());
+  
+  // Cached spatial hash for block collision — rebuilt only when blocks change
+  const blockHashRef = useRef<Map<string, any[]>>(new Map());
+  const lastBlocksRef = useRef<any[] | null>(null);
 
   useFrame((state, delta) => {
     const { gameState } = useGameStore.getState();
@@ -50,10 +102,18 @@ export function Beaver() {
       virtualJoystick, virtualCamera, virtualButtons 
     } = useGameStore.getState();
 
-    // Check if in water for speed boost
-    let currentGroundY = terrainHeight + 0.5;
+    // Build/cache spatial hash for block collision (rebuild only when blocks change)
     const placedBlocks = useGameStore.getState().placedBlocks;
-    for (const block of placedBlocks) {
+    if (placedBlocks !== lastBlocksRef.current) {
+      blockHashRef.current = buildBlockHash(placedBlocks);
+      lastBlocksRef.current = placedBlocks;
+    }
+    const blockHash = blockHashRef.current;
+
+    // Check if in water for speed boost — O(1) spatial hash lookup instead of O(N)
+    let currentGroundY = terrainHeight + 0.5;
+    const nearbyBlocks = getBlocksNear(blockHash, pos.x, pos.z);
+    for (const block of nearbyBlocks) {
       if (Math.abs(pos.x - block.position[0]) < 1.0 && Math.abs(pos.z - block.position[2]) < 1.0) {
         const blockTopY = block.position[1] + (block.type === 'mud' ? 0.25 : 0.4);
         currentGroundY = Math.max(currentGroundY, blockTopY + 0.5);
@@ -63,7 +123,7 @@ export function Beaver() {
     const inWater = currentWaterHeight > currentGroundY - 0.5;
     
     // Movement
-    const moveDir = new THREE.Vector3();
+    const moveDir = _moveDir.set(0, 0, 0);
     if (keys['KeyW']) moveDir.z -= 1;
     if (keys['KeyS']) moveDir.z += 1;
     if (keys['KeyA']) moveDir.x -= 1;
@@ -109,7 +169,7 @@ export function Beaver() {
       if (len > 1) moveDir.normalize();
       
       // Rotate movement vector by camera angle
-      const rotatedMoveDir = new THREE.Vector3(
+      const rotatedMoveDir = _rotatedMove.set(
         moveDir.x * Math.cos(cameraAngle) + moveDir.z * Math.sin(cameraAngle),
         0,
         -moveDir.x * Math.sin(cameraAngle) + moveDir.z * Math.cos(cameraAngle)
@@ -152,8 +212,9 @@ export function Beaver() {
     // Ground collision
     let groundY = terrainHeight + 0.5; // 0.5 is half beaver height
     
-    // Check placed blocks
-    for (const block of placedBlocks) {
+    // Check placed blocks — O(1) spatial hash lookup
+    const nearbyBlocksForGround = getBlocksNear(blockHash, pos.x, pos.z);
+    for (const block of nearbyBlocksForGround) {
       // Simple AABB check
       if (Math.abs(pos.x - block.position[0]) < 1.0 && Math.abs(pos.z - block.position[2]) < 1.0) {
         const blockTopY = block.position[1] + (block.type === 'mud' ? 0.25 : 0.4);
@@ -239,49 +300,48 @@ export function Beaver() {
           }
         }
         
-        // Check branches
-        const logMatrix = new THREE.Matrix4().compose(
-          new THREE.Vector3(lx, ly, lz),
-          new THREE.Quaternion().setFromEuler(new THREE.Euler(rx, ry, rz)),
-          new THREE.Vector3(1, 1, 1)
-        );
+        // Check branches — ONLY for logs within 20 units (distance gate)
+        const logDistSq = (pos.x - lx) ** 2 + (pos.z - lz) ** 2;
+        if (logDistSq > 400) continue; // Skip branch checks for far-away logs
         
-        for (const config of BRANCH_CONFIGS) {
-          const branchMatrix = new THREE.Matrix4().compose(
-            new THREE.Vector3(...config.pos),
-            new THREE.Quaternion(config.quat[0], config.quat[1], config.quat[2], config.quat[3]),
-            new THREE.Vector3(...config.scale)
-          );
-          branchMatrix.premultiply(logMatrix);
+        _logPosScratch.set(lx, ly, lz);
+        _logEulerScratch.set(rx, ry, rz);
+        _logQuatScratch.setFromEuler(_logEulerScratch);
+        _logScaleScratch.set(1, 1, 1);
+        _logMatrix.compose(_logPosScratch, _logQuatScratch, _logScaleScratch);
+        
+        for (let bi = 0; bi < BRANCH_CONFIGS.length; bi++) {
+          const config = BRANCH_CONFIGS[bi];
+          _bPos.set(...config.pos);
+          _bQuat.set(config.quat[0], config.quat[1], config.quat[2], config.quat[3]);
+          _bScale.set(...config.scale);
+          _branchMatrix.compose(_bPos, _bQuat, _bScale);
+          _branchMatrix.premultiply(_logMatrix);
           
-          const bPos = new THREE.Vector3();
-          const bQuat = new THREE.Quaternion();
-          const bScale = new THREE.Vector3();
-          branchMatrix.decompose(bPos, bQuat, bScale);
+          _branchMatrix.decompose(_bPos, _bQuat, _bScale);
           
-          const bDir = new THREE.Vector3(0, 1, 0).applyQuaternion(bQuat);
+          _bDir.set(0, 1, 0).applyQuaternion(_bQuat);
           
-          const bDx = pos.x - bPos.x;
-          const bDz = pos.z - bPos.z;
+          const bDx = pos.x - _bPos.x;
+          const bDz = pos.z - _bPos.z;
           
-          const bLenXZ = Math.sqrt(bDir.x * bDir.x + bDir.z * bDir.z);
+          const bLenXZ = Math.sqrt(_bDir.x * _bDir.x + _bDir.z * _bDir.z);
           if (bLenXZ > 0.001) {
-            const bNx = bDir.x / bLenXZ;
-            const bNz = bDir.z / bLenXZ;
+            const bNx = _bDir.x / bLenXZ;
+            const bNz = _bDir.z / bLenXZ;
             
             const bT = bDx * bNx + bDz * bNz;
             const bActualT = bT / bLenXZ;
             
-            // Branch length is 4.2, so actualT goes from -2.1 to 2.1
             if (bActualT > -2.1 && bActualT < 2.1) {
-              const bClosestX = bPos.x + bNx * bT;
-              const bClosestZ = bPos.z + bNz * bT;
+              const bClosestX = _bPos.x + bNx * bT;
+              const bClosestZ = _bPos.z + bNz * bT;
               
               const bDistSq = (pos.x - bClosestX) ** 2 + (pos.z - bClosestZ) ** 2;
-              const bRadius = 0.4 * config.scale[0]; // Average radius of branch is 0.4
+              const bRadius = 0.4 * config.scale[0];
               
               if (bDistSq < bRadius * bRadius) {
-                const bCenterY = bPos.y + bDir.y * bActualT;
+                const bCenterY = _bPos.y + _bDir.y * bActualT;
                 const bTopY = bCenterY + Math.sqrt(bRadius * bRadius - bDistSq);
                 groundY = Math.max(groundY, bTopY + 0.5);
               }
@@ -443,12 +503,12 @@ export function Beaver() {
 
     // Camera follow
     const distance = 15;
-    const cameraOffset = new THREE.Vector3(
+    const cameraOffset = _cameraOffset.set(
       Math.sin(cameraAngle) * Math.cos(cameraPitch) * distance,
       Math.sin(cameraPitch) * distance,
       Math.cos(cameraAngle) * Math.cos(cameraPitch) * distance
     );
-    const targetCameraPos = pos.clone().add(cameraOffset);
+    const targetCameraPos = _targetCameraPos.copy(pos).add(cameraOffset);
     
     // 1. Minimum height clamp for target offset
     const targetGroundHeight = getTerrainHeight(targetCameraPos.x, targetCameraPos.z);

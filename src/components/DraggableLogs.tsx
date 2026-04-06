@@ -5,6 +5,9 @@ import { getTerrainHeight } from '../utils/terrain';
 import * as THREE from 'three';
 import { useMemo, useRef, useEffect } from 'react';
 
+// Pre-allocated scratch for leaf decay terrain deposits
+const _leafDropPos = new THREE.Vector3();
+
 function getEffectiveGroundHeightFromHash(x: number, z: number, blockHash: Map<string, number>) {
   let h = getTerrainHeight(x, z);
   // Blocks are snapped to 0.5 increments. Check local neighborhood instead of global iteration array.
@@ -149,6 +152,10 @@ export function DraggableLogs() {
   const leavesScales = useRef(new Map<string, number>());
   const pivotHeightsRef = useRef(new Map<string, number>());
   
+  // Track mesh identity so we can detect when the InstancedMesh remounts
+  // (e.g. when logs.length changes). On remount, ALL matrices must be rebuilt.
+  const lastMeshInstance = useRef<THREE.InstancedMesh | null>(null);
+  
   const blockHashRef = useRef(new Map<string, number>());
   
   useEffect(() => {
@@ -191,6 +198,17 @@ export function DraggableLogs() {
     const { playerPosition, playerRotation, placedBlocks } = useGameStore.getState();
 
     let needsInstanceUpdate = false;
+    
+    // Detect InstancedMesh remount: when logs.length changes, R3F destroys
+    // and recreates the mesh. The new mesh has uninitialized (identity) matrices.
+    // Cemented/sleeping logs would skip their matrix update and appear to vanish.
+    const meshRemounted = meshRef.current !== lastMeshInstance.current;
+    if (meshRemounted) {
+      lastMeshInstance.current = meshRef.current;
+    }
+    
+    // Batch terrain modifications to avoid Zustand shallow-copy storm (AP-2 fix)
+    const terrainBatch: Array<{x: number, z: number, amount: number, radius: number}> = [];
 
     logs.forEach((log, i) => {
       let [lx, ly, lz] = log.position;
@@ -201,7 +219,8 @@ export function DraggableLogs() {
 
       // SLEEP ZONE: If the log is cemented, flat on the ground, and leaves are fully decayed,
       // it physically never moves again. Bypass all JS math and Matrix float calculations!
-      if (log.isMudded && !log.isDragged && rx >= Math.PI / 2 - 0.01 && currentLeavesScale === 0) {
+      // BUT: skip sleep on the first frame after a mesh remount — we must set the matrix at least once.
+      if (!meshRemounted && log.isMudded && !log.isDragged && rx >= Math.PI / 2 - 0.01 && currentLeavesScale === 0) {
         return; 
       }
       
@@ -420,14 +439,19 @@ export function DraggableLogs() {
           const localZ = Math.sin(angle) * radius;
           
           // Offset by the leaves' position (4.9) relative to log center
-          const localPos = new THREE.Vector3(localX, coneLocalY + 4.9, localZ);
-          dummyLog.localToWorld(localPos);
+          _leafDropPos.set(localX, coneLocalY + 4.9, localZ);
+          dummyLog.localToWorld(_leafDropPos);
           
-          // Thin, wide mud deposit matching the full leaf shadow
-          useGameStore.getState().modifyTerrain(localPos.x, localPos.z, 0.1, 1.5);
+          // Accumulate into batch instead of dispatching per-drop
+          terrainBatch.push({ x: _leafDropPos.x, z: _leafDropPos.z, amount: 0.1, radius: 1.5 });
         }
       }
     });
+
+    // Single batched Zustand dispatch for all terrain modifications this frame
+    if (terrainBatch.length > 0) {
+      useGameStore.getState().batchModifyTerrain(terrainBatch);
+    }
 
     if (needsInstanceUpdate) {
       meshRef.current.instanceMatrix.needsUpdate = true;

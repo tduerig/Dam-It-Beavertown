@@ -5,6 +5,7 @@ import { useGameStore } from '../store';
 
 const PARTICLE_COUNT = 20;
 const LIFETIME = 1.0;
+const _particleDummy = new THREE.Object3D();
 
 export function Particles() {
   const emitters = useGameStore(state => state.particleEmitters);
@@ -45,7 +46,6 @@ export function Particles() {
     });
     
     // Update particles
-    const dummy = new THREE.Object3D();
     let instanceCount = 0;
     
     for (let i = particles.current.length - 1; i >= 0; i--) {
@@ -60,14 +60,14 @@ export function Particles() {
       p.vel.y -= 15 * delta; // Gravity
       p.pos.addScaledVector(p.vel, delta);
       
-      dummy.position.copy(p.pos);
+      _particleDummy.position.copy(p.pos);
       const scale = p.life / LIFETIME;
-      dummy.scale.set(scale, scale, scale);
-      dummy.rotation.x += p.vel.x * delta;
-      dummy.rotation.y += p.vel.y * delta;
-      dummy.updateMatrix();
+      _particleDummy.scale.set(scale, scale, scale);
+      _particleDummy.rotation.x += p.vel.x * delta;
+      _particleDummy.rotation.y += p.vel.y * delta;
+      _particleDummy.updateMatrix();
       
-      meshRef.current.setMatrixAt(instanceCount, dummy.matrix);
+      meshRef.current.setMatrixAt(instanceCount, _particleDummy.matrix);
       meshRef.current.setColorAt(instanceCount, p.color);
       instanceCount++;
     }

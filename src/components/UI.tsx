@@ -3,6 +3,7 @@ import { View, Text, StyleSheet, Platform, Pressable, ScrollView, useWindowDimen
 import { useGameStore } from '../store';
 import { Hammer, Droplets, TreePine, Download, Upload, CloudRain, ArrowUp, ArrowDown, Settings, Save, FolderOpen, Leaf } from 'lucide-react-native';
 import { getTerrainHeight, getRiverCenter, RIVER_WIDTH } from '../utils/terrain';
+import { QualityLevel } from '../utils/qualityTier';
 import { Minimap, MinimapLegend } from './Minimap';
 import { ElevationGauge } from './ElevationGauge';
 import { Gesture, GestureDetector } from 'react-native-gesture-handler';
@@ -45,6 +46,7 @@ export function UI() {
   const stats = useGameStore((state) => state.stats);
   const settings = useGameStore((state) => state.settings);
   const setSetting = useGameStore((state) => state.setSetting);
+  const setQuality = useGameStore((state) => state.setQuality);
 
   const setVirtualJoystick = useGameStore((state) => state.setVirtualJoystick);
   const setVirtualCamera = useGameStore((state) => state.setVirtualCamera);
@@ -169,6 +171,42 @@ export function UI() {
                   <FolderOpen color="#fff" size={20} />
                   <Text style={styles.saveLoadText}>Load</Text>
                 </Pressable>
+              </View>
+
+              {/* Quality Tier Controls */}
+              <View style={{ marginTop: 12 }}>
+                <Text style={[styles.menuStatText, { fontWeight: 'bold', marginBottom: 4, color: '#fef3c7' }]}>Quality Tiers</Text>
+                {(['simulation', 'graphics', 'rendering'] as const).map(aspect => (
+                  <View key={aspect} style={{ flexDirection: 'row', alignItems: 'center', marginBottom: 6, gap: 6 }}>
+                    <Text style={[styles.menuStatText, { width: 70, fontSize: 11, textTransform: 'capitalize' }]}>{aspect}</Text>
+                    {(['low', 'medium', 'high'] as QualityLevel[]).map(level => {
+                      const isActive = settings.quality[aspect] === level;
+                      return (
+                        <Pressable
+                          key={level}
+                          style={[{
+                            paddingHorizontal: 8,
+                            paddingVertical: 4,
+                            borderRadius: 4,
+                            borderWidth: 1,
+                            borderColor: isActive ? '#facc15' : 'rgba(255,255,255,0.2)',
+                            backgroundColor: isActive ? 'rgba(250, 204, 21, 0.25)' : 'transparent',
+                          }]}
+                          onPress={() => setQuality(aspect, level)}
+                        >
+                          <Text style={{
+                            color: isActive ? '#facc15' : '#9ca3af',
+                            fontSize: 10,
+                            fontWeight: isActive ? '800' : '600',
+                            textTransform: 'uppercase',
+                          }}>
+                            {level === 'medium' ? 'MED' : level.toUpperCase()}
+                          </Text>
+                        </Pressable>
+                      );
+                    })}
+                  </View>
+                ))}
               </View>
             </View>
 

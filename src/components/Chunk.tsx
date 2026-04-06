@@ -1,76 +1,105 @@
-import { useMemo, useRef, useEffect } from 'react';
+import { useMemo, useRef, useEffect, useState } from 'react';
 import { useFrame } from '@react-three/fiber';
 import * as THREE from 'three';
 import { CHUNK_SIZE, getTerrainHeight, getBaseTerrainHeight, generateTreesForChunk } from '../utils/terrain';
 import { useGameStore } from '../store';
 import { waterEngine } from '../utils/WaterEngine';
 import { BRANCH_CONFIGS } from './DraggableLogs';
+import { isChunkTerrainDirty, getGlobalStamp } from '../utils/terrainOffsets';
+import { woodEngine } from '../utils/woodEngine';
 
 const dummy = new THREE.Object3D();
+const HIDDEN_MATRIX = new THREE.Matrix4().makeTranslation(0, -1000, 0).scale(new THREE.Vector3(0, 0, 0));
+
+// Types that Chunk renders as 3D tree geometry. Everything else (lily, cattail)
+// is handled by GlobalFlora and must NOT get a trunk/leaves mesh.
+const TREE_TYPES = new Set(['big', 'small', 'sapling']);
+
+// Extra InstancedMesh capacity so ecology can add trees without remounting
+const INSTANCE_HEADROOM = 48;
+
+// Hoisted Color objects for terrain coloring (avoids allocation inside useMemo)
+const _color = new THREE.Color();
+const _mudColor = new THREE.Color('#4a3018');
+const _snowColor = new THREE.Color('#ffffff');
+const _rockColor = new THREE.Color('#888888');
+const _forestColor = new THREE.Color('#4a5d23');
+const _sandColor = new THREE.Color('#e6d59d');
+
+function buildTerrainGeometry(chunkX: number, chunkZ: number): THREE.PlaneGeometry {
+  const geo = new THREE.PlaneGeometry(CHUNK_SIZE, CHUNK_SIZE, 40, 40);
+  geo.rotateX(-Math.PI / 2);
+  const pos = geo.attributes.position.array;
+  const colors = new Float32Array(pos.length);
+  
+  for (let i = 0; i < pos.length; i += 3) {
+    const x = pos[i] + chunkX * CHUNK_SIZE;
+    const z = pos[i + 2] + chunkZ * CHUNK_SIZE;
+    const y = getTerrainHeight(x, z);
+    const baseY = getBaseTerrainHeight(x, z);
+    const offset = y - baseY;
+    pos[i + 1] = y;
+
+    // Biome colors based on altitude
+    if (y > 14) {
+      _color.copy(_snowColor);
+    } else if (y > 10) {
+      _color.copy(_rockColor).lerp(_snowColor, (y - 10) / 4);
+    } else if (y > 0) {
+      _color.copy(_forestColor).lerp(_rockColor, y / 10);
+    } else if (y > -4) {
+      _color.copy(_sandColor).lerp(_forestColor, (y + 4) / 4);
+    } else {
+      _color.copy(_sandColor);
+    }
+
+    // Blend in mud color based on terrain modification
+    if (Math.abs(offset) > 0.05) {
+      const blend = Math.min(1, Math.abs(offset) / 0.8);
+      _color.lerp(_mudColor, blend);
+    }
+
+    colors[i] = _color.r;
+    colors[i + 1] = _color.g;
+    colors[i + 2] = _color.b;
+  }
+  geo.setAttribute('color', new THREE.BufferAttribute(colors, 3));
+  geo.computeVertexNormals();
+  return geo;
+}
 
 export function Chunk({ chunkX, chunkZ }: { chunkX: number, chunkZ: number }) {
-  const treeSticks = useGameStore(state => state.treeSticks);
-  const terrainOffsets = useGameStore(state => state.terrainOffsets);
+  const chunkKey = `${chunkX},${chunkZ}`;
   
-  const terrainGeo = useMemo(() => {
-    const geo = new THREE.PlaneGeometry(CHUNK_SIZE, CHUNK_SIZE, 40, 40);
-    geo.rotateX(-Math.PI / 2);
-    const pos = geo.attributes.position.array;
-    const colors = new Float32Array(pos.length);
-    const color = new THREE.Color();
-    const mudColor = new THREE.Color('#4a3018'); // Dark, wet mud color
-    
-    for (let i = 0; i < pos.length; i += 3) {
-      const x = pos[i] + chunkX * CHUNK_SIZE;
-      const z = pos[i + 2] + chunkZ * CHUNK_SIZE;
-      const y = getTerrainHeight(x, z);
-      const baseY = getBaseTerrainHeight(x, z);
-      const offset = y - baseY;
-      pos[i + 1] = y;
-
-      // Biome colors based on altitude
-      if (y > 14) {
-        color.set('#ffffff'); // Snow
-      } else if (y > 10) {
-        color.set('#888888').lerp(new THREE.Color('#ffffff'), (y - 10) / 4); // Rock to Snow
-      } else if (y > 0) {
-        color.set('#4a5d23').lerp(new THREE.Color('#888888'), y / 10); // Forest to Rock
-      } else if (y > -4) {
-        color.set('#e6d59d').lerp(new THREE.Color('#4a5d23'), (y + 4) / 4); // Sand to Forest
-      } else {
-        color.set('#e6d59d'); // Sand
-      }
-
-      // Blend in mud color based on terrain modification
-      if (Math.abs(offset) > 0.05) {
-        const blend = Math.min(1, Math.abs(offset) / 0.8); // Max mud color at 0.8 offset
-        color.lerp(mudColor, blend);
-      }
-
-      colors[i] = color.r;
-      colors[i + 1] = color.g;
-      colors[i + 2] = color.b;
+  // Localized terrain dirty tracking: only rebuild when THIS chunk is modified,
+  // not when any remote chunk's terrain changes.
+  const [terrainVersion, setTerrainVersion] = useState(0);
+  const lastSeenStamp = useRef(0);
+  
+  // Poll for terrain dirtiness every 6 frames (~10Hz). This is MUCH cheaper
+  // than subscribing to terrainOffsets and getting broadcast-invalidated on every
+  // modification across all 49 chunks.
+  useFrame(() => {
+    if (isChunkTerrainDirty(chunkX, chunkZ, lastSeenStamp.current)) {
+      lastSeenStamp.current = getGlobalStamp();
+      setTerrainVersion(v => v + 1);
     }
-    geo.setAttribute('color', new THREE.BufferAttribute(colors, 3));
-    geo.computeVertexNormals();
-    return geo;
-  }, [chunkX, chunkZ, terrainOffsets]);
+  });
 
-  const trees = useMemo(() => generateTreesForChunk(chunkX, chunkZ), [chunkX, chunkZ]);
+  const terrainGeo = useMemo(() => {
+    return buildTerrainGeometry(chunkX, chunkZ);
+  }, [chunkX, chunkZ, terrainVersion]);
 
-  const activeTrees = useMemo(() => {
-    return trees.filter(tree => {
-      const maxSticks = tree.type === 'big' ? 12 : 3;
-      return (treeSticks[tree.id] ?? maxSticks) > 0;
-    });
-  }, [trees, treeSticks]);
+  // trees is a LIVE reference to _treeCache[key] — ecology mutates it at runtime.
+  // We grab the initial reference and track the rendered tree count dynamically.
+  const treesRef = useRef(generateTreesForChunk(chunkX, chunkZ));
+  const initialTreeCount = useMemo(() => treesRef.current.length, [chunkX, chunkZ]);
+  const maxInstances = initialTreeCount + INSTANCE_HEADROOM;
+  const lastRenderedCount = useRef(0);
 
-  const stumps = useMemo(() => {
-    return trees.filter(tree => {
-      const maxSticks = tree.type === 'big' ? 12 : 3;
-      return (treeSticks[tree.id] ?? maxSticks) <= 0;
-    });
-  }, [trees, treeSticks]);
+  // Pre-allocated pool for big tree branch rendering
+  const treePoolObj = useMemo(() => new THREE.Object3D(), []);
+  const branchPoolObjs = useMemo(() => Array.from({length: 8}, () => new THREE.Object3D()), []);
 
   const { trunkGeo, leavesGeo, trunkMat, leavesMat, branchGeo, stumpGeo, stumpMat } = useMemo(() => {
     const tGeo = new THREE.CylinderGeometry(0.4, 0.6, 4, 8);
@@ -183,38 +212,139 @@ export function Chunk({ chunkX, chunkZ }: { chunkX: number, chunkZ: number }) {
   const branchesMeshRef = useRef<THREE.InstancedMesh>(null);
   const stumpMeshRef = useRef<THREE.InstancedMesh>(null);
   const leavesScales = useRef(new Map<string, number>());
+  const waterCheckCounter = useRef(0);
+  const lastSeenFloraStamp = useRef(-1);
+  const renderableTreesRef = useRef<{ tree: any, origIdx: number }[]>([]);
+  const lastTreesLength = useRef(-1);
 
   useFrame((state, delta) => {
     const dt = Math.min(delta, 0.1);
     if (!trunkMeshRef.current || !leavesMeshRef.current) return;
     
-    // We can check water level dynamically, but for performance we might just do it occasionally
-    // For now, we'll do it every frame since there aren't too many active trees per chunk
-    const time = Date.now() * 0.001;
-    let needsUpdate = false;
+    // Live reference — ecology may have pushed new items since last frame
+    const trees = treesRef.current;
+    
+    // Filter to only renderable tree types (skip lily, cattail — GlobalFlora handles those)
+    // Cached to avoid massive GC storm (AP-1)
+    if (trees.length !== lastTreesLength.current) {
+      lastTreesLength.current = trees.length;
+      const newRenderable = [];
+      for (let i = 0; i < trees.length; i++) {
+        if (TREE_TYPES.has(trees[i].type)) {
+          newRenderable.push({ tree: trees[i], origIdx: i });
+        }
+      }
+      renderableTreesRef.current = newRenderable;
+    }
+    const renderableTrees = renderableTreesRef.current;
+    
+    // ── Dirty-flag check ──────────────────────────────────────────────
+    // Only recompute if woodEngine flagged this chunk or animating
+    let isDirty = woodEngine.isChunkFloraDirty(chunkKey, lastSeenFloraStamp.current);
+    
+    // Also dirty if renderable count changed (ecology added/removed trees)
+    if (renderableTrees.length !== lastRenderedCount.current) isDirty = true;
+    
+    // Check if any leaf dissolution is in progress
+    for (const [, scale] of leavesScales.current) {
+      if (scale > 0 && scale < 1) { isDirty = true; break; }
+    }
 
-    activeTrees.forEach((tree, i) => {
+    
+    // Periodic water level check (every 10 frames) to detect flooding
+    waterCheckCounter.current++;
+    if (waterCheckCounter.current >= 10) {
+      waterCheckCounter.current = 0;
+      for (const { tree } of renderableTrees) {
+        const waterH = waterEngine.getSurfaceHeight(tree.position[0], tree.position[2]);
+        const scale = tree.type === 'big' ? 2.8 : (tree.type === 'sapling' ? 0.4 : 1);
+        const isFlooded = waterH > tree.position[1] + (1 * scale);
+        const currentScale = leavesScales.current.get(tree.id) ?? 1;
+        const targetScale = isFlooded ? 0 : 1;
+        if (Math.abs(currentScale - targetScale) > 0.01) {
+          isDirty = true;
+          break;
+        }
+      }
+    }
+    
+    if (!isDirty) return; // ← THIS IS THE BIG WIN: skip 95% of frames
+    lastSeenFloraStamp.current = woodEngine.getChunkStamp(chunkKey);
+    lastRenderedCount.current = renderableTrees.length;
+    let keepAnimating = false;
+    
+    const time = Date.now() * 0.001;
+
+    // Clamp to buffer capacity
+    const renderCount = Math.min(renderableTrees.length, maxInstances);
+    
+    // Set mesh.count to exactly the number of active renderable trees.
+    // This prevents ghost instances from stale matrices at higher indices.
+    trunkMeshRef.current.count = renderCount;
+    leavesMeshRef.current.count = renderCount;
+    if (stumpMeshRef.current) stumpMeshRef.current.count = renderCount;
+    if (branchesMeshRef.current) branchesMeshRef.current.count = renderCount * BRANCH_CONFIGS.length;
+
+    for (let ri = 0; ri < renderCount; ri++) {
+      const tree = renderableTrees[ri].tree;
+      const i = ri; // instance index (contiguous, no gaps)
       const isBig = tree.type === 'big';
       const isSapling = tree.type === 'sapling';
       const scale = isBig ? 2.8 : (isSapling ? 0.4 : 1);
       
-      // Calculate how many sticks are left to visually whittle the tree
       const maxSticks = isBig ? 12 : 3;
-      const currentSticks = treeSticks[tree.id] ?? maxSticks;
+      const currentSticks = woodEngine.getSticks(tree.id, isBig);
+      const isFelled = currentSticks <= 0;
       const whittleScale = currentSticks / maxSticks;
       
-      if (i < 100) {
+      if (i < 100 && !isFelled) {
         trunkGeo.attributes.aWhittle.setX(i, whittleScale);
       }
       
-      // Base position
+      if (isFelled) {
+        // Hide tree completely
+        dummy.position.set(0, -1000, 0);
+        dummy.scale.set(0, 0, 0);
+        dummy.updateMatrix();
+        trunkMeshRef.current!.setMatrixAt(i, dummy.matrix);
+        leavesMeshRef.current!.setMatrixAt(i, dummy.matrix);
+        
+        if (branchesMeshRef.current) {
+          BRANCH_CONFIGS.forEach((_, bIdx) => {
+            branchesMeshRef.current!.setMatrixAt(i * BRANCH_CONFIGS.length + bIdx, dummy.matrix);
+          });
+        }
+        
+        // Show stump
+        if (stumpMeshRef.current) {
+          dummy.position.set(
+            tree.position[0] - chunkX * CHUNK_SIZE, 
+            tree.position[1] + (0.25 * scale), // stump offset
+            tree.position[2] - chunkZ * CHUNK_SIZE
+          );
+          dummy.scale.set(scale, scale, scale);
+          dummy.rotation.set(0, 0, 0);
+          dummy.updateMatrix();
+          stumpMeshRef.current!.setMatrixAt(i, dummy.matrix);
+        }
+        continue;
+      }
+      
+      // Stump hide (tree is alive)
+      if (stumpMeshRef.current) {
+        dummy.position.set(0, -1000, 0);
+        dummy.scale.set(0, 0, 0);
+        dummy.updateMatrix();
+        stumpMeshRef.current!.setMatrixAt(i, dummy.matrix);
+      }
+      
+      // Base position for alive trunk
       dummy.position.set(
         tree.position[0] - chunkX * CHUNK_SIZE, 
         tree.position[1] + (2 * scale), // trunk offset
         tree.position[2] - chunkZ * CHUNK_SIZE
       );
       
-      // Scale trunk based on whittling (only scale X and Z, keep Y same or slightly reduced)
       dummy.scale.set(scale, scale, scale);
       dummy.rotation.set(0, 0, 0);
       dummy.updateMatrix();
@@ -238,6 +368,7 @@ export function Chunk({ chunkX, chunkZ }: { chunkX: number, chunkZ: number }) {
         currentLeavesScale = Math.max(targetLeavesScale, currentLeavesScale - dt * 0.5);
       }
       leavesScales.current.set(tree.id, currentLeavesScale);
+      if (currentLeavesScale > 0 && currentLeavesScale < 1) keepAnimating = true; // Keep ticking
       
       if (i < 100) {
         leavesGeo.attributes.aDissolve.setX(i, currentLeavesScale);
@@ -250,36 +381,25 @@ export function Chunk({ chunkX, chunkZ }: { chunkX: number, chunkZ: number }) {
       // Branches (only for big trees)
       if (branchesMeshRef.current) {
         if (isBig) {
-          const treeObj = new THREE.Object3D();
-          treeObj.position.set(
+          treePoolObj.position.set(
             tree.position[0] - chunkX * CHUNK_SIZE,
             tree.position[1] + (2 * scale),
             tree.position[2] - chunkZ * CHUNK_SIZE
           );
-          treeObj.scale.set(scale, scale, scale);
+          treePoolObj.scale.set(scale, scale, scale);
+          treePoolObj.rotation.set(0, 0, 0);
+          treePoolObj.updateMatrix();
+          treePoolObj.updateMatrixWorld(true);
           
-          const branches: THREE.Object3D[] = [];
-          BRANCH_CONFIGS.forEach((config) => {
-            const branchObj = new THREE.Object3D();
-            // The config positions are for the 11.2 unit log.
-            // Our treeObj is scaled by 2.8, and the base trunk is 4 units long.
-            // 4 * 2.8 = 11.2.
-            // So we need to divide the config positions by 2.8 to get them into the local space of the 4-unit trunk.
-            branchObj.position.set(config.pos[0] / 2.8, config.pos[1] / 2.8, config.pos[2] / 2.8);
-            branchObj.quaternion.set(config.quat[0], config.quat[1], config.quat[2], config.quat[3]);
-            // The scale in config is relative to the branch size.
-            // We just use it directly.
+          BRANCH_CONFIGS.forEach((config, bIdx) => {
+            const b = branchPoolObjs[bIdx];
+            b.position.set(config.pos[0] / 2.8, config.pos[1] / 2.8, config.pos[2] / 2.8);
+            b.quaternion.set(config.quat[0], config.quat[1], config.quat[2], config.quat[3]);
             const branchScale = config.scale[0] * (0.1 + 0.9 * (1 - currentLeavesScale));
-            branchObj.scale.set(branchScale, branchScale, branchScale);
-            
-            treeObj.add(branchObj);
-            branches.push(branchObj);
-          });
-          
-          treeObj.updateMatrixWorld(true);
-          
-          branches.forEach((branchObj, bIdx) => {
-            branchesMeshRef.current!.setMatrixAt(i * BRANCH_CONFIGS.length + bIdx, branchObj.matrixWorld);
+            b.scale.set(branchScale, branchScale, branchScale);
+            b.updateMatrix();
+            b.matrixWorld.multiplyMatrices(treePoolObj.matrixWorld, b.matrix);
+            branchesMeshRef.current!.setMatrixAt(i * BRANCH_CONFIGS.length + bIdx, b.matrixWorld);
           });
         } else {
           // Hide branch for small trees
@@ -291,36 +411,27 @@ export function Chunk({ chunkX, chunkZ }: { chunkX: number, chunkZ: number }) {
           });
         }
       }
-    });
+    }
     
     trunkMeshRef.current.instanceMatrix.needsUpdate = true;
     leavesMeshRef.current.instanceMatrix.needsUpdate = true;
     if (branchesMeshRef.current) {
       branchesMeshRef.current.instanceMatrix.needsUpdate = true;
     }
-    if (activeTrees.length > 0) {
+    if (stumpMeshRef.current) {
+      stumpMeshRef.current.instanceMatrix.needsUpdate = true;
+    }
+    if (renderCount > 0) {
       trunkGeo.attributes.aWhittle.needsUpdate = true;
       leavesGeo.attributes.aDissolve.needsUpdate = true;
     }
     
-    if (stumpMeshRef.current) {
-      stumps.forEach((tree, i) => {
-        const isBig = tree.type === 'big';
-        const scale = isBig ? 2.8 : 1;
-        
-        // Base position
-        dummy.position.set(
-          tree.position[0] - chunkX * CHUNK_SIZE, 
-          tree.position[1] + (0.25 * scale), // stump offset
-          tree.position[2] - chunkZ * CHUNK_SIZE
-        );
-        
-        dummy.scale.set(scale, scale, scale);
-        dummy.rotation.set(0, 0, 0);
-        dummy.updateMatrix();
-        stumpMeshRef.current!.setMatrixAt(i, dummy.matrix);
-      });
-      stumpMeshRef.current.instanceMatrix.needsUpdate = true;
+    // Request follow-up frame if animations persist
+    if (!keepAnimating && isDirty) {
+      // Clean flag inside native module already checked
+    } else if (keepAnimating) {
+      // Force next frame to render
+      lastSeenFloraStamp.current = -1;
     }
   });
 
@@ -330,16 +441,13 @@ export function Chunk({ chunkX, chunkZ }: { chunkX: number, chunkZ: number }) {
         <meshStandardMaterial vertexColors={true} roughness={0.8} metalness={0.1} />
       </mesh>
 
-      {activeTrees.length > 0 && (
+      {maxInstances > 0 && (
         <>
-          <instancedMesh ref={trunkMeshRef} args={[trunkGeo, trunkMat, activeTrees.length]} castShadow receiveShadow frustumCulled={false} />
-          <instancedMesh ref={leavesMeshRef} args={[leavesGeo, leavesMat, activeTrees.length]} castShadow receiveShadow frustumCulled={false} />
-          <instancedMesh ref={branchesMeshRef} args={[branchGeo, trunkMat, activeTrees.length * BRANCH_CONFIGS.length]} castShadow receiveShadow frustumCulled={false} />
+          <instancedMesh ref={trunkMeshRef} args={[trunkGeo, trunkMat, maxInstances]} castShadow receiveShadow frustumCulled={false} />
+          <instancedMesh ref={leavesMeshRef} args={[leavesGeo, leavesMat, maxInstances]} castShadow receiveShadow frustumCulled={false} />
+          <instancedMesh ref={branchesMeshRef} args={[branchGeo, trunkMat, maxInstances * BRANCH_CONFIGS.length]} castShadow receiveShadow frustumCulled={false} />
+          <instancedMesh ref={stumpMeshRef} args={[stumpGeo, stumpMat, maxInstances]} castShadow receiveShadow frustumCulled={false} />
         </>
-      )}
-      
-      {stumps.length > 0 && (
-        <instancedMesh ref={stumpMeshRef} args={[stumpGeo, stumpMat, stumps.length]} castShadow receiveShadow frustumCulled={false} />
       )}
     </group>
   );

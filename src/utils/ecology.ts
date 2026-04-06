@@ -1,6 +1,8 @@
 import { useGameStore } from '../store';
-import { getTerrainHeight, _treeCache } from './terrain';
+import { getTerrainHeight, CHUNK_SIZE, worldToChunkKey } from './terrain';
+import { floraCache, FloraItem } from './floraCache';
 import { waterEngine } from './WaterEngine';
+import { getGlobalStamp } from './terrainOffsets';
 
 export function propagateForest() {
   const state = useGameStore.getState();
@@ -8,56 +10,65 @@ export function propagateForest() {
   
   let triggered = false;
   
-  for(let i=0; i<30; i++) {
+  // Cast 800 rays per day to simulate a full night of biology spreading
+  for(let i=0; i<800; i++) {
       const rx = px + (Math.random() * 80 - 40);
       const rz = pz + (Math.random() * 80 - 40);
       
       const height = getTerrainHeight(rx, rz);
       const depth = waterEngine.getWaterDepth(rx, rz);
       
-      const hNx = getTerrainHeight(rx + 1, rz);
-      const isLevel = Math.abs(hNx - height) < 0.5;
+      // Flow velocity check — lilies and cattails need relatively calm water
+      const vel = waterEngine.getVelocity(rx, rz);
+      const speed = Math.sqrt(vel.x * vel.x + vel.z * vel.z);
+      const isCalmWater = speed < 1.5;
               
-      const cx = Math.floor(rx / 20);
-      const cz = Math.floor(rz / 20);
-      const key = `${cx},${cz}`;
+      // Use shared chunk key calculator
+      const key = worldToChunkKey(rx, rz);
       
-      if (!_treeCache[key]) continue;
+      const items = floraCache.get(key);
+      if (items.length === 0) continue;
       
-      // Aquatic vegetation spawning rules (Rare milestones)
-      // Aquatic vegetation spawning rules
-      if (depth > 0.05 && Math.random() < 0.15) {
-          // Standing Deep Water -> Water Lilies
+      // Deep calm water -> Water Lilies (high yield in dams)
+      if (isCalmWater && depth >= 0.2 && Math.random() < 0.15) {
           const id = `lily_${Date.now()}_${i}`;
-          _treeCache[key].push({
+          floraCache.add(key, {
               id,
               position: [rx, height + depth, rz] as [number, number, number],
               type: 'lily'
           });
           triggered = true;
-      } else if (height > -1 && height < 12 && depth <= 0.05 && Math.random() < 0.08) {
-          // Shallow edge / wet mud -> Cattails
+      }
+      // Shallow calm water -> Cattails
+      else if (isCalmWater && depth > 0.01 && depth < 0.2 && Math.random() < 0.45) {
           const id = `cattail_${Date.now()}_${i}`;
-          _treeCache[key].push({
+          floraCache.add(key, {
               id,
               position: [rx, height, rz] as [number, number, number],
               type: 'cattail'
           });
           triggered = true;
-      } else if (height > -1 && height < 12 && isLevel && depth <= 0.05) {
-          // Basic Dry Land Tree Saplings
-          const id = `sapling_${Date.now()}_${i}`;
-          _treeCache[key].push({
-              id,
-              position: [rx, height, rz] as [number, number, number],
-              type: 'sapling'
-          });
-          triggered = true;
+      }
+      // Dry land saplings — light-proxy: no tree within 4 tiles
+      else if (height > -1 && height < 12 && depth <= 0.01) {
+          const hasLight = !items.some((t: FloraItem) =>
+              ['sapling', 'small', 'big'].includes(t.type) &&
+              Math.sqrt((t.position[0] - rx) ** 2 + (t.position[2] - rz) ** 2) < 4
+          );
+          if (hasLight && Math.random() < 0.10) {
+              const id = `sapling_${Date.now()}_${i}`;
+              floraCache.add(key, {
+                  id,
+                  position: [rx, height, rz] as [number, number, number],
+                  type: 'sapling'
+              });
+              triggered = true;
+          }
       }
   }
   
   // Growth stage transitions
-  Object.values(_treeCache).forEach(chunk => {
+  floraCache.getAllChunks().forEach(chunk => {
       chunk.forEach(tree => {
           if (tree.type === 'sapling' && Math.random() < 0.6) {
               tree.type = 'small';
@@ -70,8 +81,7 @@ export function propagateForest() {
   });
   
   if (triggered) {
-      useGameStore.setState(s => ({
-          terrainOffsets: { ...s.terrainOffsets, 'update_flag': Date.now() }
-      }));
+      // Signal that tree cache changed — use ecologyStamp to notify flora components
+      useGameStore.setState(state => ({ ecologyStamp: state.ecologyStamp + 1 }));
   }
 }

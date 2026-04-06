@@ -1,8 +1,12 @@
 import { create } from 'zustand';
 import * as THREE from 'three';
 import AsyncStorage from '@react-native-async-storage/async-storage';
-import { getTerrainHeight, getRiverCenter, RIVER_WIDTH, _treeCache } from './utils/terrain';
+import { getTerrainHeight, getRiverCenter, RIVER_WIDTH } from './utils/terrain';
+import { floraCache } from './utils/floraCache';
 import { propagateForest } from './utils/ecology';
+import { woodEngine } from './utils/woodEngine';
+import { QualitySettings, QualityLevel, detectDefaultQuality, updateCachedConfigs } from './utils/qualityTier';
+import { applyTerrainMod, applyTerrainBatch, serializeOffsets, deserializeOffsets, getGlobalStamp } from './utils/terrainOffsets';
 
 export type BlockType = 'stick' | 'mud';
 
@@ -48,17 +52,19 @@ interface GameState {
     showStatsOverlay: boolean;
     physicsSubsteps: number;
     reflectionsActive: boolean;
+    quality: QualitySettings;
   };
   placedBlocks: PlacedBlock[];
   draggableLogs: DraggableLog[];
-  treeSticks: Record<string, number>;
+
   playerPosition: [number, number, number];
   playerRotation: number;
   lastAction: { type: 'gather' | 'place' | 'none', blockType?: BlockType, time: number };
   rainIntensity: number;
   cameraAngle: number;
   cameraPitch: number;
-  terrainOffsets: Record<string, number>;
+  terrainStamp: number; // Incremented when any terrain is modified; replaces terrainOffsets object
+  ecologyStamp: number;
   particleEmitters: ParticleEmitter[];
   virtualJoystick: { x: number, y: number };
   virtualCamera: { x: number, y: number };
@@ -71,6 +77,8 @@ interface GameState {
   updateMaxWaterCoverage: (val: number) => void;
   eatSnack: (id: string, chunkKey: string) => void;
   setSetting: (key: keyof GameState['settings'], value: any) => void;
+  setQuality: (aspect: keyof QualitySettings, level: QualityLevel) => void;
+  batchModifyTerrain: (modifications: Array<{x: number, z: number, amount: number, radius: number}>) => void;
   saveGame: () => Promise<void>;
   loadGame: () => Promise<void>;
   setVirtualJoystick: (x: number, y: number) => void;
@@ -92,7 +100,7 @@ interface GameState {
   setRainIntensity: (val: number) => void;
   setCameraAngle: (val: number) => void;
   setCameraPitch: (val: number) => void;
-  chopTree: (id: string, isBig?: boolean) => void;
+  chopTree: (id: string, isBig: boolean, chunkKey: string) => void;
   triggerAction: (type: 'gather' | 'place', blockType?: BlockType) => void;
 }
 
@@ -115,10 +123,10 @@ export const useGameStore = create<GameState>((set, get) => ({
     showStatsOverlay: false,
     physicsSubsteps: 4,
     reflectionsActive: false,
+    quality: detectDefaultQuality(),
   },
   placedBlocks: [],
   draggableLogs: [],
-  treeSticks: {},
   playerPosition: [0, 0, 0],
   playerRotation: 0,
   lastAction: { type: 'none', time: 0 },
@@ -128,7 +136,8 @@ export const useGameStore = create<GameState>((set, get) => ({
   virtualJoystick: { x: 0, y: 0 },
   virtualCamera: { x: 0, y: 0 },
   virtualButtons: { jump: false, crouch: false, action1: false, action2: false, action3: false },
-  terrainOffsets: {},
+  terrainStamp: 0,
+  ecologyStamp: 0,
   particleEmitters: [],
   timeOfDay: 0,
   dayLength: 300, // 5 minutes real-time for testing purposes
@@ -150,16 +159,15 @@ export const useGameStore = create<GameState>((set, get) => ({
   
   eatSnack: (id, chunkKey) => set(state => {
       let isSapling = false;
-      if (_treeCache[chunkKey]) {
-          const idx = _treeCache[chunkKey].findIndex((t: any) => t.id === id);
-          if (idx !== -1) {
-              isSapling = _treeCache[chunkKey][idx].type === 'sapling';
-              _treeCache[chunkKey].splice(idx, 1);
-          }
+      const items = floraCache.get(chunkKey);
+      const idx = items.findIndex((t) => t.id === id);
+      if (idx !== -1) {
+          isSapling = items[idx].type === 'sapling';
+          floraCache.remove(chunkKey, id);
       }
       return {
           stats: { ...state.stats, snacksEaten: isSapling ? state.stats.snacksEaten : state.stats.snacksEaten + 1 },
-          terrainOffsets: { ...state.terrainOffsets, 'update_flag': Date.now() } 
+          ecologyStamp: state.ecologyStamp + 1
       };
   }),
 
@@ -167,10 +175,41 @@ export const useGameStore = create<GameState>((set, get) => ({
     settings: { ...state.settings, [key]: value }
   })),
 
+  setQuality: (aspect, level) => set(state => {
+    const newQuality = { ...state.settings.quality, [aspect]: level };
+    updateCachedConfigs(newQuality);
+    return { settings: { ...state.settings, quality: newQuality } };
+  }),
+
+  batchModifyTerrain: (modifications) => set((state) => {
+    if (modifications.length === 0) return state;
+    
+    // Delegate to the module-scope terrain offset engine (no shallow copy)
+    applyTerrainBatch(modifications);
+    
+    let mudDelta = 0;
+    let patDelta = 0;
+    for (const mod of modifications) {
+      if (mod.amount < 0) mudDelta++;
+      if (mod.amount > 0) patDelta++;
+    }
+
+    return {
+      terrainStamp: getGlobalStamp(),
+      stats: {
+        ...state.stats,
+        mudDug: state.stats.mudDug + mudDelta,
+        mudPatted: state.stats.mudPatted + patDelta,
+      }
+    };
+  }),
+
   saveGame: async () => {
-    const { inventory, stats, settings, placedBlocks, draggableLogs, treeSticks, playerPosition, playerRotation, terrainOffsets, timeOfDay } = get();
+    const { inventory, stats, settings, placedBlocks, draggableLogs, playerPosition, playerRotation, timeOfDay } = get();
     const saveState = {
-      inventory, stats, settings, placedBlocks, draggableLogs, treeSticks, playerPosition, playerRotation, terrainOffsets, timeOfDay
+      inventory, stats, settings, placedBlocks, draggableLogs, playerPosition, playerRotation, timeOfDay,
+      terrainOffsets: serializeOffsets(),
+      treeSticks: woodEngine.serialize()
     };
     try {
       await AsyncStorage.setItem('beavertown_save', JSON.stringify(saveState));
@@ -184,17 +223,24 @@ export const useGameStore = create<GameState>((set, get) => ({
       const data = await AsyncStorage.getItem('beavertown_save');
       if (data) {
         const loadedState = JSON.parse(data);
+        if (loadedState.terrainOffsets) {
+          deserializeOffsets(loadedState.terrainOffsets);
+        }
+        if (loadedState.treeSticks) {
+          woodEngine.deserialize(loadedState.treeSticks);
+        } else {
+          woodEngine.deserialize({});
+        }
         set({
           inventory: loadedState.inventory,
           stats: loadedState.stats,
           settings: loadedState.settings,
           placedBlocks: loadedState.placedBlocks,
           draggableLogs: loadedState.draggableLogs,
-          treeSticks: loadedState.treeSticks,
           playerPosition: loadedState.playerPosition,
           playerRotation: loadedState.playerRotation,
-          terrainOffsets: loadedState.terrainOffsets,
-          gameState: 'paused', // Automatically pause so player can orient themselves
+          terrainStamp: getGlobalStamp(),
+          gameState: 'paused',
         });
       }
     } catch (e) {
@@ -216,33 +262,11 @@ export const useGameStore = create<GameState>((set, get) => ({
   setCameraAngle: (val) => set({ cameraAngle: val }),
   setCameraPitch: (val) => set({ cameraPitch: Math.max(0.1, Math.min(Math.PI / 2 - 0.1, val)) }),
   modifyTerrain: (cx, cz, amount, radius) => set((state) => {
-    const newOffsets = { ...state.terrainOffsets };
+    // Delegate to the module-scope terrain offset engine (no shallow copy)
+    applyTerrainMod(cx, cz, amount, radius);
     
-    for (let x = Math.floor(cx - radius); x <= Math.ceil(cx + radius); x++) {
-      for (let z = Math.floor(cz - radius); z <= Math.ceil(cz + radius); z++) {
-        const dx = Math.abs(x - cx);
-        const dz = Math.abs(z - cz);
-        
-        // Superellipse distance for a vaguely cube-like rounded shape
-        const dist = Math.pow(Math.pow(dx, 4) + Math.pow(dz, 4), 0.25);
-        
-        if (dist <= radius) {
-          const key = `${x},${z}`;
-          const current = newOffsets[key] || 0;
-          
-          // Flat top, rounded downward falloff
-          const t = dist / radius;
-          const falloff = 1 - Math.pow(t, 4); // Stays very flat, then curves down steeply
-          
-          newOffsets[key] = current + amount * falloff;
-        }
-      }
-    }
-    
-    // Invalidate physics cache
-    newOffsets['update_flag'] = Date.now();
     return { 
-      terrainOffsets: newOffsets,
+      terrainStamp: getGlobalStamp(),
       stats: {
         ...state.stats,
         mudDug: amount < 0 ? state.stats.mudDug + 1 : state.stats.mudDug,
@@ -324,14 +348,14 @@ export const useGameStore = create<GameState>((set, get) => ({
     })),
   setPlayerPosition: (pos) => set({ playerPosition: pos }),
   setPlayerRotation: (rot) => set({ playerRotation: rot }),
-  chopTree: (id, isBig) =>
+  chopTree: (id, isBig, chunkKey) =>
     set((state) => {
-      const maxSticks = isBig ? 12 : 3;
-      const current = state.treeSticks[id] ?? maxSticks;
+      const current = woodEngine.getSticks(id, isBig);
       if (current > 0) {
+        woodEngine.setSticks(id, current - 1, chunkKey);
+        
         if (current === 1) { // Tree fell
           return { 
-            treeSticks: { ...state.treeSticks, [id]: 0 },
             stats: { 
               ...state.stats, 
               treesDowned: state.stats.treesDowned + 1,
@@ -339,12 +363,18 @@ export const useGameStore = create<GameState>((set, get) => ({
             }
           };
         }
-        return { treeSticks: { ...state.treeSticks, [id]: current - 1 } };
       }
       return state;
     }),
   triggerAction: (type: 'gather' | 'place', blockType?: BlockType) => set({ lastAction: { type, blockType, time: Date.now() } }),
 }));
+
+// Initialize quality tier cache from the store defaults
+updateCachedConfigs(useGameStore.getState().settings.quality);
+
+if (typeof window !== 'undefined') {
+  (window as any).gameStore = useGameStore;
+}
 
 if (typeof window !== 'undefined') {
   (window as any).gameStore = useGameStore;
