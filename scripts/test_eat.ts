@@ -1,28 +1,32 @@
-import { generateTreesForChunk } from '../src/utils/terrain';
 import { floraCache } from '../src/utils/floraCache';
 import { useGameStore } from '../src/store';
+import { generateTreesForChunk } from '../src/utils/terrain';
 
-console.log("Testing interaction splicing...");
-useGameStore.setState({ playerPosition: [0, 0, 0] });
+// Setup Mock Environment
+useGameStore.setState({ stats: { snacksEaten: 0 }, ecologyStamp: 0 });
 
-// Generate
+console.log("Generating chunk...");
 const trees = generateTreesForChunk(0, 0);
-const initialLength = trees.length;
-console.log("Initial trees in chunk [0,0]:", initialLength);
+const initialLilies = trees.filter(t => t.type === 'lily');
+console.log(`Spawned ${initialLilies.length} lilies. ID: ${initialLilies[0]?.id}`);
 
-// Force insert a lily
-const testLilyId = "testlily_123";
-floraCache.add("0,0", { id: testLilyId, type: 'lily', position: [0, 5, 0] });
-console.log("Trees after injection:", floraCache.get("0,0").length);
+const id = initialLilies[0]?.id;
+if (id) {
+    console.log("Eating snack...");
+    useGameStore.getState().eatSnack(id, "0,0");
 
-// Eat it
-useGameStore.getState().eatSnack(testLilyId, "0,0");
+    console.log("Checking cache...");
+    const updated = floraCache.get("0,0");
+    const found = updated.some(t => t.id === id);
+    console.log(`Is lily still in cache? ${found}`);
 
-console.log("Trees after eatSnack:", floraCache.get("0,0").length);
-
-const found = floraCache.get("0,0").find(t => t.id === testLilyId);
-if (found) {
-    console.log("FATAL: Lily is still in floraCache!");
-} else {
-    console.log("SUCCESS: Lily mathematically removed from floraCache.");
+    const stats = useGameStore.getState().stats;
+    console.log(`Snacks Eaten count: ${stats.snacksEaten}`);
+    
+    // Simulate what Interaction.tsx does immediately after
+    console.log("Re-running generation...");
+    const treesAfter = generateTreesForChunk(0, 0);
+    const foundAfter = treesAfter.some(t => t.id === id);
+    console.log(`Is lily in generated items again? ${foundAfter}`);
+    console.log(`Total items in chunk now: ${treesAfter.length} (was ${trees.length})`);
 }

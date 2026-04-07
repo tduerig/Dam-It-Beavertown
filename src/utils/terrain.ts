@@ -54,12 +54,17 @@ export function getTerrainHeight(x: number, z: number): number {
 export function worldToChunkKey(x: number, z: number): string {
   return `${Math.floor(x / CHUNK_SIZE)},${Math.floor(z / CHUNK_SIZE)}`;
 }
+const generatedChunks = new Set<string>();
+
 export function generateTreesForChunk(chunkX: number, chunkZ: number) {
   const cacheKey = `${chunkX},${chunkZ}`;
-  const existing = floraCache.get(cacheKey);
-  if (existing.length > 0) return existing;
+  
+  if (generatedChunks.has(cacheKey)) {
+      return floraCache.get(cacheKey);
+  }
+  generatedChunks.add(cacheKey);
 
-  const trees: TreeItem[] = [];
+  const flora: import('./floraCache').FloraItem[] = [];
   const offsetX = chunkX * CHUNK_SIZE;
   const offsetZ = chunkZ * CHUNK_SIZE;
   
@@ -78,17 +83,61 @@ export function generateTreesForChunk(chunkX: number, chunkZ: number) {
       // Sweet spot for trees: not too high (snowy), not too low (sandy beach)
       if (y > -2 && y < 12) {
         const isBig = noise2D(chunkX + i * 0.2, chunkZ + i * 0.2) > 0.6;
-        trees.push({ 
-          id: `tree_${chunkX}_${chunkZ}_${i}`, 
-          position: [x, y, z] as [number, number, number],
-          type: isBig ? 'big' : 'small'
+        // Prevent overlapping canopies: reject if too close to an existing tree
+        const minDist = isBig ? 7 : 4; // big trees need more clearance
+        const tooClose = flora.some(f =>
+          (f.type === 'big' || f.type === 'small') &&
+          Math.sqrt((f.position[0] - x) ** 2 + (f.position[2] - z) ** 2) < minDist
+        );
+        if (!tooClose) {
+          flora.push({ 
+            id: `tree_${chunkX}_${chunkZ}_${i}`, 
+            position: [x, y, z] as [number, number, number],
+            type: isBig ? 'big' : 'small'
+          });
+        }
+      }
+    }
+  }
+
+  // Pre-populate aquatic flora along the river
+  const rw = globalTerrainConfig.riverWidth;
+  for (let i = 0; i < 20; i++) {
+    // Large stride to prevent Perlin noise clustering
+    const rx = (noise2D(chunkZ + i * 13.37, chunkX + 7) + 1) / 2; 
+    const rz = (noise2D(chunkZ + 7, chunkX + i * 13.37) + 1) / 2;
+    const x = offsetX + (rx - 0.5) * CHUNK_SIZE;
+    const z = offsetZ + (rz - 0.5) * CHUNK_SIZE;
+    
+    const riverX = getRiverCenter(z);
+    const distFromCenter = Math.abs(x - riverX);
+    
+    if (distFromCenter < rw) {
+      // Use the water surface height for Y positioning
+      const bankH = getTerrainHeight(riverX + rw, z);
+      const waterLevel = bankH - 0.3;
+
+      // Cattails: on the bank edges (outer 30% of river width)
+      if (distFromCenter > rw * 0.7) {
+        flora.push({
+          id: `init_cat_${chunkX}_${chunkZ}_${i}`,
+          position: [x, waterLevel, z] as [number, number, number],
+          type: 'cattail'
+        });
+      }
+      // Lilies: in the inner 70% of the river
+      else if (noise2D(x * 0.5, z * 0.5) > 0.0) {
+        flora.push({
+          id: `init_lily_${chunkX}_${chunkZ}_${i}`,
+          position: [x, waterLevel, z] as [number, number, number],
+          type: 'lily'
         });
       }
     }
   }
   
-  floraCache.set(cacheKey, trees);
-  return trees;
+  floraCache.set(cacheKey, flora);
+  return flora;
 }
 
 class TerrainCache {

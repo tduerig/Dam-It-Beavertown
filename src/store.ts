@@ -4,6 +4,7 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 import { getTerrainHeight, getRiverCenter, RIVER_WIDTH } from './utils/terrain';
 import { floraCache } from './utils/floraCache';
 import { propagateForest } from './utils/ecology';
+import { rebuildRegionData } from './components/GlobalFlora';
 import { woodEngine } from './utils/woodEngine';
 import { QualitySettings, QualityLevel, detectDefaultQuality, updateCachedConfigs } from './utils/qualityTier';
 import { applyTerrainMod, applyTerrainBatch, serializeOffsets, deserializeOffsets, getGlobalStamp } from './utils/terrainOffsets';
@@ -158,12 +159,15 @@ export const useGameStore = create<GameState>((set, get) => ({
   },
   
   eatSnack: (id, chunkKey) => set(state => {
-      let isSapling = false;
       const items = floraCache.get(chunkKey);
       const idx = items.findIndex((t) => t.id === id);
+      let isSapling = false;
       if (idx !== -1) {
           isSapling = items[idx].type === 'sapling';
           floraCache.remove(chunkKey, id);
+          // Rebuild shared flora data SYNCHRONOUSLY so the next useFrame
+          // sees the updated data — no waiting for React's render cycle.
+          rebuildRegionData();
       }
       return {
           stats: { ...state.stats, snacksEaten: isSapling ? state.stats.snacksEaten : state.stats.snacksEaten + 1 },

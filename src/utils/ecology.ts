@@ -27,27 +27,35 @@ export function propagateForest() {
       const key = worldToChunkKey(rx, rz);
       
       const items = floraCache.get(key);
-      if (items.length === 0) continue;
       
-      // Deep calm water -> Water Lilies (high yield in dams)
-      if (isCalmWater && depth >= 0.2 && Math.random() < 0.15) {
-          const id = `lily_${Date.now()}_${i}`;
-          floraCache.add(key, {
-              id,
-              position: [rx, height + depth, rz] as [number, number, number],
-              type: 'lily'
-          });
-          triggered = true;
+      // Count existing aquatic flora in this chunk to cap density
+      const lilyCount = items.filter(f => f.type === 'lily').length;
+      const cattailCount = items.filter(f => f.type === 'cattail').length;
+      
+      // Minimum distance check helper — prevents spawning on top of existing flora
+      const tooCloseToExisting = (pos: [number, number, number], minDist: number) =>
+        items.some(f => 
+          (f.type === 'lily' || f.type === 'cattail') &&
+          Math.sqrt((f.position[0] - pos[0]) ** 2 + (f.position[2] - pos[2]) ** 2) < minDist
+        );
+      
+      // Deep calm water -> Water Lilies (capped at 8 per chunk)
+      if (isCalmWater && depth >= 0.2 && lilyCount < 8 && Math.random() < 0.08) {
+          const pos: [number, number, number] = [rx, height + depth, rz];
+          if (!tooCloseToExisting(pos, 3)) {
+              const id = `lily_${Date.now()}_${i}`;
+              floraCache.add(key, { id, position: pos, type: 'lily' });
+              triggered = true;
+          }
       }
-      // Shallow calm water -> Cattails
-      else if (isCalmWater && depth > 0.01 && depth < 0.2 && Math.random() < 0.45) {
-          const id = `cattail_${Date.now()}_${i}`;
-          floraCache.add(key, {
-              id,
-              position: [rx, height, rz] as [number, number, number],
-              type: 'cattail'
-          });
-          triggered = true;
+      // Shallow calm water -> Cattails (capped at 6 per chunk)
+      else if (isCalmWater && depth > 0.01 && depth < 0.2 && cattailCount < 6 && Math.random() < 0.20) {
+          const pos: [number, number, number] = [rx, height + depth, rz];
+          if (!tooCloseToExisting(pos, 3)) {
+              const id = `cattail_${Date.now()}_${i}`;
+              floraCache.add(key, { id, position: pos, type: 'cattail' });
+              triggered = true;
+          }
       }
       // Dry land saplings — light-proxy: no tree within 4 tiles
       else if (height > -1 && height < 12 && depth <= 0.01) {
