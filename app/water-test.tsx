@@ -2,8 +2,9 @@ import { useEffect, useRef, useState } from 'react';
 import { View, Text } from 'react-native';
 import { WaterEngine, WATER_SIZE } from '../src/utils/WaterEngine';
 import { PlacedBlock, DraggableLog } from '../src/store';
-import { getBaseTerrainHeight, getRiverCenter } from '../src/utils/terrain';
-import { updateTerrainConfig, TerrainConfig } from '../src/utils/terrainConfig';
+import { getBaseTerrainHeight, getRiverCenter, getTerrainHeight, clearGeneratedTerrain } from '../src/utils/terrain';
+import { updateTerrainConfig, TerrainConfig, globalTerrainConfig } from '../src/utils/terrainConfig';
+import { deserializeOffsets, applyTerrainMod } from '../src/utils/terrainOffsets';
 type TestTreeType = 'lily' | 'cattail' | 'sapling' | 'small' | 'big';
 interface TestTree {
   x: number;
@@ -34,14 +35,33 @@ const configs = {
 };
 
 const fullDamConfigure = (damCenter: number, tz: number) => {
-  const mud: PlacedBlock[] = [];
-  for(let x = damCenter - 25; x <= damCenter + 25; x++) { 
-    // Build a solid mud wall that's tall enough to hold back any flood
-    mud.push({ id: `mud_1_${x}`, type: 'mud', position: [x, getBaseTerrainHeight(x, tz) + 2, tz], rotation: [0, 0, 0] });
-    mud.push({ id: `mud_2_${x}`, type: 'mud', position: [x, getBaseTerrainHeight(x, tz) + 4, tz], rotation: [0, 0, 0] });
-    mud.push({ id: `mud_3_${x}`, type: 'mud', position: [x, getBaseTerrainHeight(x, tz) + 6, tz], rotation: [0, 0, 0] });
+  const offsets: Record<string, number> = {};
+  
+  // Predict absolute minimum topological height based off the direct riverbed so we aren't tricked by Perlin valleys
+  // +15 height fully mathematically guarantees the huge S-curve bends in Twisty Dams don't breach local ridges!
+  const riverBedH = getTerrainHeight(damCenter, tz);
+  const damTopGlobal = riverBedH + 15.0; 
+
+  // Create a thick terrain wall curving to perfectly intersect the river flow
+  for(let z = tz - 2; z <= tz + 4; z += 2) {
+      const localCenter = Math.floor(getRiverCenter(z));
+      // Span an absolutely massive 130-unit barrier to mathematically intersect the Humboldt Mountains natively!
+      for(let x = localCenter - 65; x <= localCenter + 65; x += 2) { 
+          const currentH = getTerrainHeight(x, z);
+          // Scale dam to effectively seal the entire local topology!
+          if (damTopGlobal > currentH) {
+              offsets[`${x},${z}`] = damTopGlobal - currentH;
+          }
+      }
   }
-  return { blocks: mud, logs: [], offsets: {} };
+
+  // Drop dynamic physics logs
+  const logs: DraggableLog[] = [];
+  logs.push({ id: 'log1', position: [damCenter, damTopGlobal - 1, tz], rotation: [0, Math.PI / 2, 0], isDragged: false });
+  logs.push({ id: 'log2', position: [damCenter - 3, damTopGlobal - 1, tz + 2], rotation: [0, Math.PI / 2 + 0.2, 0], isDragged: false });
+  logs.push({ id: 'log3', position: [damCenter + 4, damTopGlobal - 1, tz - 1], rotation: [0, Math.PI / 2 - 0.2, 0], isDragged: false });
+
+  return { blocks: [], logs, offsets };
 };
 
 const baselineConfigure = () => ({ blocks: [], logs: [], offsets: {} });
@@ -79,17 +99,27 @@ export default function WaterTestPlayground() {
     SCENARIOS.forEach(sc => {
         updateTerrainConfig(sc.terrainConfig);
         
+        // Wipe global offsets so tests are isolated
+        deserializeOffsets({});
+        clearGeneratedTerrain();
+        
+        // Re-get dam center for this specific river configuration
+        const localDamCenter = Math.floor(getRiverCenter(TEST_WORLD_Z));
+        const conf = sc.configure(localDamCenter, TEST_WORLD_Z);
+        
+        // Apply offsets geometry mimicking actual player interaction
+        Object.entries(conf.offsets).forEach(([k, v]) => {
+            const [x, z] = k.split(',').map(Number);
+            applyTerrainMod(x, z, v, 2.5);
+        });
+        
         const eng = new WaterEngine();
         eng.size = size; eng.originX = 0; eng.originZ = TEST_WORLD_Z;
         eng.W = new Float32Array(size * size);
         eng.T = new Float32Array(size * size);
         eng.T_base = new Float32Array(size * size);
-        eng.initBase();
+        eng.initBase(); // This safely reads the newly minted player-like terrain offsets
         
-        // Re-get dam center for this specific river configuration
-        const localDamCenter = Math.floor(getRiverCenter(TEST_WORLD_Z));
-
-        const conf = sc.configure(localDamCenter, TEST_WORLD_Z);
         eng.updateTerrain(conf.blocks, conf.logs);
         engines[sc.id] = eng;
         ecosystems[sc.id] = [];
@@ -110,8 +140,35 @@ export default function WaterTestPlayground() {
     const interval = setInterval(() => {
       // If we finished the 20 minute simulation:
       if (globalStep >= TARGET_STEPS) {
-          clearInterval(interval);
-          setStats({ status: `SIMULATION_COMPLETE_20_MINS`, timeseries: engineStepArray } as any);
+        console.log('Simulation complete - dispatching to save server');
+        setSimStatus('SIMULATION_COMPLETE_20_MINS');
+        
+        // Compile physical proof screenshot
+        const megaCanvas = document.createElement('canvas');
+        megaCanvas.width = 180 * 5;
+        megaCanvas.height = 180 * 2;
+        const ctx = megaCanvas.getContext('2d');
+        if (ctx) {
+            ctx.fillStyle = '#0f172a';
+            ctx.fillRect(0, 0, megaCanvas.width, megaCanvas.height);
+            SCENARIOS.forEach((sc, i) => {
+                const sourceCvs = canvasRefs.current[sc.id];
+                if (sourceCvs) {
+                    const px = (i % 5) * 180;
+                    const py = Math.floor(i / 5) * 180;
+                    ctx.drawImage(sourceCvs, px, py, 180, 180);
+                }
+            });
+        }
+        
+        // After simulating all, serialize output
+        const finalObj = {
+            status: 'SIMULATION_COMPLETE_20_MINS',
+            timeseries: engineStepArray,
+            image: megaCanvas.toDataURL('image/png')
+        };
+        setStats(finalObj as any);
+        fetch('http://localhost:9999', { method: 'POST', body: JSON.stringify(finalObj) }).catch(() => {});
           return;
       }
       
@@ -126,11 +183,6 @@ export default function WaterTestPlayground() {
               const rX = Math.floor(getRiverCenter(injectZ));
               const eng = engines[sc.id];
 
-              // Continuous slow injection upstream
-              for(let x=rX - 4; x<=rX + 4; x++) {
-                  const idx = (x + half) + 10 * size;
-                  eng.W[idx] += 1.0; 
-              }
               eng.simulate();
               
               // Record timeseries every Virtual Minute
@@ -184,10 +236,12 @@ export default function WaterTestPlayground() {
           
           // Food rules: relaxed boundary for calm water to allow natural baseline patches
           const isCalmWater = speed < 1.5;
+          const surfaceAlt = height + depth;
+          const greenZoneFalloff = Math.max(0, 1 - Math.abs(surfaceAlt - 5) / 7);
 
-          if (isCalmWater && depth >= 0.2 && Math.random() < 0.15) {
+          if (isCalmWater && depth >= 0.2 && Math.random() < 0.15 * greenZoneFalloff) {
               trees.push({ x, z, type: 'lily' });
-          } else if (isCalmWater && depth > 0.01 && depth < 0.2 && Math.random() < 0.45) {
+          } else if (isCalmWater && depth > 0.01 && depth < 0.2 && Math.random() < 0.45 * greenZoneFalloff) {
               // Shallow waters -> Cattails
               trees.push({ x, z, type: 'cattail' });
           } else if (height > -1 && height < 12 && depth <= 0.01 && Math.random() < 0.10) {

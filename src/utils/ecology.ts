@@ -39,8 +39,13 @@ export function propagateForest() {
           Math.sqrt((f.position[0] - pos[0]) ** 2 + (f.position[2] - pos[2]) ** 2) < minDist
         );
       
+      // Altitude-based growth multiplier for aquatic flora.
+      // The "green-zone" is centered around altitude 5, fading to 0 at -2 and 12 (range of 7)
+      const surfaceAlt = height + depth;
+      const greenZoneFalloff = Math.max(0, 1 - Math.abs(surfaceAlt - 5) / 7);
+
       // Deep calm water -> Water Lilies (capped at 8 per chunk)
-      if (isCalmWater && depth >= 0.2 && lilyCount < 8 && Math.random() < 0.08) {
+      if (isCalmWater && depth >= 0.2 && lilyCount < 8 && Math.random() < 0.08 * greenZoneFalloff) {
           const pos: [number, number, number] = [rx, height + depth, rz];
           if (!tooCloseToExisting(pos, 3)) {
               const id = `lily_${Date.now()}_${i}`;
@@ -49,7 +54,7 @@ export function propagateForest() {
           }
       }
       // Shallow calm water -> Cattails (capped at 6 per chunk)
-      else if (isCalmWater && depth > 0.01 && depth < 0.2 && cattailCount < 6 && Math.random() < 0.20) {
+      else if (isCalmWater && depth > 0.01 && depth < 0.2 && cattailCount < 6 && Math.random() < 0.20 * greenZoneFalloff) {
           const pos: [number, number, number] = [rx, height + depth, rz];
           if (!tooCloseToExisting(pos, 3)) {
               const id = `cattail_${Date.now()}_${i}`;

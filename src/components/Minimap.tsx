@@ -80,12 +80,7 @@ export function Minimap() {
   const [isHovered, setIsHovered] = useState(false);
   const [timeOfDay, setTimeOfDay] = useState(0);
 
-  useEffect(() => {
-    const unsub = useGameStore.subscribe((state) => {
-        setTimeOfDay(state.timeOfDay);
-    });
-    return unsub;
-  }, []);
+  // Removed 60FPS Zustand subscription that caused Android frame drops
 
   const pulseScale = useRef(new Animated.Value(1)).current;
 
@@ -96,6 +91,7 @@ export function Minimap() {
     
     const interval = setInterval(() => {
       const state = useGameStore.getState();
+      setTimeOfDay(state.timeOfDay);
       const [px, py, pz] = state.playerPosition;
       const placedBlocks = state.placedBlocks;
       const draggableLogs = state.draggableLogs;
@@ -226,10 +222,10 @@ export function Minimap() {
 
         
         <View style={[styles.statsPanel, { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' }]}>
-          <View style={{ flexDirection: 'row', alignItems: 'center' }}>
+          <View style={{ flexDirection: 'column', alignItems: 'flex-start', justifyContent: 'center' }}>
             <Text style={styles.statsValue}>💧 {currentPct}%</Text>
-            <Animated.Text style={[styles.statsHigh, { transform: [{ scale: pulseScale }] }]}>
-               (Peak: {peakPct}%)
+            <Animated.Text style={[styles.statsHigh, { transform: [{ scale: pulseScale }], marginLeft: 22 }]}>
+               Peak: {peakPct}%
             </Animated.Text>
           </View>
           <View style={{ paddingRight: 4 }}>

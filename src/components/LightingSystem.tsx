@@ -11,7 +11,6 @@ const envColorNight = new THREE.Color('#1a2421');
 export function LightingSystem() {
   const lightRef = useRef<THREE.DirectionalLight>(null);
   const { gl } = useThree();
-  const timeOfDay = useGameStore(state => state.timeOfDay);
   const updateTimeOfDay = useGameStore(state => state.updateTimeOfDay);
   const lastHourRef = useRef(-1);
 
@@ -21,6 +20,7 @@ export function LightingSystem() {
       updateTimeOfDay(delta);
     }
     
+    const timeOfDay = useGameStore.getState().timeOfDay;
     // Discretize into 24 hours
     const currentHour = Math.floor(timeOfDay * 24);
     const discreteTime = currentHour / 24;

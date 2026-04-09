@@ -133,13 +133,24 @@ export function DraggableLogs() {
       );
     };
 
+    const bGeo = new THREE.CylinderGeometry(0.28, 0.56, 4.2, 8);
+    const sGeo = new THREE.ConeGeometry(1.68, 2.1, 8);
+    
+    // Explicit bounding sphere for native frustum culling
+    // Logs are global, so we use a huge sphere covering the map
+    const cullingSphere = new THREE.Sphere(new THREE.Vector3(0, 0, 0), 2000);
+    lGeo.boundingSphere = cullingSphere;
+    leGeo.boundingSphere = cullingSphere;
+    bGeo.boundingSphere = cullingSphere;
+    sGeo.boundingSphere = cullingSphere;
+
     return {
       logGeo: lGeo,
       logMat: lMat,
       leavesGeo: leGeo,
       leavesMat: leMat,
-      branchGeo: new THREE.CylinderGeometry(0.28, 0.56, 4.2, 8),
-      whittleGeo: new THREE.ConeGeometry(1.68, 2.1, 8),
+      branchGeo: bGeo,
+      whittleGeo: sGeo,
       whittleMat: wMat,
     };
   }, []);
@@ -151,6 +162,7 @@ export function DraggableLogs() {
   
   const leavesScales = useRef(new Map<string, number>());
   const pivotHeightsRef = useRef(new Map<string, number>());
+  const restingMapRef = useRef(new Map<string, boolean>());
   
   // Track mesh identity so we can detect when the InstancedMesh remounts
   // (e.g. when logs.length changes). On remount, ALL matrices must be rebuilt.
@@ -195,7 +207,7 @@ export function DraggableLogs() {
     const dt = Math.min(delta, 0.1);
     if (!meshRef.current || !leavesMeshRef.current || !branchesMeshRef.current || !whittleMeshRef.current) return;
 
-    const { playerPosition, playerRotation, placedBlocks } = useGameStore.getState();
+    const { playerPosition, playerRotation } = useGameStore.getState();
 
     let needsInstanceUpdate = false;
     
@@ -217,11 +229,18 @@ export function DraggableLogs() {
       let currentLeavesScale = leavesScales.current.get(log.id);
       if (currentLeavesScale === undefined) currentLeavesScale = 1;
 
-      // SLEEP ZONE: If the log is cemented, flat on the ground, and leaves are fully decayed,
-      // it physically never moves again. Bypass all JS math and Matrix float calculations!
+      // SLEEP ZONE: If the log is cemented OR flat on the ground and resting,
+      // and leaves are fully decayed, it physically never moves again UNLESS flooded or dragged.
+      // Bypass all JS math and Matrix float calculations!
       // BUT: skip sleep on the first frame after a mesh remount — we must set the matrix at least once.
-      if (!meshRemounted && log.isMudded && !log.isDragged && rx >= Math.PI / 2 - 0.01 && currentLeavesScale === 0) {
-        return; 
+      const isResting = restingMapRef.current.get(log.id) === true;
+      if (!meshRemounted && !log.isDragged && rx >= Math.PI / 2 - 0.01 && currentLeavesScale === 0) {
+        if (log.isMudded) return; // Permanently buried
+        
+        const waterHeight = waterEngine.getSurfaceHeight(lx, lz);
+        if (waterHeight <= ly - 1 && isResting) {
+           return; // Resting on land, safe from water. Sleep!
+        }
       }
       
       needsInstanceUpdate = true;
@@ -270,6 +289,7 @@ export function DraggableLogs() {
         // Mutate directly to avoid re-renders
         log.position = [lx, ly, lz];
         log.rotation = [rx, ry, rz];
+        restingMapRef.current.set(log.id, false); // Dragging means it's not resting
       } else {
         if (rx < Math.PI / 2) {
           // Falling animation
@@ -331,24 +351,28 @@ export function DraggableLogs() {
                 log.isMudded = true; // Mutate locally to prevent spamming
                 useGameStore.getState().setLogMudded(log.id, true);
               }
+              restingMapRef.current.set(log.id, false);
             } else {
               // Fall to ground
               if (ly > groundHeight) {
                 ly -= 10 * dt; // Gravity
+                restingMapRef.current.set(log.id, false);
               }
             }
             
-            // Prevent clipping into ground
-            if (ly < groundHeight) {
+            // Prevent clipping into ground (and set resting status)
+            if (ly <= groundHeight) {
               ly = groundHeight;
+              restingMapRef.current.set(log.id, true);
             }
           } else {
             // Mudded log: just fall to ground if it's somehow above it, but don't float
             if (ly > groundHeight) {
               ly -= 10 * dt;
-              if (ly < groundHeight) {
-                ly = groundHeight;
-              }
+            }
+            if (ly <= groundHeight) {
+              ly = groundHeight;
+              restingMapRef.current.set(log.id, true);
             }
             // If ly < groundHeight, it means mud was placed on top of it. Let it stay buried!
           }
@@ -466,10 +490,10 @@ export function DraggableLogs() {
 
   return (
     <group>
-      <instancedMesh ref={meshRef} args={[logGeo, logMat, logs.length]} castShadow receiveShadow frustumCulled={false} />
-      <instancedMesh ref={leavesMeshRef} args={[leavesGeo, leavesMat, logs.length]} castShadow receiveShadow frustumCulled={false} />
-      <instancedMesh ref={branchesMeshRef} args={[branchGeo, logMat, logs.length * BRANCH_CONFIGS.length]} castShadow receiveShadow frustumCulled={false} />
-      <instancedMesh ref={whittleMeshRef} args={[whittleGeo, whittleMat, logs.length]} castShadow receiveShadow frustumCulled={false} />
+      <instancedMesh ref={meshRef} args={[logGeo, logMat, logs.length]} castShadow receiveShadow frustumCulled={true} />
+      <instancedMesh ref={leavesMeshRef} args={[leavesGeo, leavesMat, logs.length]} castShadow receiveShadow frustumCulled={true} />
+      <instancedMesh ref={branchesMeshRef} args={[branchGeo, logMat, logs.length * BRANCH_CONFIGS.length]} castShadow receiveShadow frustumCulled={true} />
+      <instancedMesh ref={whittleMeshRef} args={[whittleGeo, whittleMat, logs.length]} castShadow receiveShadow frustumCulled={true} />
     </group>
   );
 }

@@ -203,6 +203,13 @@ export function Chunk({ chunkX, chunkZ }: { chunkX: number, chunkZ: number }) {
     
     const sGeo = new THREE.ConeGeometry(0.6, 0.5, 8);
     const sMat = new THREE.MeshStandardMaterial({ color: '#E6C280' });
+    
+    // Explicit bounding sphere for native frustum culling
+    const cullingSphere = new THREE.Sphere(new THREE.Vector3(0, 5, 0), 60);
+    tGeo.boundingSphere = cullingSphere;
+    lGeo.boundingSphere = cullingSphere;
+    bGeo.boundingSphere = cullingSphere;
+    sGeo.boundingSphere = cullingSphere;
 
     return { trunkGeo: tGeo, trunkMat: tMat, leavesGeo: lGeo, leavesMat: lMat, branchGeo: bGeo, stumpGeo: sGeo, stumpMat: sMat };
   }, []);
@@ -443,10 +450,10 @@ export function Chunk({ chunkX, chunkZ }: { chunkX: number, chunkZ: number }) {
 
       {maxInstances > 0 && (
         <>
-          <instancedMesh ref={trunkMeshRef} args={[trunkGeo, trunkMat, maxInstances]} castShadow receiveShadow frustumCulled={false} />
-          <instancedMesh ref={leavesMeshRef} args={[leavesGeo, leavesMat, maxInstances]} castShadow receiveShadow frustumCulled={false} />
-          <instancedMesh ref={branchesMeshRef} args={[branchGeo, trunkMat, maxInstances * BRANCH_CONFIGS.length]} castShadow receiveShadow frustumCulled={false} />
-          <instancedMesh ref={stumpMeshRef} args={[stumpGeo, stumpMat, maxInstances]} castShadow receiveShadow frustumCulled={false} />
+          <instancedMesh ref={trunkMeshRef} args={[trunkGeo, trunkMat, maxInstances]} castShadow receiveShadow frustumCulled={true} />
+          <instancedMesh ref={leavesMeshRef} args={[leavesGeo, leavesMat, maxInstances]} castShadow receiveShadow frustumCulled={true} />
+          <instancedMesh ref={branchesMeshRef} args={[branchGeo, trunkMat, maxInstances * BRANCH_CONFIGS.length]} castShadow receiveShadow frustumCulled={true} />
+          <instancedMesh ref={stumpMeshRef} args={[stumpGeo, stumpMat, maxInstances]} castShadow receiveShadow frustumCulled={true} />
         </>
       )}
     </group>

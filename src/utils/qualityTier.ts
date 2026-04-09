@@ -103,8 +103,8 @@ const RENDER_CONFIGS: Record<QualityLevel, RenderingConfig> = {
   },
   medium: {
     rainCount: 1000,
-    chunkViewDistance: 3,
-    computeWaterNormals: true,
+    chunkViewDistance: 2,
+    computeWaterNormals: false,
     waterNormalSkipFrames: 1,
     minimapResolution: 60,
     minimapUpdateMs: 250,

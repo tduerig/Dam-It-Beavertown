@@ -56,6 +56,11 @@ export function worldToChunkKey(x: number, z: number): string {
 }
 const generatedChunks = new Set<string>();
 
+export function clearGeneratedTerrain() {
+  generatedChunks.clear();
+  globalTerrainCache.clear();
+}
+
 export function generateTreesForChunk(chunkX: number, chunkZ: number) {
   const cacheKey = `${chunkX},${chunkZ}`;
   
@@ -80,8 +85,12 @@ export function generateTreesForChunk(chunkX: number, chunkZ: number) {
     const riverX = getRiverCenter(z);
     if (Math.abs(x - riverX) > globalTerrainConfig.riverWidth + 2) {
       const y = getTerrainHeight(x, z);
-      // Sweet spot for trees: not too high (snowy), not too low (sandy beach)
-      if (y > -2 && y < 12) {
+      
+      const bankH = getTerrainHeight(riverX + globalTerrainConfig.riverWidth, z);
+      const waterLevel = bankH - 0.3;
+      
+      // Sweet spot for trees: not too high (snowy), not too low (sandy beach), and strictly not flooded!
+      if (y > -2 && y < 12 && y > waterLevel + 0.5) {
         const isBig = noise2D(chunkX + i * 0.2, chunkZ + i * 0.2) > 0.6;
         // Prevent overlapping canopies: reject if too close to an existing tree
         const minDist = isBig ? 7 : 4; // big trees need more clearance
@@ -142,6 +151,10 @@ export function generateTreesForChunk(chunkX: number, chunkZ: number) {
 
 class TerrainCache {
     private chunks = new Map<string, Float32Array>();
+
+    public clear() {
+        this.chunks.clear();
+    }
 
     private getChunkKey(cx: number, cz: number): string {
         return `${cx}_${cz}`;

@@ -1,0 +1,84 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>NPC Playtest Evaluations</title>
+    <style>
+        body { font-family: system-ui, sans-serif; line-height: 1.5; padding: 2rem; max-width: 800px; margin: 0 auto; background: #0f172a; color: #f8fafc; }
+        h1 { color: #38bdf8; border-bottom: 1px solid #334155; padding-bottom: 0.5rem; }
+        .eval-card { background: #1e293b; border: 1px solid #334155; border-radius: 8px; padding: 1.5rem; margin-bottom: 1.5rem; }
+        .eval-header { display: flex; justify-content: space-between; align-items: baseline; margin-bottom: 1rem; border-bottom: 1px solid #334155; padding-bottom: 0.5rem; }
+        .eval-header h2 { margin: 0; color: #facc15; }
+        .date { color: #94a3b8; font-size: 0.875rem; }
+        .rating { display: inline-block; padding: 0.25rem 0.75rem; border-radius: 9999px; font-weight: bold; background: #064e3b; color: #34d399; }
+        h3 { color: #e2e8f0; margin-top: 1.5rem; margin-bottom: 0.5rem; font-size: 1.1rem; }
+        ul { margin: 0; padding-left: 1.5rem; color: #cbd5e1; }
+        li { margin-bottom: 0.25rem; }
+        .stats { display: grid; grid-template-columns: repeat(auto-fill, minmax(150px, 1fr)); gap: 0.5rem; background: #0f172a; padding: 1rem; border-radius: 6px; }
+        .stat-item { font-size: 0.875rem; }
+        .stat-label { color: #94a3b8; }
+        .stat-value { color: #f8fafc; font-weight: bold; }
+        p { color: #cbd5e1; margin-bottom: 0; }
+    </style>
+</head>
+<body>
+    <h1>NPC Beaver AI Evaluations</h1>
+
+    <div class="eval-card">
+        <div class="eval-header">
+            <h2>V3 Prototype (Post-Hysteresis Fix)</h2>
+            <span class="date">2026-04-07 17:25</span>
+        </div>
+        <span class="rating">Overall Rating: 9/10</span>
+        
+        <h3>Milestones</h3>
+        <ul>
+            <li>Did the AI successfully chop a tree? Yes (Status: 'Chopping tree!')</li>
+            <li>Did the AI drag a log? Yes (Status: 'Dragging log to river!')</li>
+            <li>Did the AI reach the water? Yes, beaver was at the river bank with a log at the end of observation.</li>
+        </ul>
+
+        <h3>QA Observations</h3>
+        <p><strong>Visual Pathing:</strong> Extremely smooth. The beaver navigated the terrain without jittering and successfully engaged with physics objects (logs).</p>
+        <p><strong>Dam Construction:</strong> The beaver was in the final stages of dropping a massive oak log into the water to redirect flow.</p>
+
+        <h3>Stats Snapshot</h3>
+        <div class="stats">
+            <div class="stat-item"><span class="stat-label">Mud Dug:</span> <span class="stat-value">3</span></div>
+            <div class="stat-item"><span class="stat-label">Mud Patted:</span> <span class="stat-value">312</span></div>
+            <div class="stat-item"><span class="stat-label">Trees Downed:</span> <span class="stat-value">36</span></div>
+            <div class="stat-item"><span class="stat-label">Massive Felled:</span> <span class="stat-value">2</span></div>
+            <div class="stat-item"><span class="stat-label">Snacks:</span> <span class="stat-value">0</span></div>
+        </div>
+    </div>
+
+    <div class="eval-card">
+        <div class="eval-header">
+            <h2>V4 / V5 Prototype (High-Level API Migration)</h2>
+            <span class="date">2026-04-07 17:50</span>
+        </div>
+        <span class="rating">Overall Rating: 9/10</span>
+        
+        <h3>Milestones</h3>
+        <ul>
+            <li>Did the AI successfully place mud and sticks to dam the river? Yes. Sticks placed: 12, Mud patted: 36.</li>
+            <li>Did the AI continue eating to survive? Yes. Snacks Eaten: 2.</li>
+        </ul>
+
+        <h3>QA Observations</h3>
+        <p><strong>Visual Pathing:</strong> The beaver moved smoothly and purposefully between resource zones (forest and river bank). No jittering or state-machine loops were observed during transitions between walking, chopping, and digging.</p>
+        <p><strong>Dam Construction:</strong> The dam is actively growing with a mix of mud reinforcement and stick foundations. The 'mudPatted' count (36) confirms the beaver is effectively sealing the gaps.</p>
+
+        <h3>Stats Snapshot (60s simulation)</h3>
+        <div class="stats">
+            <div class="stat-item"><span class="stat-label">Mud Dug:</span> <span class="stat-value">42</span></div>
+            <div class="stat-item"><span class="stat-label">Mud Patted:</span> <span class="stat-value">36</span></div>
+            <div class="stat-item"><span class="stat-label">Trees Downed:</span> <span class="stat-value">6</span></div>
+            <div class="stat-item"><span class="stat-label">Sticks Placed:</span> <span class="stat-value">12</span></div>
+            <div class="stat-item"><span class="stat-label">Snacks:</span> <span class="stat-value">2</span></div>
+        </div>
+    </div>
+
+</body>
+</html>

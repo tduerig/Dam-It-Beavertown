@@ -39,6 +39,17 @@ export const floraCache = {
     return cache[chunkKey].length < initialLen;
   },
   
+  getClosestChunks(cx: number, cz: number, radius: number = 1): FloraItem[][] {
+    const result: FloraItem[][] = [];
+    for (let x = cx - radius; x <= cx + radius; x++) {
+      for (let z = cz - radius; z <= cz + radius; z++) {
+         const key = `${x},${z}`;
+         if (cache[key]) result.push(cache[key]);
+      }
+    }
+    return result;
+  },
+  
   clear() {
     for (const key in cache) delete cache[key];
   }

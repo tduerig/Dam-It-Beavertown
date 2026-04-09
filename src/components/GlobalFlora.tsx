@@ -88,9 +88,15 @@ function RegionalLilies({ regionKey, geometry, material }: { regionKey: string, 
     // ── Per-frame water-drift animation ──
     if (items.length === 0) return;
     let needsUpdate = false;
+    const playerPos = useGameStore.getState().playerPosition;
 
     for (let i = 0; i < items.length; i++) {
         const l = items[i];
+        
+        // Distance Culling: Bypasses expensive terrain hash polling for distant clusters
+        const dx = l.position[0] - playerPos[0];
+        const dz = l.position[2] - playerPos[2];
+        if (dx * dx + dz * dz > 3600) continue;
 
         const surfaceH = waterEngine.getSurfaceHeight(l.position[0], l.position[2]);
         const terrainH = getTerrainHeight(l.position[0], l.position[2]);
@@ -129,7 +135,18 @@ function RegionalLilies({ regionKey, geometry, material }: { regionKey: string, 
     }
   });
 
-  return <instancedMesh frustumCulled={false} ref={meshRef} args={[geometry, material, 500]} />;
+  const localGeo = useMemo(() => {
+    const geo = geometry.clone();
+    const [rx, rz] = regionKey.split('_').map(Number);
+    // REGION_SIZE is 120. Bounds center is safely constructed using region offset.
+    geo.boundingSphere = new THREE.Sphere(
+      new THREE.Vector3(rx * REGION_SIZE + REGION_SIZE / 2, 0, rz * REGION_SIZE + REGION_SIZE / 2),
+      100
+    );
+    return geo;
+  }, [geometry, regionKey]);
+
+  return <instancedMesh frustumCulled={true} ref={meshRef} args={[localGeo, material, 500]} />;
 }
 
 function RegionalCattails({ regionKey, stalkGeo, headGeo, stalkMat, headMat }: { regionKey: string, stalkGeo: THREE.BufferGeometry, headGeo: THREE.BufferGeometry, stalkMat: THREE.Material, headMat: THREE.Material }) {
@@ -182,10 +199,23 @@ function RegionalCattails({ regionKey, stalkGeo, headGeo, stalkMat, headMat }: {
     headRef.current.instanceMatrix.needsUpdate = true;
   });
 
+  const { localStalkGeo, localHeadGeo } = useMemo(() => {
+    const sG = stalkGeo.clone();
+    const hG = headGeo.clone();
+    const [rx, rz] = regionKey.split('_').map(Number);
+    const sphere = new THREE.Sphere(
+      new THREE.Vector3(rx * REGION_SIZE + REGION_SIZE / 2, 0, rz * REGION_SIZE + REGION_SIZE / 2),
+      100
+    );
+    sG.boundingSphere = sphere;
+    hG.boundingSphere = sphere;
+    return { localStalkGeo: sG, localHeadGeo: hG };
+  }, [stalkGeo, headGeo, regionKey]);
+
   return (
     <group>
-      <instancedMesh frustumCulled={false} ref={stalkRef} args={[stalkGeo, stalkMat, 500]} />
-      <instancedMesh frustumCulled={false} ref={headRef} args={[headGeo, headMat, 500]} />
+      <instancedMesh frustumCulled={true} ref={stalkRef} args={[localStalkGeo, stalkMat, 500]} />
+      <instancedMesh frustumCulled={true} ref={headRef} args={[localHeadGeo, headMat, 500]} />
     </group>
   );
 }

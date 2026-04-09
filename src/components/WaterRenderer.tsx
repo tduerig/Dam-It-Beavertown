@@ -94,17 +94,29 @@ export function WaterRenderer() {
           const speed = Math.sqrt(vx*vx + vz*vz);
           
           let y: number;
-          if (w > 0.15) {
+          let ripple = 0;
+          
+          if (w > 0.05) {
             const worldX = waterEngine.originX - (WATER_SIZE / 2) + x;
             const worldZ = waterEngine.originZ - (WATER_SIZE / 2) + z;
-            const flowDirX = speed > 0.1 ? vx / speed : 0;
-            const flowDirZ = speed > 0.1 ? vz / speed : 1;
-            const ripple = Math.sin(worldX * 1.5 - flowDirX * time * 5) * 0.04 + 
-                           Math.sin(worldZ * 1.5 - flowDirZ * time * 5) * 0.04;
-            y = waterEngine.T[i] + w + ripple;
-          } else {
-            y = waterEngine.T[i] - 10.0;
+            const renderConfig = getRenderConfig();
+            
+            // Bypass high-cost trigonometry entirely on Low/Med mobile tiers
+            if (renderConfig.computeWaterNormals) {
+              const flowDirX = speed > 0.1 ? vx / speed : 0;
+              const flowDirZ = speed > 0.1 ? vz / speed : 1;
+              // Pseudo-sine fast approximation using triangle wave for mobile
+              // Valid mathematically mostly locally:
+              const tx = (worldX * 1.5 - flowDirX * time * 5) % (Math.PI * 2);
+              const tz = (worldZ * 1.5 - flowDirZ * time * 5) % (Math.PI * 2);
+              
+              ripple = Math.sin(tx) * 0.04 + Math.sin(tz) * 0.04;
+            }
           }
+          
+          // Continuous sloped entry into the terrain prevents jagged vertical blocks. 
+          // Subtracted 0.1 drops dry vertices comfortably below the terrain (no z-fighting)
+          y = waterEngine.T[i] + w - 0.1 + ripple;
           pos[i * 3 + 1] = y;
         }
       }

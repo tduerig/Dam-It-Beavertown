@@ -1,7 +1,7 @@
 import React, { useEffect, useState, useRef } from 'react';
 import { View, Text, StyleSheet, Platform, Pressable, ScrollView, useWindowDimensions } from 'react-native';
 import { useGameStore } from '../store';
-import { Hammer, Droplets, TreePine, Download, Upload, CloudRain, ArrowUp, ArrowDown, Settings, Save, FolderOpen, Leaf } from 'lucide-react-native';
+import { Hammer, Droplets, TreePine, Download, Upload, CloudRain, ArrowUp, ArrowDown, Settings, Save, FolderOpen, Leaf, Bot } from 'lucide-react-native';
 import { getTerrainHeight, getRiverCenter, RIVER_WIDTH } from '../utils/terrain';
 import { QualityLevel } from '../utils/qualityTier';
 import { Minimap, MinimapLegend } from './Minimap';
@@ -41,8 +41,12 @@ export function UI() {
   }, [setGameState]);
   const inventory = useGameStore((state) => state.inventory);
   const rainIntensity = useGameStore((state) => state.rainIntensity);
+  const autopilot = useGameStore((state) => state.autopilot);
+  const aiState = useGameStore((state) => state.aiState);
+  const setAutopilot = useGameStore((state) => state.setAutopilot);
   const saveGame = useGameStore((state) => state.saveGame);
   const loadGame = useGameStore((state) => state.loadGame);
+  const resetGame = useGameStore((state) => state.resetGame);
   const stats = useGameStore((state) => state.stats);
   const settings = useGameStore((state) => state.settings);
   const setSetting = useGameStore((state) => state.setSetting);
@@ -134,104 +138,123 @@ export function UI() {
       {/* Start & Pause Menu Overlay */}
       {(gameState === 'start_menu' || gameState === 'paused') && (
         <ScrollView 
-          style={styles.startMenuWrapper} 
+          style={[styles.startMenuWrapper, gameState === 'start_menu' && { backgroundColor: 'transparent' }]} 
           contentContainerStyle={[styles.startMenu, isCompact && { paddingVertical: 40 }]} 
           pointerEvents="auto"
         >
           <Text style={[styles.title, isCompact && { fontSize: 32 }]}>{gameState === 'paused' ? 'PAUSED' : 'Dam It! Beavertown'}</Text>
           {gameState === 'start_menu' && <Text style={[styles.subtitle, isCompact && { fontSize: 14, marginBottom: 16 }]}>Protect the ecosystem. Build the ultimate dam.</Text>}
           
-          <View style={[styles.menuBlocksContainer, isCompact && { flexDirection: 'column', gap: 12 }]}>
-            {/* Stats Block */}
-            <View style={[styles.menuCard, isCompact && { width: '100%', maxWidth: 320, padding: 12 }]}>
-              <Text style={styles.menuCardTitle}>Lifetime Stats</Text>
-              <Text style={styles.menuStatText}>Max Water Coverage: <Text style={styles.controlsHighlight}>{stats.maxWaterCoverage}%</Text></Text>
-              <Text style={styles.menuStatText}>Mud Dug: <Text style={styles.controlsHighlight}>{stats.mudDug}</Text></Text>
-              <Text style={styles.menuStatText}>Mud Patted: <Text style={styles.controlsHighlight}>{stats.mudPatted}</Text></Text>
-              <Text style={styles.menuStatText}>Trees Downed: <Text style={styles.controlsHighlight}>{stats.treesDowned}</Text></Text>
-              <Text style={styles.menuStatText}>Sticks Placed: <Text style={styles.controlsHighlight}>{stats.sticksPlaced}</Text></Text>
-              <Text style={styles.menuStatText}>Massive Oaks Felled: <Text style={styles.controlsHighlight}>{stats.massiveTreesFelled}</Text></Text>
-              <Text style={styles.menuStatText}>Snacks Eaten: <Text style={styles.controlsHighlight}>{stats.snacksEaten}</Text></Text>
-            </View>
+          {gameState === 'paused' && (
+            <View style={[styles.menuBlocksContainer, isCompact && { flexDirection: 'column', gap: 12 }]}>
+              {/* Stats Block */}
+              <View style={[styles.menuCard, isCompact && { width: '100%', maxWidth: 320, padding: 12 }]}>
+                <Text style={styles.menuCardTitle}>Lifetime Stats</Text>
+                <Text style={styles.menuStatText}>Max Water Coverage: <Text style={styles.controlsHighlight}>{stats.maxWaterCoverage}%</Text></Text>
+                <Text style={styles.menuStatText}>Mud Dug: <Text style={styles.controlsHighlight}>{stats.mudDug}</Text></Text>
+                <Text style={styles.menuStatText}>Mud Patted: <Text style={styles.controlsHighlight}>{stats.mudPatted}</Text></Text>
+                <Text style={styles.menuStatText}>Trees Downed: <Text style={styles.controlsHighlight}>{stats.treesDowned}</Text></Text>
+                <Text style={styles.menuStatText}>Sticks Placed: <Text style={styles.controlsHighlight}>{stats.sticksPlaced}</Text></Text>
+                <Text style={styles.menuStatText}>Massive Oaks Felled: <Text style={styles.controlsHighlight}>{stats.massiveTreesFelled}</Text></Text>
+                <Text style={styles.menuStatText}>Snacks Eaten: <Text style={styles.controlsHighlight}>{stats.snacksEaten}</Text></Text>
+              </View>
 
-            {/* Save / Load & Settings Block */}
-            <View style={[styles.menuCard, isCompact && { width: '100%', maxWidth: 320, padding: 12 }]}>
-              <Text style={styles.menuCardTitle}>Settings & State</Text>
-              <Pressable style={styles.settingsToggleButton} onPress={() => setSetting('showStatsOverlay', !settings.showStatsOverlay)}>
-                <Text style={styles.settingsToggleText}>
-                  Perf Stats Overlay: {settings.showStatsOverlay ? 'ENABLED' : 'DISABLED'}
-                </Text>
+              {/* Save / Load & Settings Block */}
+              <View style={[styles.menuCard, isCompact && { width: '100%', maxWidth: 320, padding: 12 }]}>
+                <Text style={styles.menuCardTitle}>Settings & State</Text>
+                <Pressable style={styles.settingsToggleButton} onPress={() => setSetting('showStatsOverlay', !settings.showStatsOverlay)}>
+                  <Text style={styles.settingsToggleText}>
+                    Perf Stats Overlay: {settings.showStatsOverlay ? 'ENABLED' : 'DISABLED'}
+                  </Text>
+                </Pressable>
+                <View style={[styles.saveLoadRow, isCompact && { marginTop: 8 }]}>
+                  <Pressable style={styles.saveLoadBtn} onPress={() => saveGame()}>
+                    <Save color="#fff" size={20} />
+                    <Text style={styles.saveLoadText}>Save</Text>
+                  </Pressable>
+                  <Pressable style={styles.saveLoadBtn} onPress={() => loadGame()}>
+                    <FolderOpen color="#fff" size={20} />
+                    <Text style={styles.saveLoadText}>Load</Text>
+                  </Pressable>
+                </View>
+                <Pressable style={[styles.settingsToggleButton, { marginTop: 8, backgroundColor: 'rgba(239, 68, 68, 0.3)', borderColor: 'rgba(239, 68, 68, 0.5)' }]} onPress={() => resetGame()}>
+                  <Text style={[styles.settingsToggleText, { color: '#f87171' }]}>
+                    NEW GAME
+                  </Text>
+                </Pressable>
+
+                {/* Quality Tier Controls */}
+                <View style={{ marginTop: 12 }}>
+                  <Text style={[styles.menuStatText, { fontWeight: 'bold', marginBottom: 4, color: '#fef3c7' }]}>Quality Tiers</Text>
+                  {(['simulation', 'graphics', 'rendering'] as const).map(aspect => (
+                    <View key={aspect} style={{ flexDirection: 'row', alignItems: 'center', marginBottom: 6, gap: 6 }}>
+                      <Text style={[styles.menuStatText, { width: 70, fontSize: 11, textTransform: 'capitalize' }]}>{aspect}</Text>
+                      {(['low', 'medium', 'high'] as QualityLevel[]).map(level => {
+                        const isActive = settings.quality[aspect] === level;
+                        return (
+                          <Pressable
+                            key={level}
+                            style={[{
+                              paddingHorizontal: 8,
+                              paddingVertical: 4,
+                              borderRadius: 4,
+                              borderWidth: 1,
+                              borderColor: isActive ? '#facc15' : 'rgba(255,255,255,0.2)',
+                              backgroundColor: isActive ? 'rgba(250, 204, 21, 0.25)' : 'transparent',
+                            }]}
+                            onPress={() => setQuality(aspect, level)}
+                          >
+                            <Text style={{
+                              color: isActive ? '#facc15' : '#9ca3af',
+                              fontSize: 10,
+                              fontWeight: isActive ? '800' : '600',
+                              textTransform: 'uppercase',
+                            }}>
+                              {level === 'medium' ? 'MED' : level.toUpperCase()}
+                            </Text>
+                          </Pressable>
+                        );
+                      })}
+                    </View>
+                  ))}
+                </View>
+              </View>
+
+              {/* Mobile Minimap Legend when Paused */}
+              {isMobile && (
+                <View style={[styles.menuCard, isCompact && { width: '100%', maxWidth: 320, padding: 0 }]} pointerEvents="none">
+                   <MinimapLegend />
+                </View>
+              )}
+            </View>
+          )}
+
+          <View style={styles.startActionsContainer}>
+            <Pressable 
+              ref={playButtonRef}
+              style={({ pressed }) => [styles.startButton, pressed && styles.startButtonPressed, isCompact && { paddingHorizontal: 32 }]}
+              onPress={() => {
+                if (gameState === 'start_menu') {
+                    const spawnZ = 15;
+                    const spawnX = getRiverCenter(spawnZ) + RIVER_WIDTH + 4;
+                    setPlayerPosition([spawnX, getTerrainHeight(spawnX, spawnZ) + 1, spawnZ]);
+                }
+                setGameState('playing');
+              }}
+            >
+              <Text style={[styles.startButtonText, isCompact && { fontSize: 18 }]}>{gameState === 'paused' ? 'RESUME SIMULATION' : 'Start Game'}</Text>
+            </Pressable>
+
+            {gameState === 'start_menu' && (
+              <Pressable 
+                style={({ pressed }) => [styles.loadButtonMain, pressed && styles.loadButtonMainPressed, isCompact && { paddingHorizontal: 32 }]}
+                onPress={() => loadGame()}
+              >
+                <FolderOpen color="#fff" size={24} style={{ marginRight: 8 }} />
+                <Text style={[styles.loadButtonMainText, isCompact && { fontSize: 18 }]}>Load Game</Text>
               </Pressable>
-              <View style={[styles.saveLoadRow, isCompact && { marginTop: 8 }]}>
-                <Pressable style={styles.saveLoadBtn} onPress={() => saveGame()}>
-                  <Save color="#fff" size={20} />
-                  <Text style={styles.saveLoadText}>Save</Text>
-                </Pressable>
-                <Pressable style={styles.saveLoadBtn} onPress={() => loadGame()}>
-                  <FolderOpen color="#fff" size={20} />
-                  <Text style={styles.saveLoadText}>Load</Text>
-                </Pressable>
-              </View>
-
-              {/* Quality Tier Controls */}
-              <View style={{ marginTop: 12 }}>
-                <Text style={[styles.menuStatText, { fontWeight: 'bold', marginBottom: 4, color: '#fef3c7' }]}>Quality Tiers</Text>
-                {(['simulation', 'graphics', 'rendering'] as const).map(aspect => (
-                  <View key={aspect} style={{ flexDirection: 'row', alignItems: 'center', marginBottom: 6, gap: 6 }}>
-                    <Text style={[styles.menuStatText, { width: 70, fontSize: 11, textTransform: 'capitalize' }]}>{aspect}</Text>
-                    {(['low', 'medium', 'high'] as QualityLevel[]).map(level => {
-                      const isActive = settings.quality[aspect] === level;
-                      return (
-                        <Pressable
-                          key={level}
-                          style={[{
-                            paddingHorizontal: 8,
-                            paddingVertical: 4,
-                            borderRadius: 4,
-                            borderWidth: 1,
-                            borderColor: isActive ? '#facc15' : 'rgba(255,255,255,0.2)',
-                            backgroundColor: isActive ? 'rgba(250, 204, 21, 0.25)' : 'transparent',
-                          }]}
-                          onPress={() => setQuality(aspect, level)}
-                        >
-                          <Text style={{
-                            color: isActive ? '#facc15' : '#9ca3af',
-                            fontSize: 10,
-                            fontWeight: isActive ? '800' : '600',
-                            textTransform: 'uppercase',
-                          }}>
-                            {level === 'medium' ? 'MED' : level.toUpperCase()}
-                          </Text>
-                        </Pressable>
-                      );
-                    })}
-                  </View>
-                ))}
-              </View>
-            </View>
-
-            {/* Mobile Minimap Legend when Paused */}
-            {gameState === 'paused' && isMobile && (
-              <View style={[styles.menuCard, isCompact && { width: '100%', maxWidth: 320, padding: 0 }]} pointerEvents="none">
-                 <MinimapLegend />
-              </View>
             )}
           </View>
-
-          <Pressable 
-            ref={playButtonRef}
-            style={({ pressed }) => [styles.startButton, pressed && styles.startButtonPressed, isCompact && { paddingHorizontal: 32 }]}
-            onPress={() => {
-            if (gameState === 'start_menu') {
-                const spawnZ = 15;
-                const spawnX = getRiverCenter(spawnZ) + RIVER_WIDTH + 4;
-                setPlayerPosition([spawnX, getTerrainHeight(spawnX, spawnZ) + 1, spawnZ]);
-            }
-            setGameState('playing');
-          }}
-          >
-            <Text style={[styles.startButtonText, isCompact && { fontSize: 18 }]}>{gameState === 'paused' ? 'RESUME SIMULATION' : 'PLAY NOW'}</Text>
-          </Pressable>
         </ScrollView>
       )}
 
@@ -285,12 +308,26 @@ export function UI() {
               <Text style={styles.statText}>{Math.round(rainIntensity * 100)}%</Text>
             </View>
             <Pressable 
+              style={[styles.statRow, styles.borderLeft]} 
+              onPress={() => setAutopilot(!autopilot)}
+            >
+              <Bot color={autopilot ? "#facc15" : "#9ca3af"} size={24} />
+            </Pressable>
+            <Pressable 
               style={[styles.statRow, styles.borderLeft, { marginRight: 0 }]} 
               onPress={() => setGameState('paused')}
             >
               <Settings color="#9ca3af" size={24} />
             </Pressable>
           </View>
+          
+          {/* AI Thoughts Overlay */}
+          {autopilot && (
+            <View style={{ marginTop: 8, backgroundColor: 'rgba(0,0,0,0.6)', paddingHorizontal: 16, paddingVertical: 8, borderRadius: 16, flexDirection: 'row', alignItems: 'center', gap: 8 }}>
+              <Bot color="#facc15" size={16} />
+              <Text style={{ color: '#facc15', fontSize: 13, fontWeight: 'bold', fontStyle: 'italic' }}>{aiState}</Text>
+            </View>
+          )}
         </View>
       )}
 
@@ -490,6 +527,37 @@ const styles = StyleSheet.create({
     fontWeight: '900',
     letterSpacing: 2,
   },
+  startActionsContainer: {
+    flexDirection: 'column',
+    gap: 16,
+    alignItems: 'center',
+    marginBottom: 24,
+  },
+  loadButtonMain: {
+    backgroundColor: 'rgba(2, 132, 199, 0.9)', // nice blue
+    paddingHorizontal: 40,
+    paddingVertical: 14,
+    borderRadius: 32,
+    flexDirection: 'row',
+    alignItems: 'center',
+    shadowColor: '#000',
+    shadowRadius: 6,
+    borderWidth: 1,
+    borderColor: 'rgba(255,255,255,0.2)',
+    ...Platform.select({
+      web: { cursor: 'pointer' } as any,
+    }),
+  },
+  loadButtonMainPressed: {
+    backgroundColor: 'rgba(3, 105, 161, 0.9)',
+    transform: [{ scale: 0.95 }]
+  },
+  loadButtonMainText: {
+    color: '#fff',
+    fontSize: 20,
+    fontWeight: '800',
+    letterSpacing: 1,
+  },
   loadButton: {
     padding: 12,
   },
@@ -580,8 +648,8 @@ const styles = StyleSheet.create({
   },
   desktopControls: {
     position: 'absolute',
-    top: 40,
-    right: 20,
+    bottom: 40,
+    left: 40,
     backgroundColor: 'rgba(0, 0, 0, 0.5)',
     padding: 16,
     borderRadius: 8,

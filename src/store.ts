@@ -72,6 +72,12 @@ interface GameState {
   virtualButtons: { jump: boolean, crouch: boolean, action1: boolean, action2: boolean, action3: boolean };
   timeOfDay: number;
   dayLength: number;
+  autopilot: boolean;
+  aiState: string;
+  aiTarget: [number, number, number] | null;
+  setAutopilot: (val: boolean) => void;
+  setAIState: (val: string) => void;
+  setAITarget: (val: [number, number, number] | null) => void;
   setGameState: (state: 'start_menu' | 'playing' | 'paused') => void;
   updateTimeOfDay: (dt: number) => void;
   triggerEcologyTick: () => void;
@@ -82,6 +88,7 @@ interface GameState {
   batchModifyTerrain: (modifications: Array<{x: number, z: number, amount: number, radius: number}>) => void;
   saveGame: () => Promise<void>;
   loadGame: () => Promise<void>;
+  resetGame: () => void;
   setVirtualJoystick: (x: number, y: number) => void;
   setVirtualCamera: (x: number, y: number) => void;
   setVirtualButton: (button: 'jump' | 'crouch' | 'action1' | 'action2' | 'action3', value: boolean) => void;
@@ -142,6 +149,12 @@ export const useGameStore = create<GameState>((set, get) => ({
   particleEmitters: [],
   timeOfDay: 0,
   dayLength: 300, // 5 minutes real-time for testing purposes
+  autopilot: false,
+  aiState: 'IDLE',
+  aiTarget: null,
+  setAutopilot: (val: boolean) => set({ autopilot: val }),
+  setAIState: (val: string) => set({ aiState: val }),
+  setAITarget: (val: [number, number, number] | null) => set({ aiTarget: val }),
   setGameState: (state) => set({ gameState: state }),
   
   updateTimeOfDay: (dt) => set((state) => {
@@ -250,6 +263,33 @@ export const useGameStore = create<GameState>((set, get) => ({
     } catch (e) {
       console.warn("Load Error:", e);
     }
+  },
+
+  resetGame: () => {
+    // Because reloading in Expo might be finicky between platforms,
+    // we do a deep state reset instead to avoid crashing the RN app.
+    deserializeOffsets({}); 
+    woodEngine.deserialize({}); 
+    floraCache.clear();
+    const { clearGeneratedTerrain } = require('./utils/terrain');
+    clearGeneratedTerrain();
+    
+    set({
+      gameState: 'start_menu',
+      inventory: { sticks: 0, mud: 0 },
+      stats: { mudDug: 0, mudPatted: 0, treesDowned: 0, sticksPlaced: 0, massiveTreesFelled: 0, maxWaterCoverage: 0, snacksEaten: 0 },
+      placedBlocks: [],
+      draggableLogs: [],
+      playerPosition: [0, 0, 0],
+      playerRotation: 0,
+      terrainStamp: getGlobalStamp(),
+      ecologyStamp: get().ecologyStamp + 1,
+      timeOfDay: 0,
+      autopilot: false,
+      aiState: 'IDLE',
+      aiTarget: null,
+      particleEmitters: []
+    });
   },
 
   updateMaxWaterCoverage: (val) => set((state) => {

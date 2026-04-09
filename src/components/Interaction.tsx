@@ -23,44 +23,40 @@ export function Interaction() {
       const chunkX = Math.floor(playerVec.x / CHUNK_SIZE);
       const chunkZ = Math.floor(playerVec.z / CHUNK_SIZE);
       
-      for (const log of state.draggableLogs) {
-        if (log.isMudded && !log.isDragged) continue; 
-        if (log.rotation[0] < Math.PI / 2 - 0.1) continue; // Cannot pick up logs that are still falling
-        
-        const logVec = new THREE.Vector3(...log.position);
-        if (playerVec.distanceTo(logVec) < INTERACTION_DISTANCE + 6) {
-          const isCurrentlyDragged = log.isDragged;
-          if (!isCurrentlyDragged) {
-            const draggingAnother = state.draggableLogs.some(l => l.isDragged);
-            if (!draggingAnother) {
-              state.toggleDragLog(log.id, true);
-              soundEngine.playChop();
-              collected = true;
+      const draggedLog = state.draggableLogs.find(l => l.isDragged);
+      if (draggedLog) {
+          state.toggleDragLog(draggedLog.id, false);
+          soundEngine.playFall();
+          
+          const checkPoints = [
+            [draggedLog.position[0], draggedLog.position[2]],
+            [draggedLog.position[0] + Math.sin(draggedLog.rotation[1]) * 4, draggedLog.position[2] + Math.cos(draggedLog.rotation[1]) * 4],
+            [draggedLog.position[0] - Math.sin(draggedLog.rotation[1]) * 4, draggedLog.position[2] - Math.cos(draggedLog.rotation[1]) * 4],
+          ];
+          let isMudded = false;
+          for (const [x, z] of checkPoints) {
+            const h = getTerrainHeight(x, z);
+            const baseH = getBaseTerrainHeight(x, z);
+            if (h - baseH > 0.1) {
+              isMudded = true;
               break;
             }
-          } else {
-            state.toggleDragLog(log.id, false);
-            soundEngine.playFall();
-            
-            const checkPoints = [
-              [log.position[0], log.position[2]],
-              [log.position[0] + Math.sin(log.rotation[1]) * 4, log.position[2] + Math.cos(log.rotation[1]) * 4],
-              [log.position[0] - Math.sin(log.rotation[1]) * 4, log.position[2] - Math.cos(log.rotation[1]) * 4],
-            ];
-            let isMudded = false;
-            for (const [x, z] of checkPoints) {
-              const h = getTerrainHeight(x, z);
-              const baseH = getBaseTerrainHeight(x, z);
-              if (h - baseH > 0.1) {
-                isMudded = true;
-                break;
-              }
-            }
-            if (isMudded) {
-               state.setLogMudded(log.id, true);
-            }
-            collected = true;
-            break;
+          }
+          if (isMudded) {
+             state.setLogMudded(draggedLog.id, true);
+          }
+          collected = true;
+      } else {
+        for (const log of state.draggableLogs) {
+          if (log.isMudded && !log.isDragged) continue; 
+          if (log.rotation[0] < Math.PI / 2 - 0.1) continue; // Cannot pick up logs that are still falling
+          
+          const logVec = new THREE.Vector3(...log.position);
+          if (playerVec.distanceTo(logVec) < INTERACTION_DISTANCE + 6) {
+             state.toggleDragLog(log.id, true);
+             soundEngine.playChop();
+             collected = true;
+             break;
           }
         }
       }
@@ -136,7 +132,44 @@ export function Interaction() {
         const placeZ = playerVec.z + dz;
         
         if (type === 'mud') {
-          state.modifyTerrain(placeX, placeZ, 0.8, 2.5);
+          let mudAmount = 0.8;
+          const currentH = getTerrainHeight(placeX, placeZ);
+
+          // Fast log distance check to account for log displacement, preventing "infilling"
+          state.draggableLogs.forEach(log => {
+            // Only care about logs resting or nearly resting
+            if (log.rotation[0] < Math.PI / 4) return;
+            
+            // Check center and ends of log for fast proximity
+            const checkPoints = [
+              [log.position[0], log.position[2]],
+              [log.position[0] + Math.sin(log.rotation[1]) * 4, log.position[2] + Math.cos(log.rotation[1]) * 4],
+              [log.position[0] - Math.sin(log.rotation[1]) * 4, log.position[2] - Math.cos(log.rotation[1]) * 4],
+            ];
+            
+            let minSqDist = Infinity;
+            for (const [x, z] of checkPoints) {
+              const sqDist = (x - placeX) ** 2 + (z - placeZ) ** 2;
+              if (sqDist < minSqDist) {
+                minSqDist = sqDist;
+              }
+            }
+
+            // If player places mud over this log
+            if (minSqDist < 6.25) { // 2.5 radius
+              const logTop = log.position[1] + 1.4; // approx log top surface
+              if (currentH < logTop) {
+                // Ensure the mud pack jumps to the top of the log
+                const neededAmount = (logTop - currentH) + 0.2;
+                // Clamp jump to a reasonable maximum (4.0) to prevent deep water exploits
+                if (neededAmount > mudAmount && neededAmount < 4.0) {
+                  mudAmount = neededAmount;
+                }
+              }
+            }
+          });
+
+          state.modifyTerrain(placeX, placeZ, mudAmount, 2.5);
           state.triggerAction('place', 'mud');
           soundEngine.playSplash();
           

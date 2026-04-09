@@ -387,7 +387,7 @@ export class WaterEngine {
         
         if (globalSourceZ > -140 && Math.abs(wx - riverX) < globalTerrainConfig.riverWidth) {
           const idx = x + sourceZ * this.size;
-          this.W[idx] += 0.12;
+          this.W[idx] += 0.18; // Increased native flow for deeper twists
           if (this.W[idx] > 10.0) this.W[idx] = 10.0; 
         }
       }

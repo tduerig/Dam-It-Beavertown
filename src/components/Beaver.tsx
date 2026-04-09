@@ -99,7 +99,7 @@ export function Beaver() {
     
     const { 
       cameraAngle, cameraPitch, setCameraAngle, setCameraPitch, rainIntensity, setRainIntensity,
-      virtualJoystick, virtualCamera, virtualButtons 
+      virtualJoystick, virtualCamera, virtualButtons, aiTarget 
     } = useGameStore.getState();
 
     // Build/cache spatial hash for block collision (rebuild only when blocks change)
@@ -163,20 +163,56 @@ export function Beaver() {
       currentSpeed = SPEED * 0.4; // Much slower when dragging on land
     }
 
-    if (moveDir.lengthSq() > 0) {
-      // Normalize but keep magnitude if less than 1 (for joystick)
+    const rotatedMoveDir = _rotatedMove.set(0, 0, 0);
+    let moving = false;
+
+    if (aiTarget) {
+      const dx = aiTarget[0] - pos.x;
+      const dz = aiTarget[2] - pos.z;
+      const len = Math.sqrt(dx * dx + dz * dz);
+      if (len > 0.1) {
+        rotatedMoveDir.set(dx / len, 0, dz / len);
+        moving = true;
+      }
+    } else if (moveDir.lengthSq() > 0) {
       const len = moveDir.length();
       if (len > 1) moveDir.normalize();
       
-      // Rotate movement vector by camera angle
-      const rotatedMoveDir = _rotatedMove.set(
+      rotatedMoveDir.set(
         moveDir.x * Math.cos(cameraAngle) + moveDir.z * Math.sin(cameraAngle),
         0,
         -moveDir.x * Math.sin(cameraAngle) + moveDir.z * Math.cos(cameraAngle)
       );
+      moving = true;
+    }
 
-      pos.x += rotatedMoveDir.x * currentSpeed * dt;
-      pos.z += rotatedMoveDir.z * currentSpeed * dt;
+    if (moving) {
+      const nextX = pos.x + rotatedMoveDir.x * currentSpeed * dt;
+      const nextZ = pos.z + rotatedMoveDir.z * currentSpeed * dt;
+      
+      const MAX_CLIMB_HEIGHT = 1.6;
+      
+      const checkClimb = (tx: number, tz: number) => {
+        let h = getTerrainHeight(tx, tz) + 0.5;
+        const blocks = getBlocksNear(blockHash, tx, tz);
+        for (const block of blocks) {
+          if (Math.abs(tx - block.position[0]) < 1.0 && Math.abs(tz - block.position[2]) < 1.0) {
+            const blockTopY = block.position[1] + (block.type === 'mud' ? 0.25 : 0.4);
+            h = Math.max(h, blockTopY + 0.5);
+          }
+        }
+        return h;
+      };
+
+      // X-Axis check
+      if (checkClimb(nextX, pos.z) - pos.y <= MAX_CLIMB_HEIGHT) {
+        pos.x = nextX;
+      }
+      
+      // Z-Axis check
+      if (checkClimb(pos.x, nextZ) - pos.y <= MAX_CLIMB_HEIGHT) {
+        pos.z = nextZ;
+      }
 
       // Rotation
       const targetRotation = Math.atan2(rotatedMoveDir.x, rotatedMoveDir.z) + Math.PI;
@@ -455,7 +491,7 @@ export function Beaver() {
         armLRef.current.rotation.x = Math.sin(progress * Math.PI * 12) * 0.5;
         armRRef.current.rotation.x = Math.cos(progress * Math.PI * 12) * 0.5;
       }
-    } else if (moveDir.lengthSq() > 0 || inWater) {
+    } else if (moving || inWater) {
       // Walk/Swim animation
       const speedMult = inWater ? 15 : 10;
       const t = state.clock.elapsedTime * speedMult;
@@ -483,7 +519,7 @@ export function Beaver() {
            // Diving down rapidly
            bodyRef.current.rotation.x = -Math.PI / 4;
            tailRef.current.rotation.x = -0.8; // Tail high up in the air
-        } else if (isUnderwater && moveDir.lengthSq() > 0) {
+        } else if (isUnderwater && moving) {
            // Swimming underwater
            bodyRef.current.rotation.x = -Math.PI / 8;
            tailRef.current.rotation.x = -0.4 + Math.cos(t * 1.5) * 0.2;

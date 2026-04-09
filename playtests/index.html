@@ -877,6 +877,37 @@ Post-Fix (In-Game): ~31-35 FPS | 329 Draw Calls
                     </div>
                 </div>
             </div>
+            </div>
+            
+            <div class="report-card">
+                <h2>V4 QA Playtest: Optimizations Evaluation</h2>
+                <div class="meta" style="color: #cbd5e1; font-size: 14px; margin-bottom: 12px;">Date: 2026-04-08 | Performance Tracking: Enabled | NPC Agent: True</div>
+                
+                <div class="grid">
+                    <div>
+                        <div style="margin-bottom: 12px; padding: 12px; background: rgba(16, 185, 129, 0.1); border-left: 3px solid #10b981; border-radius: 4px;">
+                            <h4 style="margin: 0 0 8px 0; color: #34d399;">🌟 V4 Optimizations Deployed</h4>
+                            <ul style="margin: 0; padding-left: 20px; color: #a7f3d0; font-size: 14px;">
+                                <li><strong>Trig Math Bypass:</strong> Disabled 12,500+ Math.sin() evaluations per frame for water ripples on low/medium targets.</li>
+                                <li><strong>Frustum Culling:</strong> Re-enabled strict frustum culling natively on Chunk, DraggableLogs, and Regional Flora with bounded spheres.</li>
+                                <li><strong>FloatingLogs Sleep States:</strong> Sleeping logs no longer evaluate complex distance or surface computations when resting against the river bank.</li>
+                            </ul>
+                        </div>
+                        
+                        <h3>QA Evaluation</h3>
+                        <ul>
+                            <li><strong>Movement & UI:</strong> Successfully navigated terrain. UI overlays injected correctly.</li>
+                            <li><strong>Interaction:</strong> Chopped a Massive Oak tree and ate a Lily pad. Inventory systems working correctly.</li>
+                            <li><strong>FPS Output:</strong> Maintained a stellar ~120 FPS on High settings throughout gameplay. Peak at 152 FPS.</li>
+                            <li><strong>Findings (Visual):</strong> Observed structural z-fighting and UI overlay issues (Minimap text overlaps).</li>
+                            <li><strong>Findings (Physics):</strong> Discovered collision phasing—the beaver can fall or clip through terrain geometry and water pocket edges.</li>
+                        </ul>
+                        
+                        <h3>FPS Telemetry Matrix</h3>
+                        <pre>[108, 123, 118, 130, 110, 125, 120, 123, 115, 152, 110, 130, 109, 137, 97, 125, 118, 122, 119, 147, 102, 147, 112, 119, 120, 103, 128, 128, 133, 100]</pre>
+                    </div>
+                </div>
+            </div>
 </body>
 </html>
     
