@@ -1,376 +1,841 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-    <meta charset="UTF-8">
+    <title>Beavertown World-Sim Journal</title>
+    <meta charset="utf-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>beaver-sim world-tests</title>
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;600;700&display=swap" rel="stylesheet">
     <style>
-        body { font-family: system-ui, sans-serif; background: #0f172a; color: #f8fafc; padding: 2rem; max-width: 1200px; margin: auto; }
-        .card { background: #1e293b; border-radius: 12px; padding: 24px; margin-bottom: 24px; border: 1px solid #334155; }
-        .header { margin-bottom: 1rem; border-bottom: 1px solid #334155; padding-bottom: 0.5rem; color: #60a5fa; }
-        .grid { display: grid; grid-template-columns: 1fr 2fr; gap: 2rem; }
-        .stats pre { background: #000; padding: 1rem; border-radius: 6px; overflow-x: auto; color: #4ade80; font-size: 15px;}
-        .notes { background: rgba(0,0,0,0.3); padding: 10px; border-left: 3px solid #f59e0b; font-size: 14px; }
-        img { max-width: 100%; border-radius: 8px; border: 1px solid #475569; }
-        @media (max-width: 768px) { .grid { grid-template-columns: 1fr; } }
+        * { box-sizing: border-box; margin: 0; padding: 0; }
+        body { font-family: 'Inter', sans-serif; background: #0f172a; color: #f8fafc; padding: 30px; }
+        
+        .hero { text-align: center; margin-bottom: 40px; padding: 30px; 
+            background: linear-gradient(135deg, rgba(14,165,233,0.08), rgba(168,85,247,0.08));
+            border-radius: 16px; border: 1px solid rgba(148,163,184,0.1); }
+        .hero h1 { color: #38bdf8; font-size: 2em; font-weight: 700; margin-bottom: 6px; }
+        .hero p { color: #94a3b8; }
+        .hero .run-count { color: #a78bfa; font-weight: 600; margin-top: 8px; }
+        
+        .experiment { background: #1e293b; border-radius: 14px; padding: 28px; margin-bottom: 30px;
+            border: 1px solid rgba(148,163,184,0.08); box-shadow: 0 4px 24px rgba(0,0,0,0.3); }
+        .exp-header { display: flex; align-items: center; gap: 16px; margin-bottom: 20px; }
+        .exp-number { background: #0ea5e9; color: #fff; font-weight: 700; font-size: 1.2em;
+            width: 42px; height: 42px; border-radius: 10px; display: flex; align-items: center;
+            justify-content: center; flex-shrink: 0; }
+        .exp-header h2 { color: #f1f5f9; font-size: 1.3em; font-weight: 600; }
+        .exp-desc { color: #94a3b8; font-size: 0.9em; margin-top: 3px; }
+        .exp-ts { color: #475569; font-size: 0.8em; margin-top: 2px; }
+        
+        .changes { background: rgba(15,23,42,0.5); border-radius: 8px; padding: 14px 18px; margin-bottom: 18px; }
+        .changes h3 { color: #94a3b8; font-size: 0.85em; font-weight: 600; margin-bottom: 8px; text-transform: uppercase; letter-spacing: 0.05em; }
+        .changes ul { list-style: none; }
+        .changes li { color: #cbd5e1; font-size: 0.85em; padding: 3px 0; padding-left: 16px; position: relative; }
+        .changes li::before { content: '→'; position: absolute; left: 0; color: #fbbf24; }
+        
+        .delta-bar { display: flex; gap: 12px; margin-bottom: 20px; flex-wrap: wrap; }
+        .delta-item { background: rgba(15,23,42,0.6); padding: 10px 16px; border-radius: 8px; text-align: center; flex: 1; min-width: 100px; }
+        .delta-label { display: block; color: #94a3b8; font-size: 0.75em; text-transform: uppercase; letter-spacing: 0.05em; margin-bottom: 4px; }
+        .delta-pos { color: #34d399; font-weight: 700; font-size: 1.2em; }
+        .delta-neg { color: #fb7185; font-weight: 700; font-size: 1.2em; }
+        .delta-zero { color: #94a3b8; font-weight: 700; font-size: 1.2em; }
+        
+        .chart-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; margin-bottom: 16px; }
+        .chart-card { background: rgba(15,23,42,0.4); border-radius: 10px; padding: 16px; }
+        .chart-card h3 { color: #94a3b8; font-size: 0.85em; font-weight: 600; margin-bottom: 10px; }
+        .chart-box { position: relative; height: 220px; }
+        
+        .bottom-row { display: flex; gap: 16px; margin-bottom: 16px; }
+        .pie-card { flex: 1; }
+        .pie-box { position: relative; height: 260px; }
+        .stats-card { background: rgba(15,23,42,0.4); border-radius: 10px; padding: 16px; min-width: 220px; }
+        .stats-card h3 { color: #94a3b8; font-size: 0.85em; font-weight: 600; margin-bottom: 12px; }
+        .stat-row { display: flex; justify-content: space-between; padding: 6px 0; border-bottom: 1px solid rgba(51,65,85,0.3); }
+        .stat-row span { color: #cbd5e1; font-size: 0.9em; }
+        .stat-val { color: #38bdf8; font-weight: 600; }
+        
+        .capture-box { margin-top: 16px; text-align: center; }
+        .capture { max-width: 100%; border-radius: 8px; border: 1px solid #334155; }
+        
+        .footer { color: #475569; font-size: 0.8em; text-align: center; margin-top: 30px; }
     </style>
 </head>
 <body>
-    <h1>Beavertown Sim-Tests Archive</h1>
-    <p style="color: #94a3b8; margin-bottom: 2rem;">Automated telemetry validations tracking ecology and physics simulation balance.</p>
+    <div class="hero">
+        <h1>Beavertown World-Sim Journal</h1>
+        <p>Headless A/B Ecosystem Benchmarks — Unified BeaverAI vs Pristine Control</p>
+        <p class="run-count">7 experiment(s) recorded</p>
+    </div>
     
-    <div class="card">
-        <h2 class="header">Sim-Test: Flow & Light Proxy Ecosystem Rules</h2>
-        <div class="grid">
-            <div class="stats">
-                <h3>Telemetry Snapshot</h3>
-                <pre>
-Baseline (No Dam):
-- Water: 19%
-- Lilies: 114
-- Cattails: 7
-- Trees: 124
-
-Full River Dam:
-- Water: 24%
-- Lilies: 156
-- Cattails: 11
-- Trees: 123
-                </pre>
-                
-                <h3>Agentic Discovery Notes</h3>
-                <div class="notes">
-                    <p><strong style="color: #fbbf24;">Damming Effectiveness:</strong> The flow-velocity checks ensure standing water scales lilies aggressively (156 vs 114).</p>
-                    <p><strong style="color: #fbbf24;">Shallows for Cattails:</strong> Spillage from mud-sealed logs and dams nearly doubled cattail counts (11 vs 7).</p>
-                    <p><strong style="color: #fbbf24;">Tree Spout Checks:</strong> Added radial tree checking successfully balanced the map at roughly ~120 trees without clumping issues.</p>
-                </div>
-            </div>
+    
+    <div class="experiment" id="exp-007_ecology_fix">
+        <div class="exp-header">
+            <div class="exp-number">#7</div>
             <div>
-                <h3>Engine Capture (120s final state)</h3>
-                <img src="./baseline_tuned_120s.png" alt="Baseline Setup" />
-            </div>
-        </div>
-    </div>
-
-    <div class="card">
-        <h2 class="header">Sim-Test: Ecology Balance (10x Reduced Lily Spawn)</h2>
-        <div class="grid">
-            <div class="stats">
-                <h3>Telemetry Snapshot</h3>
-                <pre>
-Baseline (No Dam):
-- Water: 16%
-- Lilies: 10
-- Cattails: 8
-- Trees: 124
-
-Felled Log (Mud Sealed):
-- Water: 22%
-- Lilies: 17
-- Cattails: 8
-- Trees: 128
-                </pre>
-                
-                <h3>Agentic Discovery Notes</h3>
-                <div class="notes">
-                    <p><strong style="color: #fbbf24;">Rarity Balance:</strong> By shrinking the spawn probability to `< 0.015`, lilies become realistically scarce. Even with a fully mudded dam creating massive water pools, the game only generated 17 lilies across the entire tile set.</p>
-                    <p><strong style="color: #fbbf24;">High Tension Yield:</strong> This forces the player into a tighter survival loop—finding even 2 or 3 lilies requires serious engineering or extensive exploration.</p>
-                </div>
-            </div>
-            <div>
-                <h3>Engine Capture (120s final state)</h3>
-                <img src="./reduced_lily_120s.png" alt="Reduced Lily Yield" />
-            </div>
-        </div>
-    </div>
-
-    <div class="card">
-        <h2 class="header">Sim-Test: Parametric Sweep (20 Virtual Minutes)</h2>
-        
-        <div class="stats" style="margin-bottom: 2rem;">
-            <h3>Agentic Discovery Notes</h3>
-            <div class="notes" style="margin-bottom: 1rem;">
-                <p><strong style="color: #fbbf24;">Tsunami Fix Validation:</strong> Removing the 40.0 units/second artificial water influx normalized our coverage parameters correctly. Instead of starting off flooded at 59% coverage, rivers now sit firmly within their geometric bounds (around 8% to 11% average physical coverage).</p>
-                <p><strong style="color: #fbbf24;">The True Dam Impact:</strong> Due to the rigid Humboldt-style gorge slopes adjacent to our rivers (a sudden `+5` height gain at the bank edges), our dams (now properly built to `bankHeight + 2`) successfully dam off the river, but the water depth is effectively capped by the natural bounds of the valleys. This forces horizontal pooling rather than catastrophic vertical spilling, which explains why coverage remains equal but yields vary naturally!</p>
-                <p><strong style="color: #fbbf24;">Yield Variance:</strong> Non-damned Twist River (5) reached 14 Lilies, but the Twisty Dam (6) accelerated ahead with 16. The Baseline River (1) locked in at 12 Lilies, dropping back slightly from early tests but providing an extremely firm and realistic biological balance around standard dams.</p>
-            </div>
-            <h3>Engine Capture (30x Speed Execution)</h3>
-            <img src="./eco_growth_tuned_v2_1775436182707.webp" alt="Timeseries Sweep" style="max-width: 600px;" />
-        </div>
-        
-        <script>
-            const extractedData = {"status":"SIMULATION_COMPLETE_20_MINS","timeseries":{"1":[{"coverage":10,"lilies":0,"cattails":0},{"coverage":10,"lilies":0,"cattails":0},{"coverage":10,"lilies":0,"cattails":0},{"coverage":11,"lilies":0,"cattails":0},{"coverage":11,"lilies":0,"cattails":0},{"coverage":11,"lilies":5,"cattails":0},{"coverage":11,"lilies":5,"cattails":0},{"coverage":11,"lilies":5,"cattails":0},{"coverage":11,"lilies":5,"cattails":0},{"coverage":11,"lilies":5,"cattails":0},{"coverage":11,"lilies":10,"cattails":1},{"coverage":11,"lilies":10,"cattails":1},{"coverage":11,"lilies":10,"cattails":1},{"coverage":11,"lilies":10,"cattails":1},{"coverage":11,"lilies":10,"cattails":1},{"coverage":11,"lilies":12,"cattails":1},{"coverage":11,"lilies":12,"cattails":1},{"coverage":11,"lilies":12,"cattails":1},{"coverage":11,"lilies":12,"cattails":1},{"coverage":11,"lilies":12,"cattails":1}],"2":[{"coverage":10,"lilies":0,"cattails":0},{"coverage":10,"lilies":0,"cattails":0},{"coverage":10,"lilies":0,"cattails":0},{"coverage":11,"lilies":0,"cattails":0},{"coverage":11,"lilies":0,"cattails":0},{"coverage":11,"lilies":6,"cattails":0},{"coverage":11,"lilies":6,"cattails":0},{"coverage":11,"lilies":6,"cattails":0},{"coverage":11,"lilies":6,"cattails":0},{"coverage":11,"lilies":6,"cattails":0},{"coverage":11,"lilies":11,"cattails":0},{"coverage":11,"lilies":11,"cattails":0},{"coverage":11,"lilies":11,"cattails":0},{"coverage":11,"lilies":11,"cattails":0},{"coverage":11,"lilies":11,"cattails":0},{"coverage":11,"lilies":15,"cattails":0},{"coverage":11,"lilies":15,"cattails":0},{"coverage":11,"lilies":15,"cattails":0},{"coverage":11,"lilies":15,"cattails":0},{"coverage":11,"lilies":15,"cattails":0}],"3":[{"coverage":7,"lilies":0,"cattails":0},{"coverage":7,"lilies":0,"cattails":0},{"coverage":7,"lilies":0,"cattails":0},{"coverage":7,"lilies":0,"cattails":0},{"coverage":8,"lilies":0,"cattails":0},{"coverage":8,"lilies":4,"cattails":1},{"coverage":8,"lilies":4,"cattails":1},{"coverage":8,"lilies":4,"cattails":1},{"coverage":8,"lilies":4,"cattails":1},{"coverage":8,"lilies":4,"cattails":1},{"coverage":8,"lilies":7,"cattails":3},{"coverage":8,"lilies":7,"cattails":3},{"coverage":8,"lilies":7,"cattails":3},{"coverage":8,"lilies":7,"cattails":3},{"coverage":8,"lilies":7,"cattails":3},{"coverage":8,"lilies":9,"cattails":3},{"coverage":8,"lilies":9,"cattails":3},{"coverage":8,"lilies":9,"cattails":3},{"coverage":8,"lilies":9,"cattails":3},{"coverage":8,"lilies":9,"cattails":3}],"4":[{"coverage":7,"lilies":2,"cattails":0},{"coverage":7,"lilies":2,"cattails":0},{"coverage":7,"lilies":2,"cattails":0},{"coverage":7,"lilies":2,"cattails":0},{"coverage":8,"lilies":2,"cattails":0},{"coverage":8,"lilies":3,"cattails":0},{"coverage":8,"lilies":3,"cattails":0},{"coverage":8,"lilies":3,"cattails":0},{"coverage":8,"lilies":3,"cattails":0},{"coverage":8,"lilies":3,"cattails":0},{"coverage":8,"lilies":10,"cattails":2},{"coverage":8,"lilies":10,"cattails":2},{"coverage":8,"lilies":10,"cattails":2},{"coverage":8,"lilies":10,"cattails":2},{"coverage":8,"lilies":10,"cattails":2},{"coverage":8,"lilies":11,"cattails":2},{"coverage":8,"lilies":11,"cattails":2},{"coverage":8,"lilies":11,"cattails":2},{"coverage":8,"lilies":11,"cattails":2},{"coverage":8,"lilies":11,"cattails":2}],"5":[{"coverage":8,"lilies":0,"cattails":0},{"coverage":8,"lilies":0,"cattails":0},{"coverage":8,"lilies":0,"cattails":0},{"coverage":8,"lilies":0,"cattails":0},{"coverage":8,"lilies":0,"cattails":0},{"coverage":8,"lilies":0,"cattails":0},{"coverage":8,"lilies":0,"cattails":0},{"coverage":8,"lilies":0,"cattails":0},{"coverage":8,"lilies":0,"cattails":0},{"coverage":8,"lilies":0,"cattails":0},{"coverage":9,"lilies":6,"cattails":0},{"coverage":9,"lilies":6,"cattails":0},{"coverage":9,"lilies":6,"cattails":0},{"coverage":9,"lilies":6,"cattails":0},{"coverage":9,"lilies":6,"cattails":0},{"coverage":9,"lilies":14,"cattails":1},{"coverage":9,"lilies":14,"cattails":1},{"coverage":9,"lilies":14,"cattails":1},{"coverage":9,"lilies":14,"cattails":1},{"coverage":9,"lilies":14,"cattails":1}],"6":[{"coverage":8,"lilies":1,"cattails":1},{"coverage":8,"lilies":1,"cattails":1},{"coverage":8,"lilies":1,"cattails":1},{"coverage":8,"lilies":1,"cattails":1},{"coverage":8,"lilies":1,"cattails":1},{"coverage":8,"lilies":8,"cattails":1},{"coverage":8,"lilies":8,"cattails":1},{"coverage":8,"lilies":8,"cattails":1},{"coverage":8,"lilies":8,"cattails":1},{"coverage":8,"lilies":8,"cattails":1},{"coverage":8,"lilies":12,"cattails":1},{"coverage":9,"lilies":12,"cattails":1},{"coverage":9,"lilies":12,"cattails":1},{"coverage":9,"lilies":12,"cattails":1},{"coverage":9,"lilies":12,"cattails":1},{"coverage":9,"lilies":16,"cattails":1},{"coverage":9,"lilies":16,"cattails":1},{"coverage":9,"lilies":16,"cattails":1},{"coverage":9,"lilies":16,"cattails":1},{"coverage":9,"lilies":16,"cattails":1}],"7":[{"coverage":10,"lilies":0,"cattails":0},{"coverage":10,"lilies":0,"cattails":0},{"coverage":11,"lilies":0,"cattails":0},{"coverage":11,"lilies":0,"cattails":0},{"coverage":11,"lilies":0,"cattails":0},{"coverage":11,"lilies":2,"cattails":1},{"coverage":11,"lilies":2,"cattails":1},{"coverage":11,"lilies":2,"cattails":1},{"coverage":11,"lilies":2,"cattails":1},{"coverage":11,"lilies":2,"cattails":1},{"coverage":11,"lilies":5,"cattails":2},{"coverage":11,"lilies":5,"cattails":2},{"coverage":11,"lilies":5,"cattails":2},{"coverage":11,"lilies":5,"cattails":2},{"coverage":11,"lilies":5,"cattails":2},{"coverage":11,"lilies":10,"cattails":2},{"coverage":11,"lilies":10,"cattails":2},{"coverage":11,"lilies":10,"cattails":2},{"coverage":11,"lilies":10,"cattails":2},{"coverage":11,"lilies":10,"cattails":2}],"8":[{"coverage":10,"lilies":0,"cattails":1},{"coverage":10,"lilies":0,"cattails":1},{"coverage":11,"lilies":0,"cattails":1},{"coverage":11,"lilies":0,"cattails":1},{"coverage":11,"lilies":0,"cattails":1},{"coverage":11,"lilies":5,"cattails":1},{"coverage":11,"lilies":5,"cattails":1},{"coverage":11,"lilies":5,"cattails":1},{"coverage":11,"lilies":5,"cattails":1},{"coverage":11,"lilies":5,"cattails":1},{"coverage":11,"lilies":8,"cattails":2},{"coverage":11,"lilies":8,"cattails":2},{"coverage":11,"lilies":8,"cattails":2},{"coverage":11,"lilies":8,"cattails":2},{"coverage":11,"lilies":8,"cattails":2},{"coverage":11,"lilies":9,"cattails":2},{"coverage":11,"lilies":9,"cattails":2},{"coverage":11,"lilies":9,"cattails":2},{"coverage":11,"lilies":9,"cattails":2},{"coverage":11,"lilies":9,"cattails":2}],"9":[{"coverage":8,"lilies":0,"cattails":0},{"coverage":8,"lilies":0,"cattails":0},{"coverage":8,"lilies":0,"cattails":0},{"coverage":8,"lilies":0,"cattails":0},{"coverage":8,"lilies":0,"cattails":0},{"coverage":8,"lilies":2,"cattails":0},{"coverage":8,"lilies":2,"cattails":0},{"coverage":8,"lilies":2,"cattails":0},{"coverage":8,"lilies":2,"cattails":0},{"coverage":8,"lilies":2,"cattails":0},{"coverage":8,"lilies":7,"cattails":0},{"coverage":8,"lilies":7,"cattails":0},{"coverage":8,"lilies":7,"cattails":0},{"coverage":8,"lilies":7,"cattails":0},{"coverage":8,"lilies":7,"cattails":0},{"coverage":8,"lilies":9,"cattails":0},{"coverage":8,"lilies":9,"cattails":0},{"coverage":8,"lilies":9,"cattails":0},{"coverage":8,"lilies":9,"cattails":0},{"coverage":8,"lilies":9,"cattails":0}],"10":[{"coverage":8,"lilies":0,"cattails":0},{"coverage":8,"lilies":0,"cattails":0},{"coverage":8,"lilies":0,"cattails":0},{"coverage":8,"lilies":0,"cattails":0},{"coverage":8,"lilies":0,"cattails":0},{"coverage":8,"lilies":2,"cattails":0},{"coverage":8,"lilies":2,"cattails":0},{"coverage":8,"lilies":2,"cattails":0},{"coverage":8,"lilies":2,"cattails":0},{"coverage":8,"lilies":2,"cattails":0},{"coverage":8,"lilies":6,"cattails":0},{"coverage":8,"lilies":6,"cattails":0},{"coverage":8,"lilies":6,"cattails":0},{"coverage":8,"lilies":6,"cattails":0},{"coverage":8,"lilies":6,"cattails":0},{"coverage":8,"lilies":9,"cattails":0},{"coverage":8,"lilies":9,"cattails":0},{"coverage":8,"lilies":9,"cattails":0},{"coverage":8,"lilies":9,"cattails":0},{"coverage":8,"lilies":9,"cattails":0}]}};
-
-            const colorMap = {
-                1: '#94a3b8', 2: '#fbbf24', 3: '#94a3b8', 4: '#fbbf24', 5: '#94a3b8', 
-                6: '#fbbf24', 7: '#94a3b8', 8: '#fbbf24', 9: '#94a3b8', 10: '#fbbf24'
-            };
-            const labelsMap = {
-                1: 'Baseline', 2: 'Baseline Dam', 3: 'Straight', 4: 'Straight Dam', 5: 'Twisty', 
-                6: 'Twisty Dam', 7: 'Shallow', 8: 'Shallow Dam', 9: 'Deep', 10: 'Deep Dam'
-            };
-
-            const minutes = Array.from({length: 20}, (_, i) => i + 1);
-            
-            // Generate Total Food Series
-            const foodDatasets = [];
-            for (let i = 1; i <= 10; i++) {
-                const isDam = i % 2 === 0;
-                foodDatasets.push({
-                    label: labelsMap[i],
-                    data: extractedData.timeseries[i].map(d => d.lilies + d.cattails),
-                    borderColor: colorMap[i],
-                    borderDash: isDam ? [] : [5, 5],
-                    tension: 0.1,
-                    hidden: i > 2 && i < 5 ? true : false, // Hide some straight paths to reduce clutter
-                });
-            }
-        </script>
-        
-        <div class="grid">
-            <div>
-                <h3>Total Biological Food Supply</h3>
-                <canvas id="foodChart" width="400" height="250"></canvas>
-            </div>
-            <div>
-                <h3>Global Water Coverage (%)</h3>
-                <canvas id="waterChart" width="400" height="250"></canvas>
-            </div>
-        </div>
-
-        <script>
-            document.addEventListener('DOMContentLoaded', function() {
-                const ctxF = document.getElementById('foodChart').getContext('2d');
-                new Chart(ctxF, {
-                    type: 'line',
-                    data: { labels: minutes, datasets: foodDatasets },
-                    options: { responsive: true, scales: { x: { title: {display: true, color: '#aaa', text: 'Virtual Minutes'} }, y: { title: {display: true, color: '#aaa', text: 'Total Count'} } } }
-                });
-
-                const waterDatasets = [];
-                for (let i = 1; i <= 10; i++) {
-                    const isDam = i % 2 === 0;
-                    waterDatasets.push({
-                        label: labelsMap[i],
-                        data: extractedData.timeseries[i].map(d => d.coverage),
-                        borderColor: colorMap[i],
-                        borderDash: isDam ? [] : [5, 5],
-                        tension: 0.1,
-                        hidden: i > 2 && i < 5 ? true : false
-                    });
-                }
-
-                const ctxW = document.getElementById('waterChart').getContext('2d');
-                new Chart(ctxW, {
-                    type: 'line',
-                    data: { labels: minutes, datasets: waterDatasets },
-                    options: { responsive: true, scales: { x: { title: {display: true, color: '#aaa', text: 'Virtual Minutes'} }, y: { min: 0, max: 100, title: {display: true, color: '#aaa', text: 'Coverage %'} } } }
-                });
-            });
-        </script>
-    </div>
-
-    <div class="card">
-        <h2 class="header">Sim-Test: Green-Zone Altitude Falloff</h2>
-        <div class="grid">
-            <div class="stats">
-                <h3>Telemetry Snapshot</h3>
-                <pre>
-Baseline (No Dam):
-- Water: 11%
-- Lilies: 12
-- Cattails: 1
-
-Full River Dam:
-- Water: 11%
-- Lilies: 15
-- Cattails: 0
-                </pre>
-                
-                <h3>Agentic Discovery Notes</h3>
-                <div class="notes">
-                    <p><strong style="color: #fbbf24;">Falloff Effectiveness:</strong> The `greenZoneFalloff` successfully clamps yields away from the optimal altitude. The total lilies in the Baseline ecosystem stabilized around 86, compared to 174 in pre-falloff sweeps!</p>
-                    <p><strong style="color: #fbbf24;">Dam vs Baseline Yields:</strong> The dam continues to provide extra shallows perfectly suited for cattails (boosting from 11 to 17), but overall water flora counts are now much healthier and visually balanced.</p>
-                </div>
-            </div>
-            <div>
-                <h3>Engine Capture (120s final state)</h3>
-                <img src="./ecology_greenzone_120s.png" alt="Green Zone Falloff Results" />
-            </div>
-        </div>
-    </div>
-
-    <div class="card" style="border: 2px solid #3b82f6; background: #0f172a;">
-        <h2 class="header" style="color: #93c5fd;">Bug Fix: Removing the Tsunami Injector</h2>
-        <div class="grid">
-            <div class="stats">
-                <h3>Before (Tsunami Bug Active)</h3>
-                <pre style="color: #ef4444; background: #451a1a;">
-Baseline River:
-- Water Coverage: 59%
-- Total Flora: 97 (86 Lilies, 11 Cattails)
-
-Damned River:
-- Water Coverage: 59%
-- Total Flora: 103 (86 Lilies, 17 Cattails)
-
-Status: Artificial source flooded the map, masking dam effects.
-                </pre>
-                
-                <h3>After (Natural Physics Restored)</h3>
-                <pre style="color: #4ade80; background: #064e3b;">
-Baseline River:
-- Water Coverage: 11%
-- Total Flora: 13 (12 Lilies, 1 Cattails)
-
-Damned River:
-- Water Coverage: 11%
-- Total Flora: 15 (15 Lilies, 0 Cattails)
-
-Status: River constrained to deep gorge. Dams pool water safely yielding higher Lily counts.
-                </pre>
-            </div>
-            <div>
-                <h3>Change Description</h3>
-                <div class="notes" style="border-left-color: #3b82f6;">
-                    <p><strong>The Tsunami:</strong> Our benchmark script was artificially injecting <code style="color: #ef4444;">40.0</code> units of water per second instantly at the river source, causing the water to immediately violate the boundaries of the steep Humboldt-style gorge slopes adjacent to our river and flood out sideways, returning an incorrect 60% coverage baseline.</p>
-                    <p><strong>The Fix:</strong> Removed the manual injection loop completely. WaterEngine now naturally flows at its standard 0.12 source trickle. Furthermore, <strong>Test Dams</strong> were reconstructed to scale dynamically to physically block the massive `+5` banks instead of being submerged at `y=2`.</p>
-                    <p><strong>Results:</strong> Coverage has dramatically normalized. Because the natural river gorge is incredibly deep, a dammed river doesn't spill over in the 20 minute test window—it just pools deeper horizontally within its natural walls, providing a stable, calm spawning area where Lily numbers reliably boost upwards.</p>
-                </div>
-            </div>
-        </div>
-    </div>
-
-    <div class="card" style="border: 2px solid #3b82f6; background: #0f172a;">
-        <h2 class="header" style="color: #93c5fd;">Bug Fix 2: Volumetric Curves & Flow Analysis</h2>
-        <div class="grid">
-            <div class="stats">
-                <h3>Before (Phantom Dams)</h3>
-                <pre style="color: #ef4444; background: #451a1a;">
-Shallow River (Control): 
-- 8% Coverage | 8 Lilies
-Shallow Dam:
-- 11% Coverage | 23 Lilies
-(Visually: Dam missed the channel)
-
-Twisty River (Control):
-- 8% Coverage | 24 Lilies
-                </pre>
-                
-                <h3>After (Thick Volumetric Dam + Increased Flow)</h3>
-                <pre style="color: #4ade80; background: #064e3b;">
-Baseline River vs Dam:
-- River: 8% Coverage | 6 Lilies
-- Dam: 12% Coverage | 20 Lilies
-
-Shallow Dam:
-- 13% Coverage | 19 Lilies
-
-Twisty River:
-- Dam: Lily count normalized (water runs deep, 4 lilies)
-                </pre>
-            </div>
-            <div>
-                <h3>Agentic Discovery Notes</h3>
-                <div class="notes" style="border-left-color: #3b82f6;">
-                    <p><strong>The Fixes:</strong></p>
-                    <p>1. <strong style="color: #fbbf24;">Sweeping Dam Coordinates:</strong> Localized the dam coordinates across the Z axis rather than projecting a flat X-wall. The Shallow Dam no longer misses the diagonal channel!</p>
-                    <p>2. <strong style="color: #fbbf24;">Thick Radial Volume:</strong> Migrated from standard 1D `PlacedBlocks` to deep `applyTerrainMod` volume (matching player mud interaction). The dam successfully holds water correctly.</p>
-                    <p>3. <strong style="color: #fbbf24;">Native Source Flow:</strong> We increased the source injection step from `0.12` to `0.18`. Twisted rivers and deep valleys have drastically more physical liquid rushing through the canyon.</p>
-                </div>
-            </div>
-        </div>
-    </div>
-
-    <div class="card" style="border: 2px solid #a855f7; background: #2e1065; margin-top: 2rem;">
-        <h2 class="header" style="color: #d8b4fe;">Final Verification: Mountain-Anchored Basins</h2>
-        <div class="grid">
-            <div class="stats">
-                <h3>Absolute Coverage Analytics</h3>
-                <pre style="color: #6ee7b7; background: #064e3b; padding: 1rem; border-radius: 4px;">
-Straight River vs Dam:
-- River: 28% Coverage
-- Dam: 32% Coverage (Max limit of testing boundary hit)
-
-Baseline River vs Dam:
-- River: 18% Coverage
-- Dam: 22% Coverage
-
-Deep River vs Dam:
-- River: 17% Coverage
-- Dam: 22% Coverage
-
-Shallow River vs Dam:
-- River: 19% Coverage
-- Dam: 21% Coverage
-
-Twisty River vs Dam:
-- River & Dam: 18% (Water fiercely traces the carved S-bends without breaching local cliffs)
-                </pre>
-            </div>
-            <div>
-                <h3>Agentic Discovery Notes & Telemetry Feed</h3>
-                <div class="notes" style="border-left-color: #a855f7;">
-                    <p><strong>The Final Barrier:</strong></p>
-                    <p>1. <strong style="color: #fbbf24;">The Gap Bypass:</strong> We previously cast a massive 70-unit wide dam, but the test world scales down via a Z-slope indefinitely before hitting the visual Humboldt Mountains at world `x=60`. Because of this, water easily bypassed the 70 width dam and traced perfectly parallel rivers entirely around the dam! We expanded the mathematical offline generation to effectively **anchor into the Humboldt sides** (130-width), perfectly simulating a water-tight basin that scales dynamically up to heights of `+15`.</p>
-                    <p>2. <strong style="color: #fbbf24;">Procedural Riverbed Heights:</strong> We discovered our `bankHeight` was sampling procedurally generated Perlin-noise ravines. Straight and Twisty dams generated with *less than 0 structural height*. We mathematically bound the dam top explicitly off the direct river center channel base to ensure it maintains perfect seal integrity regardless of Perlin variance.</p>
-                </div>
-                <div style="margin-top: 1rem;">
-                    <h4>Visual Telemetry Snapshot</h4>
-                    <img src="dam_capture.png" style="max-width: 100%; border: 2px solid #a855f7; border-radius: 4px; box-shadow: 0 4px 6px rgba(0,0,0,0.3);" />
-                </div>
+                <h2>Run 007: Ecology Bug Fix</h2>
+                <p class="exp-desc">Repaired a logical disconnect where the sandbox beaver world attempted to evaluate ecology against a dry, uninitialized engine singleton instead of its actual active simulation.</p>
+                <p class="exp-ts">2026-04-12T02:47:00</p>
             </div>
         </div>
         
-        <div style="margin-top: 3rem;">
-            <h3 style="color: #6ee7b7; border-bottom: 1px solid #334155; padding-bottom: 10px;">Scenario Coverage & Ecology Timelines</h3>
-            <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 2rem;">
-                <div style="background: #1e293b; padding: 10px; border-radius: 8px;"><canvas id="chart-baseline"></canvas></div>
-                <div style="background: #1e293b; padding: 10px; border-radius: 8px;"><canvas id="chart-straight"></canvas></div>
-                <div style="background: #1e293b; padding: 10px; border-radius: 8px;"><canvas id="chart-twisty"></canvas></div>
-                <div style="background: #1e293b; padding: 10px; border-radius: 8px;"><canvas id="chart-shallow"></canvas></div>
-                <div style="background: #1e293b; padding: 10px; border-radius: 8px;"><canvas id="chart-deep"></canvas></div>
+        <div class='changes'><h3>Changes</h3><ul><li>ecology.ts: Parameterized propagateForest so it accepts specific water engines.</li><li>npc-sim.web.tsx: Bound propagateForest directly to the sandbox engines, fixing the dry-land fallback bug.</li></ul></div>
+        
+        <div class="delta-bar">
+            <div class="delta-item">
+                <span class="delta-label">Water</span>
+                <span class="delta-pos">+3581 m³</span>
+            </div>
+            <div class="delta-item">
+                <span class="delta-label">Lilies</span>
+                <span class="delta-pos">+2</span>
+            </div>
+            <div class="delta-item">
+                <span class="delta-label">Cattails</span>
+                <span class="delta-neg">-9</span>
+            </div>
+            <div class="delta-item">
+                <span class="delta-label">Trees</span>
+                <span class="delta-pos">+87</span>
             </div>
         </div>
+        
+        <div class="chart-grid">
+            <div class="chart-card">
+                <h3>Water Volume (m³)</h3>
+                <div class="chart-box"><canvas id="water_007_ecology_fix"></canvas></div>
+            </div>
+            <div class="chart-card">
+                <h3>Tree Population</h3>
+                <div class="chart-box"><canvas id="trees_007_ecology_fix"></canvas></div>
+            </div>
+            <div class="chart-card">
+                <h3>Lilies</h3>
+                <div class="chart-box"><canvas id="lilies_007_ecology_fix"></canvas></div>
+            </div>
+            <div class="chart-card">
+                <h3>Cattails</h3>
+                <div class="chart-box"><canvas id="cattails_007_ecology_fix"></canvas></div>
+            </div>
+        </div>
+        
+        <div class="bottom-row">
+            <div class="chart-card pie-card">
+                <h3>AI Time Allocation</h3>
+                <div class="pie-box"><canvas id="pie_007_ecology_fix"></canvas></div>
+            </div>
+            <div class="stats-card">
+                <h3>Game Stats</h3>
+                <div class="stat-row"><span>Trees Felled</span><span class="stat-val">74</span></div>
+                <div class="stat-row"><span>Massive Oaks</span><span class="stat-val">29</span></div>
+                <div class="stat-row"><span>Mud Packed</span><span class="stat-val">114</span></div>
+                <div class="stat-row"><span>Sticks Placed</span><span class="stat-val">36</span></div>
+                <div class="stat-row"><span>Snacks Eaten</span><span class="stat-val">9</span></div>
+            </div>
+        </div>
+        
+        
+        <div class="capture-box">
+            <img src="runs/007_ecology_fix.webp" class="capture" alt="Simulation recording" />
+        </div>
     </div>
-
+    
     <script>
-        const rawData = {"status": "SIMULATION_COMPLETE_20_MINS", "timeseries": {"1": [{"coverage": 10, "lilies": 0, "cattails": 0}, {"coverage": 9, "lilies": 0, "cattails": 0}, {"coverage": 9, "lilies": 0, "cattails": 0}, {"coverage": 8, "lilies": 0, "cattails": 0}, {"coverage": 8, "lilies": 0, "cattails": 0}, {"coverage": 8, "lilies": 4, "cattails": 0}, {"coverage": 7, "lilies": 4, "cattails": 0}, {"coverage": 7, "lilies": 4, "cattails": 0}, {"coverage": 7, "lilies": 4, "cattails": 0}, {"coverage": 7, "lilies": 4, "cattails": 0}, {"coverage": 7, "lilies": 8, "cattails": 0}, {"coverage": 7, "lilies": 8, "cattails": 0}, {"coverage": 7, "lilies": 8, "cattails": 0}, {"coverage": 7, "lilies": 8, "cattails": 0}, {"coverage": 7, "lilies": 8, "cattails": 0}, {"coverage": 7, "lilies": 10, "cattails": 0}, {"coverage": 7, "lilies": 10, "cattails": 0}, {"coverage": 7, "lilies": 10, "cattails": 0}, {"coverage": 7, "lilies": 10, "cattails": 0}, {"coverage": 7, "lilies": 10, "cattails": 0}], "2": [{"coverage": 9, "lilies": 1, "cattails": 0}, {"coverage": 7, "lilies": 1, "cattails": 0}, {"coverage": 8, "lilies": 1, "cattails": 0}, {"coverage": 8, "lilies": 1, "cattails": 0}, {"coverage": 8, "lilies": 1, "cattails": 0}, {"coverage": 9, "lilies": 6, "cattails": 1}, {"coverage": 9, "lilies": 6, "cattails": 1}, {"coverage": 9, "lilies": 6, "cattails": 1}, {"coverage": 9, "lilies": 6, "cattails": 1}, {"coverage": 9, "lilies": 6, "cattails": 1}, {"coverage": 9, "lilies": 14, "cattails": 3}, {"coverage": 10, "lilies": 14, "cattails": 3}, {"coverage": 10, "lilies": 14, "cattails": 3}, {"coverage": 10, "lilies": 14, "cattails": 3}, {"coverage": 10, "lilies": 14, "cattails": 3}, {"coverage": 10, "lilies": 18, "cattails": 4}, {"coverage": 10, "lilies": 18, "cattails": 4}, {"coverage": 10, "lilies": 18, "cattails": 4}, {"coverage": 10, "lilies": 18, "cattails": 4}, {"coverage": 10, "lilies": 18, "cattails": 4}], "3": [{"coverage": 18, "lilies": 1, "cattails": 0}, {"coverage": 17, "lilies": 1, "cattails": 0}, {"coverage": 17, "lilies": 1, "cattails": 0}, {"coverage": 17, "lilies": 1, "cattails": 0}, {"coverage": 17, "lilies": 1, "cattails": 0}, {"coverage": 17, "lilies": 8, "cattails": 0}, {"coverage": 17, "lilies": 8, "cattails": 0}, {"coverage": 17, "lilies": 8, "cattails": 0}, {"coverage": 17, "lilies": 8, "cattails": 0}, {"coverage": 17, "lilies": 8, "cattails": 0}, {"coverage": 17, "lilies": 13, "cattails": 1}, {"coverage": 17, "lilies": 13, "cattails": 1}, {"coverage": 17, "lilies": 13, "cattails": 1}, {"coverage": 17, "lilies": 13, "cattails": 1}, {"coverage": 17, "lilies": 13, "cattails": 1}, {"coverage": 17, "lilies": 22, "cattails": 5}, {"coverage": 17, "lilies": 22, "cattails": 5}, {"coverage": 17, "lilies": 22, "cattails": 5}, {"coverage": 17, "lilies": 22, "cattails": 5}, {"coverage": 17, "lilies": 22, "cattails": 5}], "4": [{"coverage": 16, "lilies": 0, "cattails": 0}, {"coverage": 16, "lilies": 0, "cattails": 0}, {"coverage": 16, "lilies": 0, "cattails": 0}, {"coverage": 17, "lilies": 0, "cattails": 0}, {"coverage": 18, "lilies": 0, "cattails": 0}, {"coverage": 18, "lilies": 10, "cattails": 2}, {"coverage": 19, "lilies": 10, "cattails": 2}, {"coverage": 19, "lilies": 10, "cattails": 2}, {"coverage": 20, "lilies": 10, "cattails": 2}, {"coverage": 20, "lilies": 10, "cattails": 2}, {"coverage": 21, "lilies": 24, "cattails": 4}, {"coverage": 21, "lilies": 24, "cattails": 4}, {"coverage": 22, "lilies": 24, "cattails": 4}, {"coverage": 22, "lilies": 24, "cattails": 4}, {"coverage": 23, "lilies": 24, "cattails": 4}, {"coverage": 23, "lilies": 42, "cattails": 5}, {"coverage": 23, "lilies": 42, "cattails": 5}, {"coverage": 23, "lilies": 42, "cattails": 5}, {"coverage": 23, "lilies": 42, "cattails": 5}, {"coverage": 24, "lilies": 42, "cattails": 5}], "5": [{"coverage": 13, "lilies": 1, "cattails": 0}, {"coverage": 12, "lilies": 1, "cattails": 0}, {"coverage": 11, "lilies": 1, "cattails": 0}, {"coverage": 10, "lilies": 1, "cattails": 0}, {"coverage": 9, "lilies": 1, "cattails": 0}, {"coverage": 8, "lilies": 3, "cattails": 0}, {"coverage": 7, "lilies": 3, "cattails": 0}, {"coverage": 6, "lilies": 3, "cattails": 0}, {"coverage": 6, "lilies": 3, "cattails": 0}, {"coverage": 5, "lilies": 3, "cattails": 0}, {"coverage": 5, "lilies": 6, "cattails": 0}, {"coverage": 5, "lilies": 6, "cattails": 0}, {"coverage": 5, "lilies": 6, "cattails": 0}, {"coverage": 5, "lilies": 6, "cattails": 0}, {"coverage": 4, "lilies": 6, "cattails": 0}, {"coverage": 4, "lilies": 8, "cattails": 0}, {"coverage": 4, "lilies": 8, "cattails": 0}, {"coverage": 4, "lilies": 8, "cattails": 0}, {"coverage": 4, "lilies": 8, "cattails": 0}, {"coverage": 4, "lilies": 8, "cattails": 0}], "6": [{"coverage": 13, "lilies": 0, "cattails": 0}, {"coverage": 12, "lilies": 0, "cattails": 0}, {"coverage": 11, "lilies": 0, "cattails": 0}, {"coverage": 10, "lilies": 0, "cattails": 0}, {"coverage": 9, "lilies": 0, "cattails": 0}, {"coverage": 8, "lilies": 2, "cattails": 0}, {"coverage": 7, "lilies": 2, "cattails": 0}, {"coverage": 6, "lilies": 2, "cattails": 0}, {"coverage": 6, "lilies": 2, "cattails": 0}, {"coverage": 5, "lilies": 2, "cattails": 0}, {"coverage": 5, "lilies": 6, "cattails": 0}, {"coverage": 5, "lilies": 6, "cattails": 0}, {"coverage": 5, "lilies": 6, "cattails": 0}, {"coverage": 5, "lilies": 6, "cattails": 0}, {"coverage": 5, "lilies": 6, "cattails": 0}, {"coverage": 5, "lilies": 8, "cattails": 0}, {"coverage": 5, "lilies": 8, "cattails": 0}, {"coverage": 5, "lilies": 8, "cattails": 0}, {"coverage": 5, "lilies": 8, "cattails": 0}, {"coverage": 5, "lilies": 8, "cattails": 0}], "7": [{"coverage": 10, "lilies": 2, "cattails": 0}, {"coverage": 9, "lilies": 2, "cattails": 0}, {"coverage": 9, "lilies": 2, "cattails": 0}, {"coverage": 8, "lilies": 2, "cattails": 0}, {"coverage": 8, "lilies": 2, "cattails": 0}, {"coverage": 8, "lilies": 4, "cattails": 0}, {"coverage": 7, "lilies": 4, "cattails": 0}, {"coverage": 7, "lilies": 4, "cattails": 0}, {"coverage": 7, "lilies": 4, "cattails": 0}, {"coverage": 7, "lilies": 4, "cattails": 0}, {"coverage": 7, "lilies": 5, "cattails": 0}, {"coverage": 7, "lilies": 5, "cattails": 0}, {"coverage": 7, "lilies": 5, "cattails": 0}, {"coverage": 7, "lilies": 5, "cattails": 0}, {"coverage": 7, "lilies": 5, "cattails": 0}, {"coverage": 7, "lilies": 7, "cattails": 0}, {"coverage": 7, "lilies": 7, "cattails": 0}, {"coverage": 7, "lilies": 7, "cattails": 0}, {"coverage": 7, "lilies": 7, "cattails": 0}, {"coverage": 7, "lilies": 7, "cattails": 0}], "8": [{"coverage": 8, "lilies": 1, "cattails": 0}, {"coverage": 8, "lilies": 1, "cattails": 0}, {"coverage": 8, "lilies": 1, "cattails": 0}, {"coverage": 8, "lilies": 1, "cattails": 0}, {"coverage": 8, "lilies": 1, "cattails": 0}, {"coverage": 8, "lilies": 5, "cattails": 1}, {"coverage": 9, "lilies": 5, "cattails": 1}, {"coverage": 9, "lilies": 5, "cattails": 1}, {"coverage": 9, "lilies": 5, "cattails": 1}, {"coverage": 9, "lilies": 5, "cattails": 1}, {"coverage": 9, "lilies": 14, "cattails": 1}, {"coverage": 9, "lilies": 14, "cattails": 1}, {"coverage": 9, "lilies": 14, "cattails": 1}, {"coverage": 10, "lilies": 14, "cattails": 1}, {"coverage": 10, "lilies": 14, "cattails": 1}, {"coverage": 10, "lilies": 21, "cattails": 1}, {"coverage": 10, "lilies": 21, "cattails": 1}, {"coverage": 10, "lilies": 21, "cattails": 1}, {"coverage": 10, "lilies": 21, "cattails": 1}, {"coverage": 10, "lilies": 21, "cattails": 1}], "9": [{"coverage": 10, "lilies": 0, "cattails": 1}, {"coverage": 9, "lilies": 0, "cattails": 1}, {"coverage": 9, "lilies": 0, "cattails": 1}, {"coverage": 8, "lilies": 0, "cattails": 1}, {"coverage": 8, "lilies": 0, "cattails": 1}, {"coverage": 8, "lilies": 3, "cattails": 1}, {"coverage": 8, "lilies": 3, "cattails": 1}, {"coverage": 8, "lilies": 3, "cattails": 1}, {"coverage": 7, "lilies": 3, "cattails": 1}, {"coverage": 7, "lilies": 3, "cattails": 1}, {"coverage": 7, "lilies": 9, "cattails": 1}, {"coverage": 7, "lilies": 9, "cattails": 1}, {"coverage": 7, "lilies": 9, "cattails": 1}, {"coverage": 7, "lilies": 9, "cattails": 1}, {"coverage": 7, "lilies": 9, "cattails": 1}, {"coverage": 7, "lilies": 11, "cattails": 1}, {"coverage": 7, "lilies": 11, "cattails": 1}, {"coverage": 7, "lilies": 11, "cattails": 1}, {"coverage": 7, "lilies": 11, "cattails": 1}, {"coverage": 7, "lilies": 11, "cattails": 1}], "10": [{"coverage": 9, "lilies": 1, "cattails": 0}, {"coverage": 8, "lilies": 1, "cattails": 0}, {"coverage": 8, "lilies": 1, "cattails": 0}, {"coverage": 8, "lilies": 1, "cattails": 0}, {"coverage": 9, "lilies": 1, "cattails": 0}, {"coverage": 9, "lilies": 8, "cattails": 1}, {"coverage": 9, "lilies": 8, "cattails": 1}, {"coverage": 9, "lilies": 8, "cattails": 1}, {"coverage": 9, "lilies": 8, "cattails": 1}, {"coverage": 10, "lilies": 8, "cattails": 1}, {"coverage": 10, "lilies": 17, "cattails": 1}, {"coverage": 10, "lilies": 17, "cattails": 1}, {"coverage": 10, "lilies": 17, "cattails": 1}, {"coverage": 10, "lilies": 17, "cattails": 1}, {"coverage": 10, "lilies": 17, "cattails": 1}, {"coverage": 11, "lilies": 24, "cattails": 2}, {"coverage": 11, "lilies": 24, "cattails": 2}, {"coverage": 11, "lilies": 24, "cattails": 2}, {"coverage": 11, "lilies": 24, "cattails": 2}, {"coverage": 11, "lilies": 24, "cattails": 2}]}};
-        const ts = rawData.timeseries;
-        const labels = Array.from({length: 20}, (_, i) => `Min ${i + 1}`);
-
-        const renderChart = (id, title, riverId, damId) => {
-            const ctx = document.getElementById(id).getContext('2d');
-            new Chart(ctx, {
-                type: 'line',
-                data: {
-                    labels,
+    (function() {
+        const L = ["Min 1", "Min 2", "Min 3", "Min 4", "Min 5", "Min 6", "Min 7", "Min 8", "Min 9", "Min 10", "Min 11", "Min 12", "Min 13", "Min 14", "Min 15", "Min 16", "Min 17", "Min 18", "Min 19", "Min 20", "Min 21", "Min 22", "Min 23", "Min 24", "Min 25", "Min 26", "Min 27", "Min 28", "Min 29", "Min 30", "Min 31", "Min 32", "Min 33", "Min 34", "Min 35", "Min 36", "Min 37", "Min 38", "Min 39", "Min 40", "Min 41", "Min 42", "Min 43", "Min 44", "Min 45", "Min 46", "Min 47", "Min 48", "Min 49", "Min 50", "Min 51", "Min 52", "Min 53", "Min 54", "Min 55", "Min 56", "Min 57", "Min 58", "Min 59", "Min 60", "Min 61", "Min 62", "Min 63", "Min 64", "Min 65", "Min 66", "Min 67", "Min 68", "Min 69", "Min 70", "Min 71", "Min 72"];
+        const opts = {
+            responsive: true, maintainAspectRatio: false,
+            interaction: { mode: 'index', intersect: false },
+            plugins: { legend: { labels: { color: '#e2e8f0', font: { family: 'Inter', size: 11 } } } },
+            scales: {
+                x: { ticks: { color: '#64748b', maxTicksLimit: 10 }, grid: { color: 'rgba(51,65,85,0.3)' } },
+                y: { ticks: { color: '#64748b' }, grid: { color: 'rgba(51,65,85,0.3)' } }
+            }
+        };
+        const mkLine = (id, bData, cData, bColor, label) => {
+            new Chart(document.getElementById(id), {
+                type: 'line', data: {
+                    labels: L,
                     datasets: [
-                        { label: 'River Coverage %', data: ts[riverId].map(d => d.coverage), borderColor: '#3b82f6', borderDash: [5, 5], tension: 0.2 },
-                        { label: 'Dam Coverage %', data: ts[damId].map(d => d.coverage), borderColor: '#60a5fa', borderWidth: 3, tension: 0.2 },
-                        { label: 'River Lilies', data: ts[riverId].map(d => d.lilies), borderColor: '#22c55e', borderDash: [5, 5], tension: 0.2 },
-                        { label: 'Dam Lilies', data: ts[damId].map(d => d.lilies), borderColor: '#4ade80', borderWidth: 3, tension: 0.2 },
-                        { label: 'River Cattails', data: ts[riverId].map(d => d.cattails), borderColor: '#eab308', borderDash: [5, 5], tension: 0.2 },
-                        { label: 'Dam Cattails', data: ts[damId].map(d => d.cattails), borderColor: '#fde047', borderWidth: 3, tension: 0.2 },
+                        { label: 'Beaver '+label, data: bData, borderColor: bColor, backgroundColor: bColor+'22', borderWidth: 2, tension: 0.3, fill: true, pointRadius: 1.5 },
+                        { label: 'Control '+label, data: cData, borderColor: '#64748b', borderDash: [4,4], borderWidth: 1.5, tension: 0.3, pointRadius: 0 }
                     ]
-                },
-                options: {
-                    responsive: true,
-                    plugins: { title: { display: true, text: title, color: '#f8fafc' }, legend: { labels: { color: '#cbd5e1' } } },
-                    scales: {
-                        y: { grid: { color: '#334155' }, ticks: { color: '#94a3b8' }, title: { display: true, text: 'Count / Percentage', color: '#64748b' } },
-                        x: { grid: { color: '#334155' }, ticks: { color: '#94a3b8' } }
-                    }
-                }
+                }, options: opts
             });
         };
-
-        renderChart('chart-baseline', 'Baseline Terrain', '1', '2');
-        renderChart('chart-straight', 'Straight River', '3', '4');
-        renderChart('chart-twisty', 'Twisty River', '5', '6');
-        renderChart('chart-shallow', 'Shallow River', '7', '8');
-        renderChart('chart-deep', 'Deep River', '9', '10');
+        mkLine('water_007_ecology_fix', [6308, 4978, 4175, 3714, 3629, 3715, 4112, 4483, 4812, 5113, 5387, 5636, 6392, 5131, 4246, 3655, 3286, 3079, 2993, 2957, 2943, 2939, 2937, 2936, 2936, 2869, 2935, 2929, 2986, 3000, 3171, 3364, 3481, 3550, 3629, 3688, 3811, 4062, 4277, 4458, 4761, 5047, 5306, 5542, 5758, 5956, 6122, 6211, 6247, 6274, 6292, 6310, 6323, 6339, 6353, 6370, 6384, 6396, 6409, 6419, 6434, 6441, 6431, 6427, 6420, 6434, 6454, 6472, 6488, 6500, 6509, 6517], [6392, 5131, 4246, 3655, 3286, 3079, 2993, 2957, 2943, 2939, 2937, 2936, 6392, 5131, 4246, 3655, 3286, 3079, 2993, 2957, 2943, 2939, 2937, 2936, 2936, 2936, 2936, 2936, 2936, 2936, 2936, 2936, 2936, 2936, 2936, 2936, 2936, 2936, 2936, 2936, 2936, 2936, 2936, 2936, 2936, 2936, 2936, 2936, 2936, 2936, 2936, 2936, 2936, 2936, 2936, 2936, 2936, 2936, 2936, 2936, 2936, 2936, 2936, 2936, 2936, 2936, 2936, 2936, 2936, 2936, 2936, 2936], '#0ea5e9', '(m³)');
+        mkLine('trees_007_ecology_fix', [139, 139, 139, 139, 139, 169, 169, 169, 169, 169, 195, 195, 128, 128, 128, 128, 128, 142, 142, 142, 142, 142, 154, 154, 154, 154, 154, 170, 170, 170, 170, 170, 180, 180, 180, 180, 180, 188, 188, 188, 188, 188, 198, 198, 198, 198, 198, 214, 214, 214, 214, 214, 224, 224, 224, 224, 224, 233, 233, 233, 233, 233, 259, 259, 259, 259, 259, 267, 267, 267, 267, 267], [133, 133, 133, 133, 133, 146, 146, 146, 146, 146, 155, 155, 119, 119, 119, 119, 119, 129, 129, 129, 129, 129, 140, 140, 140, 140, 140, 152, 152, 152, 152, 152, 160, 160, 160, 160, 160, 166, 166, 166, 166, 166, 171, 171, 171, 171, 171, 172, 172, 172, 172, 172, 174, 174, 174, 174, 174, 174, 174, 174, 174, 174, 178, 178, 178, 178, 178, 180, 180, 180, 180, 180], '#22c55e', '');
+        mkLine('lilies_007_ecology_fix', [43, 43, 42, 42, 42, 42, 42, 42, 42, 42, 42, 42, 53, 53, 53, 53, 53, 53, 53, 53, 53, 53, 54, 54, 54, 54, 53, 59, 59, 59, 59, 59, 59, 59, 59, 59, 59, 59, 59, 59, 59, 59, 60, 60, 60, 60, 60, 62, 62, 62, 62, 62, 65, 64, 63, 63, 63, 64, 63, 63, 63, 63, 66, 66, 66, 66, 66, 68, 67, 67, 67, 67], [40, 40, 40, 40, 40, 46, 46, 46, 46, 46, 47, 47, 60, 60, 60, 60, 60, 63, 63, 63, 63, 63, 64, 64, 64, 64, 64, 64, 64, 64, 64, 64, 64, 64, 64, 64, 64, 65, 65, 65, 65, 65, 65, 65, 65, 65, 65, 65, 65, 65, 65, 65, 65, 65, 65, 65, 65, 65, 65, 65, 65, 65, 65, 65, 65, 65, 65, 65, 65, 65, 65, 65], '#67e8f9', '');
+        mkLine('cattails_007_ecology_fix', [40, 40, 40, 40, 40, 39, 38, 38, 38, 38, 38, 38, 43, 43, 43, 43, 43, 46, 46, 46, 46, 46, 46, 46, 46, 46, 46, 46, 46, 46, 45, 45, 45, 44, 44, 44, 44, 44, 44, 44, 44, 44, 44, 44, 44, 44, 44, 44, 44, 44, 44, 44, 46, 46, 46, 46, 46, 46, 46, 46, 46, 46, 46, 46, 46, 46, 46, 46, 46, 46, 46, 46], [52, 52, 52, 52, 52, 55, 55, 55, 55, 55, 55, 55, 48, 48, 48, 48, 48, 48, 48, 48, 48, 48, 50, 50, 50, 50, 50, 51, 51, 51, 51, 51, 52, 52, 52, 52, 52, 52, 52, 52, 52, 52, 52, 52, 52, 52, 52, 52, 52, 52, 52, 52, 54, 54, 54, 54, 54, 54, 54, 54, 54, 54, 54, 54, 54, 54, 54, 55, 55, 55, 55, 55], '#fde047', '');
+        
+        const aiColors = ['#f43f5e','#ec4899','#d946ef','#a855f7','#8b5cf6','#6366f1','#3b82f6','#0ea5e9','#06b6d4','#14b8a6','#10b981','#22c55e','#84cc16'];
+        new Chart(document.getElementById('pie_007_ecology_fix'), {
+            type: 'doughnut', data: {
+                labels: ["IDLE", "FIND_TREE", "CHOP_TREE", "WAIT_LOG", "DELIVER_WATER", "FORTIFY_DAM", "GATHER_MUD", "EAT", "DIG_CHANNEL", "EXPLORE", "PLAY"],
+                datasets: [{ data: ["9.1", "233.4", "294.2", "61.0", "225.4", "460.4", "127.2", "65.1", "1549.4", "519.4", "55.0"], backgroundColor: aiColors.slice(0,11), borderWidth: 2, borderColor: '#1e293b' }]
+            },
+            options: { responsive: true, maintainAspectRatio: false, plugins: { legend: { position: 'right', labels: { color: '#e2e8f0', font: { family: 'Inter', size: 10 }, padding: 8 } } } }
+        });
+    })();
     </script>
+    
+    <div class="experiment" id="exp-006_physics_unified">
+        <div class="exp-header">
+            <div class="exp-number">#6</div>
+            <div>
+                <h2>Run 006: Unified Main-Game Physics (60 mins)</h2>
+                <p class="exp-desc">Removed the 0.025 sandbox slope override and substituted hardcoded hacks with the centralized globalTerrainConfig variables. Demonstrating stable beaver AI running strictly on the unmodified 0.1 slope from the main game over 60 simulated minutes.</p>
+                <p class="exp-ts">2026-04-12T02:38:00</p>
+            </div>
+        </div>
+        
+        <div class='changes'><h3>Changes</h3><ul><li>terrainConfig.ts: Unified waterSourceRate (0.18), groundAbsorptionRate (0.0001), waterRenderThreshold (0.05), and bank parameters.</li><li>npc-sim.web.tsx: Removed arbitrary updateTerrainConfig flatteners. Target steps extended to 216,000 (60 mins).</li><li>WaterEngine.ts & terrain.ts: Decoupled hardcoded math and integrated global config hooks.</li></ul></div>
+        
+        <div class="delta-bar">
+            <div class="delta-item">
+                <span class="delta-label">Water</span>
+                <span class="delta-pos">+3783 m³</span>
+            </div>
+            <div class="delta-item">
+                <span class="delta-label">Lilies</span>
+                <span class="delta-neg">-46</span>
+            </div>
+            <div class="delta-item">
+                <span class="delta-label">Cattails</span>
+                <span class="delta-neg">-9</span>
+            </div>
+            <div class="delta-item">
+                <span class="delta-label">Trees</span>
+                <span class="delta-pos">+41</span>
+            </div>
+        </div>
+        
+        <div class="chart-grid">
+            <div class="chart-card">
+                <h3>Water Volume (m³)</h3>
+                <div class="chart-box"><canvas id="water_006_physics_unified"></canvas></div>
+            </div>
+            <div class="chart-card">
+                <h3>Tree Population</h3>
+                <div class="chart-box"><canvas id="trees_006_physics_unified"></canvas></div>
+            </div>
+            <div class="chart-card">
+                <h3>Lilies</h3>
+                <div class="chart-box"><canvas id="lilies_006_physics_unified"></canvas></div>
+            </div>
+            <div class="chart-card">
+                <h3>Cattails</h3>
+                <div class="chart-box"><canvas id="cattails_006_physics_unified"></canvas></div>
+            </div>
+        </div>
+        
+        <div class="bottom-row">
+            <div class="chart-card pie-card">
+                <h3>AI Time Allocation</h3>
+                <div class="pie-box"><canvas id="pie_006_physics_unified"></canvas></div>
+            </div>
+            <div class="stats-card">
+                <h3>Game Stats</h3>
+                <div class="stat-row"><span>Trees Felled</span><span class="stat-val">108</span></div>
+                <div class="stat-row"><span>Massive Oaks</span><span class="stat-val">24</span></div>
+                <div class="stat-row"><span>Mud Packed</span><span class="stat-val">186</span></div>
+                <div class="stat-row"><span>Sticks Placed</span><span class="stat-val">58</span></div>
+                <div class="stat-row"><span>Snacks Eaten</span><span class="stat-val">11</span></div>
+            </div>
+        </div>
+        
+        
+        <div class="capture-box">
+            <img src="runs/006_physics_unified.webp" class="capture" alt="Simulation recording" />
+        </div>
+    </div>
+    
+    <script>
+    (function() {
+        const L = ["Min 1", "Min 2", "Min 3", "Min 4", "Min 5", "Min 6", "Min 7", "Min 8", "Min 9", "Min 10", "Min 11", "Min 12", "Min 13", "Min 14", "Min 15", "Min 16", "Min 17", "Min 18", "Min 19", "Min 20", "Min 21", "Min 22", "Min 23", "Min 24", "Min 25", "Min 26", "Min 27", "Min 28", "Min 29", "Min 30", "Min 31", "Min 32", "Min 33", "Min 34", "Min 35", "Min 36", "Min 37", "Min 38", "Min 39", "Min 40", "Min 41", "Min 42", "Min 43", "Min 44", "Min 45", "Min 46", "Min 47", "Min 48", "Min 49", "Min 50", "Min 51", "Min 52", "Min 53", "Min 54", "Min 55", "Min 56", "Min 57", "Min 58", "Min 59", "Min 60"];
+        const opts = {
+            responsive: true, maintainAspectRatio: false,
+            interaction: { mode: 'index', intersect: false },
+            plugins: { legend: { labels: { color: '#e2e8f0', font: { family: 'Inter', size: 11 } } } },
+            scales: {
+                x: { ticks: { color: '#64748b', maxTicksLimit: 10 }, grid: { color: 'rgba(51,65,85,0.3)' } },
+                y: { ticks: { color: '#64748b' }, grid: { color: 'rgba(51,65,85,0.3)' } }
+            }
+        };
+        const mkLine = (id, bData, cData, bColor, label) => {
+            new Chart(document.getElementById(id), {
+                type: 'line', data: {
+                    labels: L,
+                    datasets: [
+                        { label: 'Beaver '+label, data: bData, borderColor: bColor, backgroundColor: bColor+'22', borderWidth: 2, tension: 0.3, fill: true, pointRadius: 1.5 },
+                        { label: 'Control '+label, data: cData, borderColor: '#64748b', borderDash: [4,4], borderWidth: 1.5, tension: 0.3, pointRadius: 0 }
+                    ]
+                }, options: opts
+            });
+        };
+        mkLine('water_006_physics_unified', [11648, 12567, 13571, 14508, 15344, 15944, 16654, 17426, 17953, 18374, 18841, 19353, 19747, 20018, 20303, 20550, 20725, 20783, 20721, 20609, 20519, 20462, 20423, 20403, 20391, 20388, 20401, 20414, 20421, 20429, 20436, 20439, 20444, 20449, 20462, 20469, 20484, 20494, 20506, 20522, 20531, 20537, 20539, 20536, 20538, 20540, 20541, 20541, 20542, 20549, 20559, 20570, 20580, 20586, 20589, 20591, 20592, 20601, 20620, 20640], [11784, 12679, 13671, 14542, 15262, 15821, 16263, 16565, 16677, 16740, 16777, 16801, 16818, 16827, 16832, 16836, 16839, 16842, 16844, 16846, 16848, 16850, 16851, 16852, 16853, 16854, 16855, 16855, 16855, 16856, 16856, 16856, 16856, 16857, 16857, 16857, 16857, 16857, 16857, 16857, 16857, 16857, 16857, 16857, 16857, 16857, 16857, 16857, 16857, 16857, 16857, 16857, 16857, 16857, 16857, 16857, 16857, 16857, 16857, 16857], '#0ea5e9', '(m³)');
+        mkLine('trees_006_physics_unified', [124, 124, 124, 124, 124, 140, 140, 140, 140, 140, 153, 153, 153, 153, 153, 172, 172, 172, 172, 172, 181, 181, 181, 181, 181, 198, 198, 198, 198, 198, 207, 207, 207, 207, 207, 215, 215, 215, 215, 215, 220, 220, 220, 220, 220, 229, 229, 229, 229, 229, 236, 236, 236, 236, 236, 242, 242, 242, 242, 242], [112, 112, 112, 112, 112, 119, 119, 119, 119, 119, 127, 127, 127, 127, 127, 135, 135, 135, 135, 135, 145, 145, 145, 145, 145, 151, 151, 151, 151, 151, 159, 159, 159, 159, 159, 167, 167, 167, 167, 167, 173, 173, 173, 173, 173, 186, 186, 186, 186, 186, 195, 195, 195, 195, 195, 201, 201, 201, 201, 201], '#22c55e', '');
+        mkLine('lilies_006_physics_unified', [49, 49, 49, 48, 48, 48, 48, 48, 48, 48, 46, 46, 46, 46, 45, 45, 45, 45, 45, 45, 45, 45, 44, 44, 44, 44, 44, 44, 44, 44, 44, 44, 44, 44, 44, 44, 44, 44, 44, 44, 44, 44, 44, 44, 44, 44, 44, 44, 44, 44, 44, 44, 44, 44, 44, 44, 44, 44, 44, 44], [43, 43, 43, 43, 43, 47, 47, 47, 47, 47, 50, 50, 50, 50, 50, 53, 53, 53, 53, 53, 56, 56, 56, 56, 56, 59, 59, 59, 59, 59, 63, 63, 63, 63, 63, 67, 67, 67, 67, 67, 74, 74, 74, 74, 74, 79, 79, 79, 79, 79, 84, 84, 84, 84, 84, 90, 90, 90, 90, 90], '#67e8f9', '');
+        mkLine('cattails_006_physics_unified', [51, 51, 51, 50, 50, 50, 50, 50, 50, 50, 50, 50, 50, 50, 50, 50, 50, 50, 50, 50, 50, 50, 50, 50, 50, 50, 50, 50, 50, 50, 50, 50, 50, 50, 50, 50, 50, 50, 50, 49, 49, 49, 49, 49, 48, 48, 48, 48, 48, 48, 48, 48, 48, 47, 47, 47, 47, 47, 46, 46], [50, 50, 50, 50, 50, 51, 51, 51, 51, 51, 52, 52, 52, 52, 52, 52, 52, 52, 52, 52, 53, 53, 53, 53, 53, 53, 53, 53, 53, 53, 53, 53, 53, 53, 53, 54, 54, 54, 54, 54, 54, 54, 54, 54, 54, 55, 55, 55, 55, 55, 55, 55, 55, 55, 55, 55, 55, 55, 55, 55], '#fde047', '');
+        
+        const aiColors = ['#f43f5e','#ec4899','#d946ef','#a855f7','#8b5cf6','#6366f1','#3b82f6','#0ea5e9','#06b6d4','#14b8a6','#10b981','#22c55e','#84cc16'];
+        new Chart(document.getElementById('pie_006_physics_unified'), {
+            type: 'doughnut', data: {
+                labels: ["IDLE", "FIND_TREE", "CHOP_TREE", "WAIT_LOG", "DELIVER_WATER", "FORTIFY_DAM", "GATHER_MUD", "EAT", "FIND_LOG", "DIG_CHANNEL", "EXPLORE", "PLAY"],
+                datasets: [{ data: ["8.6", "521.2", "238.3", "39.6", "218.1", "669.7", "128.7", "59.9", "0.4", "1244.2", "418.3", "52.7"], backgroundColor: aiColors.slice(0,12), borderWidth: 2, borderColor: '#1e293b' }]
+            },
+            options: { responsive: true, maintainAspectRatio: false, plugins: { legend: { position: 'right', labels: { color: '#e2e8f0', font: { family: 'Inter', size: 10 }, padding: 8 } } } }
+        });
+    })();
+    </script>
+    
+    <div class="experiment" id="exp-005_multidam_fixed">
+        <div class="exp-header">
+            <div class="exp-number">#5</div>
+            <div>
+                <h2>Run 005: Multi-Dam + Fixed River Flow</h2>
+                <p class="exp-desc">Lowered rendering and ground absorption thresholds to prevent the baseline river from visually evaporating. Extended AI timeout out to 25s for channel-digging and tree chopping so the beaver doesn’t abandon half-finished dams.</p>
+                <p class="exp-ts">2026-04-12T01:15:00</p>
+            </div>
+        </div>
+        
+        <div class='changes'><h3>Changes</h3><ul><li>WaterEngine.ts: Ground absorption reduced from 0.0001 to 0.00002. Water rendering depth lowered from 0.05 to 0.02.</li><li>BeaverAI.ts: Increased CHOP_TREE and DIG_CHANNEL timeout from 15s to 25s.</li></ul></div>
+        
+        <div class="delta-bar">
+            <div class="delta-item">
+                <span class="delta-label">Water</span>
+                <span class="delta-pos">+3031 m³</span>
+            </div>
+            <div class="delta-item">
+                <span class="delta-label">Lilies</span>
+                <span class="delta-neg">-7</span>
+            </div>
+            <div class="delta-item">
+                <span class="delta-label">Cattails</span>
+                <span class="delta-neg">-6</span>
+            </div>
+            <div class="delta-item">
+                <span class="delta-label">Trees</span>
+                <span class="delta-pos">+52</span>
+            </div>
+        </div>
+        
+        <div class="chart-grid">
+            <div class="chart-card">
+                <h3>Water Volume (m³)</h3>
+                <div class="chart-box"><canvas id="water_005_multidam_fixed"></canvas></div>
+            </div>
+            <div class="chart-card">
+                <h3>Tree Population</h3>
+                <div class="chart-box"><canvas id="trees_005_multidam_fixed"></canvas></div>
+            </div>
+            <div class="chart-card">
+                <h3>Lilies</h3>
+                <div class="chart-box"><canvas id="lilies_005_multidam_fixed"></canvas></div>
+            </div>
+            <div class="chart-card">
+                <h3>Cattails</h3>
+                <div class="chart-box"><canvas id="cattails_005_multidam_fixed"></canvas></div>
+            </div>
+        </div>
+        
+        <div class="bottom-row">
+            <div class="chart-card pie-card">
+                <h3>AI Time Allocation</h3>
+                <div class="pie-box"><canvas id="pie_005_multidam_fixed"></canvas></div>
+            </div>
+            <div class="stats-card">
+                <h3>Game Stats</h3>
+                <div class="stat-row"><span>Trees Felled</span><span class="stat-val">65</span></div>
+                <div class="stat-row"><span>Massive Oaks</span><span class="stat-val">13</span></div>
+                <div class="stat-row"><span>Mud Packed</span><span class="stat-val">110</span></div>
+                <div class="stat-row"><span>Sticks Placed</span><span class="stat-val">36</span></div>
+                <div class="stat-row"><span>Snacks Eaten</span><span class="stat-val">3</span></div>
+            </div>
+        </div>
+        
+        
+        <div class="capture-box">
+            <img src="runs/005_multidam_fixed.webp" class="capture" alt="Simulation recording" />
+        </div>
+    </div>
+    
+    <script>
+    (function() {
+        const L = ["Min 1", "Min 2", "Min 3", "Min 4", "Min 5", "Min 6", "Min 7", "Min 8", "Min 9", "Min 10", "Min 11", "Min 12", "Min 13", "Min 14", "Min 15", "Min 16", "Min 17", "Min 18", "Min 19", "Min 20", "Min 21", "Min 22", "Min 23", "Min 24", "Min 25", "Min 26", "Min 27", "Min 28", "Min 29", "Min 30"];
+        const opts = {
+            responsive: true, maintainAspectRatio: false,
+            interaction: { mode: 'index', intersect: false },
+            plugins: { legend: { labels: { color: '#e2e8f0', font: { family: 'Inter', size: 11 } } } },
+            scales: {
+                x: { ticks: { color: '#64748b', maxTicksLimit: 10 }, grid: { color: 'rgba(51,65,85,0.3)' } },
+                y: { ticks: { color: '#64748b' }, grid: { color: 'rgba(51,65,85,0.3)' } }
+            }
+        };
+        const mkLine = (id, bData, cData, bColor, label) => {
+            new Chart(document.getElementById(id), {
+                type: 'line', data: {
+                    labels: L,
+                    datasets: [
+                        { label: 'Beaver '+label, data: bData, borderColor: bColor, backgroundColor: bColor+'22', borderWidth: 2, tension: 0.3, fill: true, pointRadius: 1.5 },
+                        { label: 'Control '+label, data: cData, borderColor: '#64748b', borderDash: [4,4], borderWidth: 1.5, tension: 0.3, pointRadius: 0 }
+                    ]
+                }, options: opts
+            });
+        };
+        mkLine('water_005_multidam_fixed', [6758, 6394, 6184, 6117, 6151, 6288, 6470, 6659, 6837, 7008, 7174, 7329, 7474, 7615, 7741, 7852, 7972, 8089, 8193, 8287, 8370, 8445, 8516, 8584, 8643, 8693, 8739, 8781, 8819, 8855], [6892, 6558, 6291, 6108, 5983, 5900, 5845, 5806, 5777, 5757, 5743, 5736, 5734, 5735, 5738, 5744, 5751, 5759, 5767, 5774, 5780, 5786, 5792, 5798, 5804, 5809, 5813, 5816, 5820, 5824], '#0ea5e9', '(m³)');
+        mkLine('trees_005_multidam_fixed', [129, 129, 129, 129, 129, 152, 152, 151, 151, 151, 162, 162, 162, 162, 162, 177, 177, 177, 177, 177, 194, 194, 194, 194, 194, 215, 215, 215, 215, 215], [116, 116, 116, 116, 116, 122, 122, 122, 122, 122, 137, 137, 137, 137, 137, 145, 145, 145, 145, 145, 157, 157, 157, 157, 157, 163, 163, 163, 163, 163], '#22c55e', '');
+        mkLine('lilies_005_multidam_fixed', [49, 48, 48, 48, 48, 48, 48, 48, 48, 48, 48, 48, 48, 47, 47, 47, 47, 47, 47, 47, 47, 47, 47, 47, 46, 46, 46, 46, 46, 46], [46, 46, 46, 46, 46, 46, 46, 46, 46, 46, 46, 46, 46, 46, 46, 49, 49, 49, 49, 49, 52, 52, 52, 52, 52, 53, 53, 53, 53, 53], '#67e8f9', '');
+        mkLine('cattails_005_multidam_fixed', [47, 47, 47, 47, 47, 47, 47, 47, 47, 47, 47, 47, 47, 47, 47, 47, 47, 47, 47, 47, 47, 47, 47, 47, 47, 47, 47, 47, 47, 47], [49, 49, 49, 49, 49, 49, 49, 49, 49, 49, 50, 50, 50, 50, 50, 53, 53, 53, 53, 53, 53, 53, 53, 53, 53, 53, 53, 53, 53, 53], '#fde047', '');
+        
+        const aiColors = ['#f43f5e','#ec4899','#d946ef','#a855f7','#8b5cf6','#6366f1','#3b82f6','#0ea5e9','#06b6d4','#14b8a6','#10b981','#22c55e','#84cc16'];
+        new Chart(document.getElementById('pie_005_multidam_fixed'), {
+            type: 'doughnut', data: {
+                labels: ["IDLE", "GATHER_MUD", "FIND_TREE", "CHOP_TREE", "FORTIFY_DAM", "WAIT_LOG", "DELIVER_WATER", "PLAY", "EAT", "DIG_CHANNEL", "EXPLORE"],
+                datasets: [{ data: ["5.0", "87.7", "185.0", "135.9", "341.2", "21.4", "74.1", "22.5", "79.1", "618.0", "229.8"], backgroundColor: aiColors.slice(0,11), borderWidth: 2, borderColor: '#1e293b' }]
+            },
+            options: { responsive: true, maintainAspectRatio: false, plugins: { legend: { position: 'right', labels: { color: '#e2e8f0', font: { family: 'Inter', size: 10 }, padding: 8 } } } }
+        });
+    })();
+    </script>
+    
+    <div class="experiment" id="exp-004_multiple_dams">
+        <div class="exp-header">
+            <div class="exp-number">#4</div>
+            <div>
+                <h2>Multiple Dams Upstream (30 mins)</h2>
+                <p class="exp-desc">Beaver AI tweaked to migrate 15m upstream and start a new dam after successfully finishing 4 channels on an existing one. Simulation extended from 20 to 30 virtual minutes to watch cascading ecosystem impacts.</p>
+                <p class="exp-ts">2026-04-12T01:03:00</p>
+            </div>
+        </div>
+        
+        <div class='changes'><h3>Changes</h3><ul><li>BeaverAI.ts: Added damsBuilt and lastDamBuildCount to track dam completions.</li><li>BeaverAI.ts: Added transition logic in IDLE to shift damTargetZ upstream upon completion.</li><li>npc-sim.web.tsx: Extended TARGET_STEPS from 72000 to 108000 (30 real mins).</li></ul></div>
+        
+        <div class="delta-bar">
+            <div class="delta-item">
+                <span class="delta-label">Water</span>
+                <span class="delta-pos">+1477 m³</span>
+            </div>
+            <div class="delta-item">
+                <span class="delta-label">Lilies</span>
+                <span class="delta-neg">-4</span>
+            </div>
+            <div class="delta-item">
+                <span class="delta-label">Cattails</span>
+                <span class="delta-pos">+6</span>
+            </div>
+            <div class="delta-item">
+                <span class="delta-label">Trees</span>
+                <span class="delta-pos">+37</span>
+            </div>
+        </div>
+        
+        <div class="chart-grid">
+            <div class="chart-card">
+                <h3>Water Volume (m³)</h3>
+                <div class="chart-box"><canvas id="water_004_multiple_dams"></canvas></div>
+            </div>
+            <div class="chart-card">
+                <h3>Tree Population</h3>
+                <div class="chart-box"><canvas id="trees_004_multiple_dams"></canvas></div>
+            </div>
+            <div class="chart-card">
+                <h3>Lilies</h3>
+                <div class="chart-box"><canvas id="lilies_004_multiple_dams"></canvas></div>
+            </div>
+            <div class="chart-card">
+                <h3>Cattails</h3>
+                <div class="chart-box"><canvas id="cattails_004_multiple_dams"></canvas></div>
+            </div>
+        </div>
+        
+        <div class="bottom-row">
+            <div class="chart-card pie-card">
+                <h3>AI Time Allocation</h3>
+                <div class="pie-box"><canvas id="pie_004_multiple_dams"></canvas></div>
+            </div>
+            <div class="stats-card">
+                <h3>Game Stats</h3>
+                <div class="stat-row"><span>Trees Felled</span><span class="stat-val">63</span></div>
+                <div class="stat-row"><span>Massive Oaks</span><span class="stat-val">13</span></div>
+                <div class="stat-row"><span>Mud Packed</span><span class="stat-val">116</span></div>
+                <div class="stat-row"><span>Sticks Placed</span><span class="stat-val">32</span></div>
+                <div class="stat-row"><span>Snacks Eaten</span><span class="stat-val">4</span></div>
+            </div>
+        </div>
+        
+        
+        <div class="capture-box">
+            <img src="runs/004_multiple_dams.webp" class="capture" alt="Simulation recording" />
+        </div>
+    </div>
+    
+    <script>
+    (function() {
+        const L = ["Min 1", "Min 2", "Min 3", "Min 4", "Min 5", "Min 6", "Min 7", "Min 8", "Min 9", "Min 10", "Min 11", "Min 12", "Min 13", "Min 14", "Min 15", "Min 16", "Min 17", "Min 18", "Min 19", "Min 20", "Min 21", "Min 22", "Min 23", "Min 24", "Min 25", "Min 26", "Min 27", "Min 28", "Min 29", "Min 30"];
+        const opts = {
+            responsive: true, maintainAspectRatio: false,
+            interaction: { mode: 'index', intersect: false },
+            plugins: { legend: { labels: { color: '#e2e8f0', font: { family: 'Inter', size: 11 } } } },
+            scales: {
+                x: { ticks: { color: '#64748b', maxTicksLimit: 10 }, grid: { color: 'rgba(51,65,85,0.3)' } },
+                y: { ticks: { color: '#64748b' }, grid: { color: 'rgba(51,65,85,0.3)' } }
+            }
+        };
+        const mkLine = (id, bData, cData, bColor, label) => {
+            new Chart(document.getElementById(id), {
+                type: 'line', data: {
+                    labels: L,
+                    datasets: [
+                        { label: 'Beaver '+label, data: bData, borderColor: bColor, backgroundColor: bColor+'22', borderWidth: 2, tension: 0.3, fill: true, pointRadius: 1.5 },
+                        { label: 'Control '+label, data: cData, borderColor: '#64748b', borderDash: [4,4], borderWidth: 1.5, tension: 0.3, pointRadius: 0 }
+                    ]
+                }, options: opts
+            });
+        };
+        mkLine('water_004_multiple_dams', [6790, 6819, 6990, 7266, 7570, 7860, 8118, 8340, 8525, 8686, 8826, 8934, 9027, 9104, 9172, 9229, 9276, 9320, 9364, 9404, 9441, 9466, 9487, 9509, 9525, 9440, 9398, 9358, 9339, 9327], [6949, 6961, 7059, 7195, 7334, 7449, 7537, 7604, 7659, 7703, 7737, 7765, 7788, 7805, 7819, 7828, 7835, 7840, 7843, 7845, 7847, 7848, 7848, 7849, 7849, 7849, 7849, 7850, 7850, 7850], '#0ea5e9', '(m³)');
+        mkLine('trees_004_multiple_dams', [113, 113, 113, 113, 113, 140, 140, 140, 140, 140, 168, 167, 167, 167, 167, 188, 188, 188, 187, 187, 194, 194, 194, 194, 194, 205, 205, 205, 205, 205], [115, 115, 115, 115, 115, 123, 123, 123, 123, 123, 131, 131, 131, 131, 131, 145, 145, 145, 145, 145, 158, 158, 158, 158, 158, 168, 168, 168, 168, 168], '#22c55e', '');
+        mkLine('lilies_004_multiple_dams', [48, 48, 48, 48, 48, 48, 48, 48, 48, 48, 48, 48, 47, 47, 47, 47, 47, 47, 47, 47, 47, 47, 47, 47, 47, 47, 47, 47, 47, 47], [44, 44, 44, 44, 44, 45, 45, 45, 45, 45, 46, 46, 46, 46, 46, 48, 48, 48, 48, 48, 49, 49, 49, 49, 49, 51, 51, 51, 51, 51], '#67e8f9', '');
+        mkLine('cattails_004_multiple_dams', [67, 67, 67, 66, 65, 65, 65, 65, 64, 64, 64, 64, 64, 64, 64, 64, 64, 64, 64, 64, 64, 64, 64, 64, 64, 64, 64, 64, 64, 64], [58, 58, 58, 58, 58, 58, 58, 58, 58, 58, 58, 58, 58, 58, 58, 58, 58, 58, 58, 58, 58, 58, 58, 58, 58, 58, 58, 58, 58, 58], '#fde047', '');
+        
+        const aiColors = ['#f43f5e','#ec4899','#d946ef','#a855f7','#8b5cf6','#6366f1','#3b82f6','#0ea5e9','#06b6d4','#14b8a6','#10b981','#22c55e','#84cc16'];
+        new Chart(document.getElementById('pie_004_multiple_dams'), {
+            type: 'doughnut', data: {
+                labels: ["IDLE", "FIND_TREE", "CHOP_TREE", "WAIT_LOG", "DELIVER_WATER", "FORTIFY_DAM", "GATHER_MUD", "DIG_CHANNEL", "EXPLORE", "EAT", "PLAY"],
+                datasets: [{ data: ["5.4", "273.9", "133.7", "21.4", "99.2", "395.8", "68.1", "432.1", "315.4", "20.8", "33.9"], backgroundColor: aiColors.slice(0,11), borderWidth: 2, borderColor: '#1e293b' }]
+            },
+            options: { responsive: true, maintainAspectRatio: false, plugins: { legend: { position: 'right', labels: { color: '#e2e8f0', font: { family: 'Inter', size: 10 }, padding: 8 } } } }
+        });
+    })();
+    </script>
+    
+    <div class="experiment" id="exp-003_bank_breaching_beaver">
+        <div class="exp-header">
+            <div class="exp-number">#3</div>
+            <div>
+                <h2>Bank-Breaching Beaver + Higher Flow</h2>
+                <p class="exp-desc">DIG_CHANNEL AI behavior: beaver digs lateral trenches through riverbanks upstream of dam. River flow 0.18→0.35. Bank lip 5→2.5. Cattail range extended to 0.6.</p>
+                <p class="exp-ts">2026-04-11T05:03:00</p>
+            </div>
+        </div>
+        
+        <div class='changes'><h3>Changes</h3><ul><li>BeaverAI.ts: Added DIG_CHANNEL state — digs 4 lateral channels on alternating sides</li><li>BeaverAI.ts: Reduced play/eat frequency (0.25→0.15) for more dam-building time</li><li>WaterEngine.ts: River source 0.18→0.35, cap 10→15</li><li>terrain.ts: Bank lip 5→2.5, slope 0.5→0.3 (lower, gentler banks)</li><li>ecology.ts: Cattail range 0.02-0.4→0.02-0.6, cap 6→10</li></ul></div>
+        
+        <div class="delta-bar">
+            <div class="delta-item">
+                <span class="delta-label">Water</span>
+                <span class="delta-pos">+944 m³</span>
+            </div>
+            <div class="delta-item">
+                <span class="delta-label">Lilies</span>
+                <span class="delta-pos">+2</span>
+            </div>
+            <div class="delta-item">
+                <span class="delta-label">Cattails</span>
+                <span class="delta-neg">-4</span>
+            </div>
+            <div class="delta-item">
+                <span class="delta-label">Trees</span>
+                <span class="delta-pos">+7</span>
+            </div>
+        </div>
+        
+        <div class="chart-grid">
+            <div class="chart-card">
+                <h3>Water Volume (m³)</h3>
+                <div class="chart-box"><canvas id="water_003_bank_breaching_beaver"></canvas></div>
+            </div>
+            <div class="chart-card">
+                <h3>Tree Population</h3>
+                <div class="chart-box"><canvas id="trees_003_bank_breaching_beaver"></canvas></div>
+            </div>
+            <div class="chart-card">
+                <h3>Lilies</h3>
+                <div class="chart-box"><canvas id="lilies_003_bank_breaching_beaver"></canvas></div>
+            </div>
+            <div class="chart-card">
+                <h3>Cattails</h3>
+                <div class="chart-box"><canvas id="cattails_003_bank_breaching_beaver"></canvas></div>
+            </div>
+        </div>
+        
+        <div class="bottom-row">
+            <div class="chart-card pie-card">
+                <h3>AI Time Allocation</h3>
+                <div class="pie-box"><canvas id="pie_003_bank_breaching_beaver"></canvas></div>
+            </div>
+            <div class="stats-card">
+                <h3>Game Stats</h3>
+                <div class="stat-row"><span>Trees Felled</span><span class="stat-val">34</span></div>
+                <div class="stat-row"><span>Massive Oaks</span><span class="stat-val">7</span></div>
+                <div class="stat-row"><span>Mud Packed</span><span class="stat-val">62</span></div>
+                <div class="stat-row"><span>Sticks Placed</span><span class="stat-val">21</span></div>
+                <div class="stat-row"><span>Snacks Eaten</span><span class="stat-val">2</span></div>
+            </div>
+        </div>
+        
+        
+        <div class="capture-box">
+            <img src="runs/003_bank_breaching_beaver.webp" class="capture" alt="Simulation recording" />
+        </div>
+    </div>
+    
+    <script>
+    (function() {
+        const L = ["Min 1", "Min 2", "Min 3", "Min 4", "Min 5", "Min 6", "Min 7", "Min 8", "Min 9", "Min 10", "Min 11", "Min 12", "Min 13", "Min 14", "Min 15", "Min 16", "Min 17", "Min 18", "Min 19", "Min 20", "Min 21", "Min 22", "Min 23", "Min 24", "Min 25"];
+        const opts = {
+            responsive: true, maintainAspectRatio: false,
+            interaction: { mode: 'index', intersect: false },
+            plugins: { legend: { labels: { color: '#e2e8f0', font: { family: 'Inter', size: 11 } } } },
+            scales: {
+                x: { ticks: { color: '#64748b', maxTicksLimit: 10 }, grid: { color: 'rgba(51,65,85,0.3)' } },
+                y: { ticks: { color: '#64748b' }, grid: { color: 'rgba(51,65,85,0.3)' } }
+            }
+        };
+        const mkLine = (id, bData, cData, bColor, label) => {
+            new Chart(document.getElementById(id), {
+                type: 'line', data: {
+                    labels: L,
+                    datasets: [
+                        { label: 'Beaver '+label, data: bData, borderColor: bColor, backgroundColor: bColor+'22', borderWidth: 2, tension: 0.3, fill: true, pointRadius: 1.5 },
+                        { label: 'Control '+label, data: cData, borderColor: '#64748b', borderDash: [4,4], borderWidth: 1.5, tension: 0.3, pointRadius: 0 }
+                    ]
+                }, options: opts
+            });
+        };
+        mkLine('water_003_bank_breaching_beaver', [7579, 7573, 7702, 7954, 8226, 7741, 7729, 7807, 7928, 8071, 8154, 8171, 8267, 8453, 8666, 8880, 9065, 9219, 9362, 9500, 9621, 9731, 9834, 9914, 9980], [7741, 7729, 7807, 7928, 8071, 7741, 7729, 7807, 7928, 8071, 8190, 8301, 8405, 8501, 8584, 8657, 8721, 8780, 8833, 8880, 8922, 8959, 8991, 9016, 9036], '#0ea5e9', '(m³)');
+        mkLine('trees_003_bank_breaching_beaver', [110, 110, 110, 110, 110, 122, 122, 122, 122, 122, 147, 147, 147, 147, 147, 155, 155, 155, 155, 155, 171, 171, 170, 170, 170], [92, 92, 92, 92, 92, 120, 120, 120, 120, 120, 133, 133, 133, 133, 133, 147, 147, 147, 147, 147, 163, 163, 163, 163, 163], '#22c55e', '');
+        mkLine('lilies_003_bank_breaching_beaver', [58, 57, 57, 57, 57, 53, 53, 53, 53, 53, 53, 53, 53, 53, 53, 53, 53, 52, 52, 52, 52, 52, 52, 52, 52], [64, 64, 64, 64, 64, 46, 46, 46, 46, 46, 46, 46, 46, 46, 46, 48, 48, 48, 48, 48, 50, 50, 50, 50, 50], '#67e8f9', '');
+        mkLine('cattails_003_bank_breaching_beaver', [55, 54, 54, 54, 54, 43, 43, 43, 43, 43, 43, 43, 43, 43, 43, 43, 43, 43, 43, 42, 42, 42, 42, 42, 42], [55, 55, 55, 55, 55, 46, 46, 46, 46, 46, 46, 46, 46, 46, 46, 46, 46, 46, 46, 46, 46, 46, 46, 46, 46], '#fde047', '');
+        
+        const aiColors = ['#f43f5e','#ec4899','#d946ef','#a855f7','#8b5cf6','#6366f1','#3b82f6','#0ea5e9','#06b6d4','#14b8a6','#10b981','#22c55e','#84cc16'];
+        new Chart(document.getElementById('pie_003_bank_breaching_beaver'), {
+            type: 'doughnut', data: {
+                labels: ["IDLE", "GATHER_MUD", "FIND_TREE", "CHOP_TREE", "FORTIFY_DAM", "PLAY", "EAT", "WAIT_LOG", "DELIVER_WATER", "DIG_CHANNEL", "EXPLORE"],
+                datasets: [{ data: ["4.0", "59.8", "103.1", "96.6", "238.5", "39.9", "5.9", "14.8", "64.3", "367.2", "205.6"], backgroundColor: aiColors.slice(0,11), borderWidth: 2, borderColor: '#1e293b' }]
+            },
+            options: { responsive: true, maintainAspectRatio: false, plugins: { legend: { position: 'right', labels: { color: '#e2e8f0', font: { family: 'Inter', size: 10 }, padding: 8 } } } }
+        });
+    })();
+    </script>
+    
+    <div class="experiment" id="exp-002_depth_tuned_flora">
+        <div class="exp-header">
+            <div class="exp-number">#2</div>
+            <div>
+                <h2>Depth-Responsive Flora Tuning</h2>
+                <p class="exp-desc">Lilies require depth>=0.5 with depthBonus scaling. Cattails shallow band 0.02-0.4 with shallowBonus. Ecology ticks every 5 min.</p>
+                <p class="exp-ts">2026-04-10T16:40:00</p>
+            </div>
+        </div>
+        
+        <div class='changes'><h3>Changes</h3><ul><li>ecology.ts: lily depth 0.2→0.5, spawn rate 0.08→0.10*depthBonus</li><li>ecology.ts: cattail range 0.01-0.2→0.02-0.4, rate 0.20→0.18*(0.5+shallowBonus)</li><li>npc-sim: control-world ecology synced with same rules</li></ul></div>
+        
+        <div class="delta-bar">
+            <div class="delta-item">
+                <span class="delta-label">Water</span>
+                <span class="delta-pos">+792 m³</span>
+            </div>
+            <div class="delta-item">
+                <span class="delta-label">Lilies</span>
+                <span class="delta-pos">+11</span>
+            </div>
+            <div class="delta-item">
+                <span class="delta-label">Cattails</span>
+                <span class="delta-neg">-15</span>
+            </div>
+            <div class="delta-item">
+                <span class="delta-label">Trees</span>
+                <span class="delta-pos">+27</span>
+            </div>
+        </div>
+        
+        <div class="chart-grid">
+            <div class="chart-card">
+                <h3>Water Volume (m³)</h3>
+                <div class="chart-box"><canvas id="water_002_depth_tuned_flora"></canvas></div>
+            </div>
+            <div class="chart-card">
+                <h3>Tree Population</h3>
+                <div class="chart-box"><canvas id="trees_002_depth_tuned_flora"></canvas></div>
+            </div>
+            <div class="chart-card">
+                <h3>Lilies</h3>
+                <div class="chart-box"><canvas id="lilies_002_depth_tuned_flora"></canvas></div>
+            </div>
+            <div class="chart-card">
+                <h3>Cattails</h3>
+                <div class="chart-box"><canvas id="cattails_002_depth_tuned_flora"></canvas></div>
+            </div>
+        </div>
+        
+        <div class="bottom-row">
+            <div class="chart-card pie-card">
+                <h3>AI Time Allocation</h3>
+                <div class="pie-box"><canvas id="pie_002_depth_tuned_flora"></canvas></div>
+            </div>
+            <div class="stats-card">
+                <h3>Game Stats</h3>
+                <div class="stat-row"><span>Trees Felled</span><span class="stat-val">65</span></div>
+                <div class="stat-row"><span>Massive Oaks</span><span class="stat-val">8</span></div>
+                <div class="stat-row"><span>Mud Packed</span><span class="stat-val">150</span></div>
+                <div class="stat-row"><span>Sticks Placed</span><span class="stat-val">19</span></div>
+                <div class="stat-row"><span>Snacks Eaten</span><span class="stat-val">9</span></div>
+            </div>
+        </div>
+        
+        
+        <div class="capture-box">
+            <img src="runs/002_depth_tuned_flora.webp" class="capture" alt="Simulation recording" />
+        </div>
+    </div>
+    
+    <script>
+    (function() {
+        const L = ["Min 1", "Min 2", "Min 3", "Min 4", "Min 5", "Min 6", "Min 7", "Min 8", "Min 9", "Min 10", "Min 11", "Min 12", "Min 13", "Min 14", "Min 15", "Min 16", "Min 17", "Min 18", "Min 19", "Min 20", "Min 21", "Min 22", "Min 23"];
+        const opts = {
+            responsive: true, maintainAspectRatio: false,
+            interaction: { mode: 'index', intersect: false },
+            plugins: { legend: { labels: { color: '#e2e8f0', font: { family: 'Inter', size: 11 } } } },
+            scales: {
+                x: { ticks: { color: '#64748b', maxTicksLimit: 10 }, grid: { color: 'rgba(51,65,85,0.3)' } },
+                y: { ticks: { color: '#64748b' }, grid: { color: 'rgba(51,65,85,0.3)' } }
+            }
+        };
+        const mkLine = (id, bData, cData, bColor, label) => {
+            new Chart(document.getElementById(id), {
+                type: 'line', data: {
+                    labels: L,
+                    datasets: [
+                        { label: 'Beaver '+label, data: bData, borderColor: bColor, backgroundColor: bColor+'22', borderWidth: 2, tension: 0.3, fill: true, pointRadius: 1.5 },
+                        { label: 'Control '+label, data: cData, borderColor: '#64748b', borderDash: [4,4], borderWidth: 1.5, tension: 0.3, pointRadius: 0 }
+                    ]
+                }, options: opts
+            });
+        };
+        mkLine('water_002_depth_tuned_flora', [12037, 12500, 12664, 12171, 12693, 12845, 12963, 12908, 12969, 13101, 13237, 13341, 13493, 13643, 13754, 13903, 14053, 14199, 14361, 14493, 14600, 14684, 14747], [12171, 12693, 12845, 12171, 12693, 12845, 12963, 13089, 13212, 13334, 13445, 13546, 13634, 13704, 13757, 13800, 13836, 13867, 13893, 13914, 13929, 13942, 13955], '#0ea5e9', '(m³)');
+        mkLine('trees_002_depth_tuned_flora', [122, 122, 122, 131, 131, 131, 131, 131, 153, 152, 152, 152, 152, 168, 168, 167, 166, 166, 178, 178, 178, 178, 178], [118, 118, 118, 126, 126, 126, 126, 126, 133, 133, 133, 133, 133, 140, 140, 140, 140, 140, 151, 151, 151, 151, 151], '#22c55e', '');
+        mkLine('lilies_002_depth_tuned_flora', [45, 45, 45, 56, 56, 56, 56, 55, 55, 55, 54, 52, 52, 52, 52, 52, 52, 52, 51, 51, 51, 51, 51], [50, 50, 50, 33, 33, 33, 33, 33, 35, 35, 35, 35, 35, 37, 37, 37, 37, 37, 40, 40, 40, 40, 40], '#67e8f9', '');
+        mkLine('cattails_002_depth_tuned_flora', [55, 54, 54, 44, 44, 44, 44, 44, 44, 44, 43, 43, 43, 41, 41, 41, 40, 40, 40, 40, 40, 40, 40], [48, 48, 48, 55, 55, 55, 55, 55, 55, 55, 55, 55, 55, 55, 55, 55, 55, 55, 55, 55, 55, 55, 55], '#fde047', '');
+        
+        const aiColors = ['#f43f5e','#ec4899','#d946ef','#a855f7','#8b5cf6','#6366f1','#3b82f6','#0ea5e9','#06b6d4','#14b8a6','#10b981','#22c55e','#84cc16'];
+        new Chart(document.getElementById('pie_002_depth_tuned_flora'), {
+            type: 'doughnut', data: {
+                labels: ["IDLE", "GATHER_MUD", "EAT", "FIND_TREE", "CHOP_TREE", "WAIT_LOG", "DELIVER_WATER", "FORTIFY_DAM", "PLAY", "FIND_LOG", "EXPLORE"],
+                datasets: [{ data: ["5.6", "178.7", "28.0", "305.8", "163.2", "24.7", "50.5", "384.1", "50.1", "0.8", "8.3"], backgroundColor: aiColors.slice(0,11), borderWidth: 2, borderColor: '#1e293b' }]
+            },
+            options: { responsive: true, maintainAspectRatio: false, plugins: { legend: { position: 'right', labels: { color: '#e2e8f0', font: { family: 'Inter', size: 10 }, padding: 8 } } } }
+        });
+    })();
+    </script>
+    
+    <div class="experiment" id="exp-001_baseline_flat_ecology">
+        <div class="exp-header">
+            <div class="exp-number">#1</div>
+            <div>
+                <h2>Baseline (Flat Ecology Rules)</h2>
+                <p class="exp-desc">Original ecology: lilies at depth>=0.2, cattails 0.01-0.2, flat spawn rates with no depth/shallow bonuses.</p>
+                <p class="exp-ts">2026-04-10T12:04:00</p>
+            </div>
+        </div>
+        
+        <div class='changes'><h3>Changes</h3><ul><li>Fixed simulate() args bug</li><li>Restored twisty terrain defaults</li><li>Added ecology ticks + tree tracking</li></ul></div>
+        
+        <div class="delta-bar">
+            <div class="delta-item">
+                <span class="delta-label">Water</span>
+                <span class="delta-pos">+929 m³</span>
+            </div>
+            <div class="delta-item">
+                <span class="delta-label">Lilies</span>
+                <span class="delta-neg">-15</span>
+            </div>
+            <div class="delta-item">
+                <span class="delta-label">Cattails</span>
+                <span class="delta-pos">+14</span>
+            </div>
+            <div class="delta-item">
+                <span class="delta-label">Trees</span>
+                <span class="delta-pos">+33</span>
+            </div>
+        </div>
+        
+        <div class="chart-grid">
+            <div class="chart-card">
+                <h3>Water Volume (m³)</h3>
+                <div class="chart-box"><canvas id="water_001_baseline_flat_ecology"></canvas></div>
+            </div>
+            <div class="chart-card">
+                <h3>Tree Population</h3>
+                <div class="chart-box"><canvas id="trees_001_baseline_flat_ecology"></canvas></div>
+            </div>
+            <div class="chart-card">
+                <h3>Lilies</h3>
+                <div class="chart-box"><canvas id="lilies_001_baseline_flat_ecology"></canvas></div>
+            </div>
+            <div class="chart-card">
+                <h3>Cattails</h3>
+                <div class="chart-box"><canvas id="cattails_001_baseline_flat_ecology"></canvas></div>
+            </div>
+        </div>
+        
+        <div class="bottom-row">
+            <div class="chart-card pie-card">
+                <h3>AI Time Allocation</h3>
+                <div class="pie-box"><canvas id="pie_001_baseline_flat_ecology"></canvas></div>
+            </div>
+            <div class="stats-card">
+                <h3>Game Stats</h3>
+                <div class="stat-row"><span>Trees Felled</span><span class="stat-val">75</span></div>
+                <div class="stat-row"><span>Massive Oaks</span><span class="stat-val">14</span></div>
+                <div class="stat-row"><span>Mud Packed</span><span class="stat-val">129</span></div>
+                <div class="stat-row"><span>Sticks Placed</span><span class="stat-val">34</span></div>
+                <div class="stat-row"><span>Snacks Eaten</span><span class="stat-val">11</span></div>
+            </div>
+        </div>
+        
+        
+    </div>
+    
+    <script>
+    (function() {
+        const L = ["Min 1", "Min 2", "Min 3", "Min 4", "Min 5", "Min 6", "Min 7", "Min 8", "Min 9", "Min 10", "Min 11", "Min 12", "Min 13", "Min 14", "Min 15", "Min 16", "Min 17", "Min 18", "Min 19", "Min 20"];
+        const opts = {
+            responsive: true, maintainAspectRatio: false,
+            interaction: { mode: 'index', intersect: false },
+            plugins: { legend: { labels: { color: '#e2e8f0', font: { family: 'Inter', size: 11 } } } },
+            scales: {
+                x: { ticks: { color: '#64748b', maxTicksLimit: 10 }, grid: { color: 'rgba(51,65,85,0.3)' } },
+                y: { ticks: { color: '#64748b' }, grid: { color: 'rgba(51,65,85,0.3)' } }
+            }
+        };
+        const mkLine = (id, bData, cData, bColor, label) => {
+            new Chart(document.getElementById(id), {
+                type: 'line', data: {
+                    labels: L,
+                    datasets: [
+                        { label: 'Beaver '+label, data: bData, borderColor: bColor, backgroundColor: bColor+'22', borderWidth: 2, tension: 0.3, fill: true, pointRadius: 1.5 },
+                        { label: 'Control '+label, data: cData, borderColor: '#64748b', borderDash: [4,4], borderWidth: 1.5, tension: 0.3, pointRadius: 0 }
+                    ]
+                }, options: opts
+            });
+        };
+        mkLine('water_001_baseline_flat_ecology', [4421, 4534, 4599, 4642, 4675, 4700, 4745, 4776, 4802, 4826, 4886, 4916, 4939, 4960, 4981, 5028, 5058, 5089, 5122, 5194], [3822, 3889, 3932, 3960, 3983, 4010, 4035, 4058, 4078, 4096, 4125, 4151, 4173, 4193, 4211, 4230, 4249, 4265, 4265, 4265], '#0ea5e9', '(m³)');
+        mkLine('trees_001_baseline_flat_ecology', [107, 107, 107, 107, 107, 115, 115, 115, 115, 115, 127, 127, 127, 127, 127, 141, 141, 163, 163, 163], [95, 95, 95, 95, 95, 102, 102, 102, 102, 102, 112, 112, 112, 112, 112, 120, 120, 130, 130, 130], '#22c55e', '');
+        mkLine('lilies_001_baseline_flat_ecology', [29, 29, 29, 29, 29, 35, 35, 35, 35, 35, 42, 42, 42, 42, 42, 44, 44, 48, 48, 48], [33, 33, 33, 33, 33, 39, 39, 39, 39, 39, 48, 48, 48, 48, 48, 52, 52, 63, 63, 63], '#67e8f9', '');
+        mkLine('cattails_001_baseline_flat_ecology', [29, 29, 29, 29, 29, 33, 33, 33, 33, 33, 38, 38, 38, 38, 38, 40, 40, 63, 63, 63], [28, 28, 28, 28, 28, 31, 31, 31, 31, 31, 35, 35, 35, 35, 35, 38, 38, 49, 49, 49], '#fde047', '');
+        
+        const aiColors = ['#f43f5e','#ec4899','#d946ef','#a855f7','#8b5cf6','#6366f1','#3b82f6','#0ea5e9','#06b6d4','#14b8a6','#10b981','#22c55e','#84cc16'];
+        new Chart(document.getElementById('pie_001_baseline_flat_ecology'), {
+            type: 'doughnut', data: {
+                labels: ["IDLE", "PLAY", "GATHER_MUD", "FIND_TREE", "CHOP_TREE", "FORTIFY_DAM", "WAIT_LOG", "DELIVER_WATER", "EAT"],
+                datasets: [{ data: ["5.3", "48.4", "120.4", "362.2", "151.8", "387.7", "23.1", "81.7", "19.2"], backgroundColor: aiColors.slice(0,9), borderWidth: 2, borderColor: '#1e293b' }]
+            },
+            options: { responsive: true, maintainAspectRatio: false, plugins: { legend: { position: 'right', labels: { color: '#e2e8f0', font: { family: 'Inter', size: 10 }, padding: 8 } } } }
+        });
+    })();
+    </script>
+    
+    
+    <div class="footer">Generated by scripts/build_journal.py from simtests/runs/</div>
 </body>
 </html>

@@ -1,0 +1,762 @@
+{
+  "status": "NPC_SIMULATION_COMPLETE_30_MINS",
+  "timeseries": {
+    "npc_beaver": [
+      {
+        "coverage": 11648,
+        "lilies": 49,
+        "cattails": 51,
+        "trees": 124
+      },
+      {
+        "coverage": 12567,
+        "lilies": 49,
+        "cattails": 51,
+        "trees": 124
+      },
+      {
+        "coverage": 13571,
+        "lilies": 49,
+        "cattails": 51,
+        "trees": 124
+      },
+      {
+        "coverage": 14508,
+        "lilies": 48,
+        "cattails": 50,
+        "trees": 124
+      },
+      {
+        "coverage": 15344,
+        "lilies": 48,
+        "cattails": 50,
+        "trees": 124
+      },
+      {
+        "coverage": 15944,
+        "lilies": 48,
+        "cattails": 50,
+        "trees": 140
+      },
+      {
+        "coverage": 16654,
+        "lilies": 48,
+        "cattails": 50,
+        "trees": 140
+      },
+      {
+        "coverage": 17426,
+        "lilies": 48,
+        "cattails": 50,
+        "trees": 140
+      },
+      {
+        "coverage": 17953,
+        "lilies": 48,
+        "cattails": 50,
+        "trees": 140
+      },
+      {
+        "coverage": 18374,
+        "lilies": 48,
+        "cattails": 50,
+        "trees": 140
+      },
+      {
+        "coverage": 18841,
+        "lilies": 46,
+        "cattails": 50,
+        "trees": 153
+      },
+      {
+        "coverage": 19353,
+        "lilies": 46,
+        "cattails": 50,
+        "trees": 153
+      },
+      {
+        "coverage": 19747,
+        "lilies": 46,
+        "cattails": 50,
+        "trees": 153
+      },
+      {
+        "coverage": 20018,
+        "lilies": 46,
+        "cattails": 50,
+        "trees": 153
+      },
+      {
+        "coverage": 20303,
+        "lilies": 45,
+        "cattails": 50,
+        "trees": 153
+      },
+      {
+        "coverage": 20550,
+        "lilies": 45,
+        "cattails": 50,
+        "trees": 172
+      },
+      {
+        "coverage": 20725,
+        "lilies": 45,
+        "cattails": 50,
+        "trees": 172
+      },
+      {
+        "coverage": 20783,
+        "lilies": 45,
+        "cattails": 50,
+        "trees": 172
+      },
+      {
+        "coverage": 20721,
+        "lilies": 45,
+        "cattails": 50,
+        "trees": 172
+      },
+      {
+        "coverage": 20609,
+        "lilies": 45,
+        "cattails": 50,
+        "trees": 172
+      },
+      {
+        "coverage": 20519,
+        "lilies": 45,
+        "cattails": 50,
+        "trees": 181
+      },
+      {
+        "coverage": 20462,
+        "lilies": 45,
+        "cattails": 50,
+        "trees": 181
+      },
+      {
+        "coverage": 20423,
+        "lilies": 44,
+        "cattails": 50,
+        "trees": 181
+      },
+      {
+        "coverage": 20403,
+        "lilies": 44,
+        "cattails": 50,
+        "trees": 181
+      },
+      {
+        "coverage": 20391,
+        "lilies": 44,
+        "cattails": 50,
+        "trees": 181
+      },
+      {
+        "coverage": 20388,
+        "lilies": 44,
+        "cattails": 50,
+        "trees": 198
+      },
+      {
+        "coverage": 20401,
+        "lilies": 44,
+        "cattails": 50,
+        "trees": 198
+      },
+      {
+        "coverage": 20414,
+        "lilies": 44,
+        "cattails": 50,
+        "trees": 198
+      },
+      {
+        "coverage": 20421,
+        "lilies": 44,
+        "cattails": 50,
+        "trees": 198
+      },
+      {
+        "coverage": 20429,
+        "lilies": 44,
+        "cattails": 50,
+        "trees": 198
+      },
+      {
+        "coverage": 20436,
+        "lilies": 44,
+        "cattails": 50,
+        "trees": 207
+      },
+      {
+        "coverage": 20439,
+        "lilies": 44,
+        "cattails": 50,
+        "trees": 207
+      },
+      {
+        "coverage": 20444,
+        "lilies": 44,
+        "cattails": 50,
+        "trees": 207
+      },
+      {
+        "coverage": 20449,
+        "lilies": 44,
+        "cattails": 50,
+        "trees": 207
+      },
+      {
+        "coverage": 20462,
+        "lilies": 44,
+        "cattails": 50,
+        "trees": 207
+      },
+      {
+        "coverage": 20469,
+        "lilies": 44,
+        "cattails": 50,
+        "trees": 215
+      },
+      {
+        "coverage": 20484,
+        "lilies": 44,
+        "cattails": 50,
+        "trees": 215
+      },
+      {
+        "coverage": 20494,
+        "lilies": 44,
+        "cattails": 50,
+        "trees": 215
+      },
+      {
+        "coverage": 20506,
+        "lilies": 44,
+        "cattails": 50,
+        "trees": 215
+      },
+      {
+        "coverage": 20522,
+        "lilies": 44,
+        "cattails": 49,
+        "trees": 215
+      },
+      {
+        "coverage": 20531,
+        "lilies": 44,
+        "cattails": 49,
+        "trees": 220
+      },
+      {
+        "coverage": 20537,
+        "lilies": 44,
+        "cattails": 49,
+        "trees": 220
+      },
+      {
+        "coverage": 20539,
+        "lilies": 44,
+        "cattails": 49,
+        "trees": 220
+      },
+      {
+        "coverage": 20536,
+        "lilies": 44,
+        "cattails": 49,
+        "trees": 220
+      },
+      {
+        "coverage": 20538,
+        "lilies": 44,
+        "cattails": 48,
+        "trees": 220
+      },
+      {
+        "coverage": 20540,
+        "lilies": 44,
+        "cattails": 48,
+        "trees": 229
+      },
+      {
+        "coverage": 20541,
+        "lilies": 44,
+        "cattails": 48,
+        "trees": 229
+      },
+      {
+        "coverage": 20541,
+        "lilies": 44,
+        "cattails": 48,
+        "trees": 229
+      },
+      {
+        "coverage": 20542,
+        "lilies": 44,
+        "cattails": 48,
+        "trees": 229
+      },
+      {
+        "coverage": 20549,
+        "lilies": 44,
+        "cattails": 48,
+        "trees": 229
+      },
+      {
+        "coverage": 20559,
+        "lilies": 44,
+        "cattails": 48,
+        "trees": 236
+      },
+      {
+        "coverage": 20570,
+        "lilies": 44,
+        "cattails": 48,
+        "trees": 236
+      },
+      {
+        "coverage": 20580,
+        "lilies": 44,
+        "cattails": 48,
+        "trees": 236
+      },
+      {
+        "coverage": 20586,
+        "lilies": 44,
+        "cattails": 47,
+        "trees": 236
+      },
+      {
+        "coverage": 20589,
+        "lilies": 44,
+        "cattails": 47,
+        "trees": 236
+      },
+      {
+        "coverage": 20591,
+        "lilies": 44,
+        "cattails": 47,
+        "trees": 242
+      },
+      {
+        "coverage": 20592,
+        "lilies": 44,
+        "cattails": 47,
+        "trees": 242
+      },
+      {
+        "coverage": 20601,
+        "lilies": 44,
+        "cattails": 47,
+        "trees": 242
+      },
+      {
+        "coverage": 20620,
+        "lilies": 44,
+        "cattails": 46,
+        "trees": 242
+      },
+      {
+        "coverage": 20640,
+        "lilies": 44,
+        "cattails": 46,
+        "trees": 242
+      }
+    ],
+    "control": [
+      {
+        "coverage": 11784,
+        "lilies": 43,
+        "cattails": 50,
+        "trees": 112
+      },
+      {
+        "coverage": 12679,
+        "lilies": 43,
+        "cattails": 50,
+        "trees": 112
+      },
+      {
+        "coverage": 13671,
+        "lilies": 43,
+        "cattails": 50,
+        "trees": 112
+      },
+      {
+        "coverage": 14542,
+        "lilies": 43,
+        "cattails": 50,
+        "trees": 112
+      },
+      {
+        "coverage": 15262,
+        "lilies": 43,
+        "cattails": 50,
+        "trees": 112
+      },
+      {
+        "coverage": 15821,
+        "lilies": 47,
+        "cattails": 51,
+        "trees": 119
+      },
+      {
+        "coverage": 16263,
+        "lilies": 47,
+        "cattails": 51,
+        "trees": 119
+      },
+      {
+        "coverage": 16565,
+        "lilies": 47,
+        "cattails": 51,
+        "trees": 119
+      },
+      {
+        "coverage": 16677,
+        "lilies": 47,
+        "cattails": 51,
+        "trees": 119
+      },
+      {
+        "coverage": 16740,
+        "lilies": 47,
+        "cattails": 51,
+        "trees": 119
+      },
+      {
+        "coverage": 16777,
+        "lilies": 50,
+        "cattails": 52,
+        "trees": 127
+      },
+      {
+        "coverage": 16801,
+        "lilies": 50,
+        "cattails": 52,
+        "trees": 127
+      },
+      {
+        "coverage": 16818,
+        "lilies": 50,
+        "cattails": 52,
+        "trees": 127
+      },
+      {
+        "coverage": 16827,
+        "lilies": 50,
+        "cattails": 52,
+        "trees": 127
+      },
+      {
+        "coverage": 16832,
+        "lilies": 50,
+        "cattails": 52,
+        "trees": 127
+      },
+      {
+        "coverage": 16836,
+        "lilies": 53,
+        "cattails": 52,
+        "trees": 135
+      },
+      {
+        "coverage": 16839,
+        "lilies": 53,
+        "cattails": 52,
+        "trees": 135
+      },
+      {
+        "coverage": 16842,
+        "lilies": 53,
+        "cattails": 52,
+        "trees": 135
+      },
+      {
+        "coverage": 16844,
+        "lilies": 53,
+        "cattails": 52,
+        "trees": 135
+      },
+      {
+        "coverage": 16846,
+        "lilies": 53,
+        "cattails": 52,
+        "trees": 135
+      },
+      {
+        "coverage": 16848,
+        "lilies": 56,
+        "cattails": 53,
+        "trees": 145
+      },
+      {
+        "coverage": 16850,
+        "lilies": 56,
+        "cattails": 53,
+        "trees": 145
+      },
+      {
+        "coverage": 16851,
+        "lilies": 56,
+        "cattails": 53,
+        "trees": 145
+      },
+      {
+        "coverage": 16852,
+        "lilies": 56,
+        "cattails": 53,
+        "trees": 145
+      },
+      {
+        "coverage": 16853,
+        "lilies": 56,
+        "cattails": 53,
+        "trees": 145
+      },
+      {
+        "coverage": 16854,
+        "lilies": 59,
+        "cattails": 53,
+        "trees": 151
+      },
+      {
+        "coverage": 16855,
+        "lilies": 59,
+        "cattails": 53,
+        "trees": 151
+      },
+      {
+        "coverage": 16855,
+        "lilies": 59,
+        "cattails": 53,
+        "trees": 151
+      },
+      {
+        "coverage": 16855,
+        "lilies": 59,
+        "cattails": 53,
+        "trees": 151
+      },
+      {
+        "coverage": 16856,
+        "lilies": 59,
+        "cattails": 53,
+        "trees": 151
+      },
+      {
+        "coverage": 16856,
+        "lilies": 63,
+        "cattails": 53,
+        "trees": 159
+      },
+      {
+        "coverage": 16856,
+        "lilies": 63,
+        "cattails": 53,
+        "trees": 159
+      },
+      {
+        "coverage": 16856,
+        "lilies": 63,
+        "cattails": 53,
+        "trees": 159
+      },
+      {
+        "coverage": 16857,
+        "lilies": 63,
+        "cattails": 53,
+        "trees": 159
+      },
+      {
+        "coverage": 16857,
+        "lilies": 63,
+        "cattails": 53,
+        "trees": 159
+      },
+      {
+        "coverage": 16857,
+        "lilies": 67,
+        "cattails": 54,
+        "trees": 167
+      },
+      {
+        "coverage": 16857,
+        "lilies": 67,
+        "cattails": 54,
+        "trees": 167
+      },
+      {
+        "coverage": 16857,
+        "lilies": 67,
+        "cattails": 54,
+        "trees": 167
+      },
+      {
+        "coverage": 16857,
+        "lilies": 67,
+        "cattails": 54,
+        "trees": 167
+      },
+      {
+        "coverage": 16857,
+        "lilies": 67,
+        "cattails": 54,
+        "trees": 167
+      },
+      {
+        "coverage": 16857,
+        "lilies": 74,
+        "cattails": 54,
+        "trees": 173
+      },
+      {
+        "coverage": 16857,
+        "lilies": 74,
+        "cattails": 54,
+        "trees": 173
+      },
+      {
+        "coverage": 16857,
+        "lilies": 74,
+        "cattails": 54,
+        "trees": 173
+      },
+      {
+        "coverage": 16857,
+        "lilies": 74,
+        "cattails": 54,
+        "trees": 173
+      },
+      {
+        "coverage": 16857,
+        "lilies": 74,
+        "cattails": 54,
+        "trees": 173
+      },
+      {
+        "coverage": 16857,
+        "lilies": 79,
+        "cattails": 55,
+        "trees": 186
+      },
+      {
+        "coverage": 16857,
+        "lilies": 79,
+        "cattails": 55,
+        "trees": 186
+      },
+      {
+        "coverage": 16857,
+        "lilies": 79,
+        "cattails": 55,
+        "trees": 186
+      },
+      {
+        "coverage": 16857,
+        "lilies": 79,
+        "cattails": 55,
+        "trees": 186
+      },
+      {
+        "coverage": 16857,
+        "lilies": 79,
+        "cattails": 55,
+        "trees": 186
+      },
+      {
+        "coverage": 16857,
+        "lilies": 84,
+        "cattails": 55,
+        "trees": 195
+      },
+      {
+        "coverage": 16857,
+        "lilies": 84,
+        "cattails": 55,
+        "trees": 195
+      },
+      {
+        "coverage": 16857,
+        "lilies": 84,
+        "cattails": 55,
+        "trees": 195
+      },
+      {
+        "coverage": 16857,
+        "lilies": 84,
+        "cattails": 55,
+        "trees": 195
+      },
+      {
+        "coverage": 16857,
+        "lilies": 84,
+        "cattails": 55,
+        "trees": 195
+      },
+      {
+        "coverage": 16857,
+        "lilies": 90,
+        "cattails": 55,
+        "trees": 201
+      },
+      {
+        "coverage": 16857,
+        "lilies": 90,
+        "cattails": 55,
+        "trees": 201
+      },
+      {
+        "coverage": 16857,
+        "lilies": 90,
+        "cattails": 55,
+        "trees": 201
+      },
+      {
+        "coverage": 16857,
+        "lilies": 90,
+        "cattails": 55,
+        "trees": 201
+      },
+      {
+        "coverage": 16857,
+        "lilies": 90,
+        "cattails": 55,
+        "trees": 201
+      }
+    ]
+  },
+  "stats": {
+    "treesDowned": 108,
+    "sticksPlaced": 58,
+    "mudPatted": 186,
+    "massiveTreesFelled": 24,
+    "mudDug": 190,
+    "maxWaterCoverage": 0,
+    "snacksEaten": 11
+  },
+  "aiBehaviorStats": {
+    "IDLE": 8582.990000001453,
+    "FIND_TREE": 521179.1519999998,
+    "CHOP_TREE": 238340.4659999989,
+    "WAIT_LOG": 39598.416000000725,
+    "DELIVER_WATER": 218141.27399999957,
+    "FORTIFY_DAM": 669673.2120000008,
+    "GATHER_MUD": 128694.85199999971,
+    "EAT": 59947.601999999904,
+    "FIND_LOG": 399.9840000000004,
+    "DIG_CHANNEL": 1244183.5639999988,
+    "EXPLORE": 418333.2660000016,
+    "PLAY": 52747.889999998966
+  },
+  "experiment": {
+    "name": "Run 006: Unified Main-Game Physics (60 mins)",
+    "description": "Removed the 0.025 sandbox slope override and substituted hardcoded hacks with the centralized globalTerrainConfig variables. Demonstrating stable beaver AI running strictly on the unmodified 0.1 slope from the main game over 60 simulated minutes.",
+    "changes": [
+      "terrainConfig.ts: Unified waterSourceRate (0.18), groundAbsorptionRate (0.0001), waterRenderThreshold (0.05), and bank parameters.",
+      "npc-sim.web.tsx: Removed arbitrary updateTerrainConfig flatteners. Target steps extended to 216,000 (60 mins).",
+      "WaterEngine.ts & terrain.ts: Decoupled hardcoded math and integrated global config hooks."
+    ],
+    "timestamp": "2026-04-12T02:38:00"
+  }
+}

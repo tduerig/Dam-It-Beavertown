@@ -1,0 +1,400 @@
+{
+  "status": "NPC_SIMULATION_COMPLETE_30_MINS",
+  "timeseries": {
+    "npc_beaver": [
+      {
+        "coverage": 6758,
+        "lilies": 49,
+        "cattails": 47,
+        "trees": 129
+      },
+      {
+        "coverage": 6394,
+        "lilies": 48,
+        "cattails": 47,
+        "trees": 129
+      },
+      {
+        "coverage": 6184,
+        "lilies": 48,
+        "cattails": 47,
+        "trees": 129
+      },
+      {
+        "coverage": 6117,
+        "lilies": 48,
+        "cattails": 47,
+        "trees": 129
+      },
+      {
+        "coverage": 6151,
+        "lilies": 48,
+        "cattails": 47,
+        "trees": 129
+      },
+      {
+        "coverage": 6288,
+        "lilies": 48,
+        "cattails": 47,
+        "trees": 152
+      },
+      {
+        "coverage": 6470,
+        "lilies": 48,
+        "cattails": 47,
+        "trees": 152
+      },
+      {
+        "coverage": 6659,
+        "lilies": 48,
+        "cattails": 47,
+        "trees": 151
+      },
+      {
+        "coverage": 6837,
+        "lilies": 48,
+        "cattails": 47,
+        "trees": 151
+      },
+      {
+        "coverage": 7008,
+        "lilies": 48,
+        "cattails": 47,
+        "trees": 151
+      },
+      {
+        "coverage": 7174,
+        "lilies": 48,
+        "cattails": 47,
+        "trees": 162
+      },
+      {
+        "coverage": 7329,
+        "lilies": 48,
+        "cattails": 47,
+        "trees": 162
+      },
+      {
+        "coverage": 7474,
+        "lilies": 48,
+        "cattails": 47,
+        "trees": 162
+      },
+      {
+        "coverage": 7615,
+        "lilies": 47,
+        "cattails": 47,
+        "trees": 162
+      },
+      {
+        "coverage": 7741,
+        "lilies": 47,
+        "cattails": 47,
+        "trees": 162
+      },
+      {
+        "coverage": 7852,
+        "lilies": 47,
+        "cattails": 47,
+        "trees": 177
+      },
+      {
+        "coverage": 7972,
+        "lilies": 47,
+        "cattails": 47,
+        "trees": 177
+      },
+      {
+        "coverage": 8089,
+        "lilies": 47,
+        "cattails": 47,
+        "trees": 177
+      },
+      {
+        "coverage": 8193,
+        "lilies": 47,
+        "cattails": 47,
+        "trees": 177
+      },
+      {
+        "coverage": 8287,
+        "lilies": 47,
+        "cattails": 47,
+        "trees": 177
+      },
+      {
+        "coverage": 8370,
+        "lilies": 47,
+        "cattails": 47,
+        "trees": 194
+      },
+      {
+        "coverage": 8445,
+        "lilies": 47,
+        "cattails": 47,
+        "trees": 194
+      },
+      {
+        "coverage": 8516,
+        "lilies": 47,
+        "cattails": 47,
+        "trees": 194
+      },
+      {
+        "coverage": 8584,
+        "lilies": 47,
+        "cattails": 47,
+        "trees": 194
+      },
+      {
+        "coverage": 8643,
+        "lilies": 46,
+        "cattails": 47,
+        "trees": 194
+      },
+      {
+        "coverage": 8693,
+        "lilies": 46,
+        "cattails": 47,
+        "trees": 215
+      },
+      {
+        "coverage": 8739,
+        "lilies": 46,
+        "cattails": 47,
+        "trees": 215
+      },
+      {
+        "coverage": 8781,
+        "lilies": 46,
+        "cattails": 47,
+        "trees": 215
+      },
+      {
+        "coverage": 8819,
+        "lilies": 46,
+        "cattails": 47,
+        "trees": 215
+      },
+      {
+        "coverage": 8855,
+        "lilies": 46,
+        "cattails": 47,
+        "trees": 215
+      }
+    ],
+    "control": [
+      {
+        "coverage": 6892,
+        "lilies": 46,
+        "cattails": 49,
+        "trees": 116
+      },
+      {
+        "coverage": 6558,
+        "lilies": 46,
+        "cattails": 49,
+        "trees": 116
+      },
+      {
+        "coverage": 6291,
+        "lilies": 46,
+        "cattails": 49,
+        "trees": 116
+      },
+      {
+        "coverage": 6108,
+        "lilies": 46,
+        "cattails": 49,
+        "trees": 116
+      },
+      {
+        "coverage": 5983,
+        "lilies": 46,
+        "cattails": 49,
+        "trees": 116
+      },
+      {
+        "coverage": 5900,
+        "lilies": 46,
+        "cattails": 49,
+        "trees": 122
+      },
+      {
+        "coverage": 5845,
+        "lilies": 46,
+        "cattails": 49,
+        "trees": 122
+      },
+      {
+        "coverage": 5806,
+        "lilies": 46,
+        "cattails": 49,
+        "trees": 122
+      },
+      {
+        "coverage": 5777,
+        "lilies": 46,
+        "cattails": 49,
+        "trees": 122
+      },
+      {
+        "coverage": 5757,
+        "lilies": 46,
+        "cattails": 49,
+        "trees": 122
+      },
+      {
+        "coverage": 5743,
+        "lilies": 46,
+        "cattails": 50,
+        "trees": 137
+      },
+      {
+        "coverage": 5736,
+        "lilies": 46,
+        "cattails": 50,
+        "trees": 137
+      },
+      {
+        "coverage": 5734,
+        "lilies": 46,
+        "cattails": 50,
+        "trees": 137
+      },
+      {
+        "coverage": 5735,
+        "lilies": 46,
+        "cattails": 50,
+        "trees": 137
+      },
+      {
+        "coverage": 5738,
+        "lilies": 46,
+        "cattails": 50,
+        "trees": 137
+      },
+      {
+        "coverage": 5744,
+        "lilies": 49,
+        "cattails": 53,
+        "trees": 145
+      },
+      {
+        "coverage": 5751,
+        "lilies": 49,
+        "cattails": 53,
+        "trees": 145
+      },
+      {
+        "coverage": 5759,
+        "lilies": 49,
+        "cattails": 53,
+        "trees": 145
+      },
+      {
+        "coverage": 5767,
+        "lilies": 49,
+        "cattails": 53,
+        "trees": 145
+      },
+      {
+        "coverage": 5774,
+        "lilies": 49,
+        "cattails": 53,
+        "trees": 145
+      },
+      {
+        "coverage": 5780,
+        "lilies": 52,
+        "cattails": 53,
+        "trees": 157
+      },
+      {
+        "coverage": 5786,
+        "lilies": 52,
+        "cattails": 53,
+        "trees": 157
+      },
+      {
+        "coverage": 5792,
+        "lilies": 52,
+        "cattails": 53,
+        "trees": 157
+      },
+      {
+        "coverage": 5798,
+        "lilies": 52,
+        "cattails": 53,
+        "trees": 157
+      },
+      {
+        "coverage": 5804,
+        "lilies": 52,
+        "cattails": 53,
+        "trees": 157
+      },
+      {
+        "coverage": 5809,
+        "lilies": 53,
+        "cattails": 53,
+        "trees": 163
+      },
+      {
+        "coverage": 5813,
+        "lilies": 53,
+        "cattails": 53,
+        "trees": 163
+      },
+      {
+        "coverage": 5816,
+        "lilies": 53,
+        "cattails": 53,
+        "trees": 163
+      },
+      {
+        "coverage": 5820,
+        "lilies": 53,
+        "cattails": 53,
+        "trees": 163
+      },
+      {
+        "coverage": 5824,
+        "lilies": 53,
+        "cattails": 53,
+        "trees": 163
+      }
+    ]
+  },
+  "stats": {
+    "treesDowned": 65,
+    "sticksPlaced": 36,
+    "mudPatted": 110,
+    "massiveTreesFelled": 13,
+    "mudDug": 116,
+    "maxWaterCoverage": 0,
+    "snacksEaten": 3
+  },
+  "aiBehaviorStats": {
+    "IDLE": 4983.1340000007895,
+    "GATHER_MUD": 87746.49000000012,
+    "FIND_TREE": 184992.5999999995,
+    "CHOP_TREE": 135944.56199999992,
+    "FORTIFY_DAM": 341219.68400000007,
+    "WAIT_LOG": 21449.141999999894,
+    "DELIVER_WATER": 74147.03399999996,
+    "PLAY": 22549.09799999997,
+    "EAT": 79096.83599999995,
+    "DIG_CHANNEL": 617975.2799999998,
+    "EXPLORE": 229790.80800000005
+  },
+  "experiment": {
+    "name": "Run 005: Multi-Dam + Fixed River Flow",
+    "description": "Lowered rendering and ground absorption thresholds to prevent the baseline river from visually evaporating. Extended AI timeout out to 25s for channel-digging and tree chopping so the beaver doesn\u2019t abandon half-finished dams.",
+    "changes": [
+      "WaterEngine.ts: Ground absorption reduced from 0.0001 to 0.00002. Water rendering depth lowered from 0.05 to 0.02.",
+      "BeaverAI.ts: Increased CHOP_TREE and DIG_CHANNEL timeout from 15s to 25s."
+    ],
+    "timestamp": "2026-04-12T01:15:00"
+  }
+}

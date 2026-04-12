@@ -6,6 +6,7 @@ import { useGameStore } from '../store';
 import { waterEngine } from '../utils/WaterEngine';
 import { BRANCH_CONFIGS } from './DraggableLogs';
 import { isChunkTerrainDirty, getGlobalStamp } from '../utils/terrainOffsets';
+import { getMudLevel, isMudChunkDirty, getMudGlobalStamp } from '../utils/mudEngine';
 import { woodEngine } from '../utils/woodEngine';
 
 const dummy = new THREE.Object3D();
@@ -53,9 +54,11 @@ function buildTerrainGeometry(chunkX: number, chunkZ: number): THREE.PlaneGeomet
       _color.copy(_sandColor);
     }
 
-    // Blend in mud color based on terrain modification
-    if (Math.abs(offset) > 0.05) {
-      const blend = Math.min(1, Math.abs(offset) / 0.8);
+    // Blend in mud color based on terrain modification OR water-generated mud
+    const mudSat = getMudLevel(x, z);
+    if (Math.abs(offset) > 0.05 || mudSat > 0.05) {
+      const offsetBlend = Math.abs(offset) > 0.05 ? Math.min(1, Math.abs(offset) / 0.8) : 0;
+      const blend = Math.max(offsetBlend, mudSat);
       _color.lerp(_mudColor, blend);
     }
 
@@ -75,6 +78,7 @@ export function Chunk({ chunkX, chunkZ }: { chunkX: number, chunkZ: number }) {
   // not when any remote chunk's terrain changes.
   const [terrainVersion, setTerrainVersion] = useState(0);
   const lastSeenStamp = useRef(0);
+  const lastSeenMudStamp = useRef(0);
   
   // Poll for terrain dirtiness every 6 frames (~10Hz). This is MUCH cheaper
   // than subscribing to terrainOffsets and getting broadcast-invalidated on every
@@ -82,6 +86,9 @@ export function Chunk({ chunkX, chunkZ }: { chunkX: number, chunkZ: number }) {
   useFrame(() => {
     if (isChunkTerrainDirty(chunkX, chunkZ, lastSeenStamp.current)) {
       lastSeenStamp.current = getGlobalStamp();
+      setTerrainVersion(v => v + 1);
+    } else if (isMudChunkDirty(chunkX, chunkZ, lastSeenMudStamp.current)) {
+      lastSeenMudStamp.current = getMudGlobalStamp();
       setTerrainVersion(v => v + 1);
     }
   });

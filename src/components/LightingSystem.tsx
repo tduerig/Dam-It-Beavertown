@@ -16,11 +16,13 @@ export function LightingSystem() {
 
   // Manual tick for game loop time
   useFrame((state, delta) => {
-    if (useGameStore.getState().gameState === 'playing') {
-      updateTimeOfDay(delta);
+    const gState = useGameStore.getState();
+    if (gState.gameState === 'playing') {
+      const dayLength = gState.dayLength || 300;
+      gState.timeOfDay = (gState.timeOfDay + delta / dayLength) % 1;
     }
     
-    const timeOfDay = useGameStore.getState().timeOfDay;
+    const timeOfDay = gState.timeOfDay;
     // Discretize into 24 hours
     const currentHour = Math.floor(timeOfDay * 24);
     const discreteTime = currentHour / 24;

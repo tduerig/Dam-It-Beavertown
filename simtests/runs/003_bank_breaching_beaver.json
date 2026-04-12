@@ -1,0 +1,343 @@
+{
+  "status": "NPC_SIMULATION_COMPLETE_20_MINS",
+  "timeseries": {
+    "npc_beaver": [
+      {
+        "coverage": 7579,
+        "lilies": 58,
+        "cattails": 55,
+        "trees": 110
+      },
+      {
+        "coverage": 7573,
+        "lilies": 57,
+        "cattails": 54,
+        "trees": 110
+      },
+      {
+        "coverage": 7702,
+        "lilies": 57,
+        "cattails": 54,
+        "trees": 110
+      },
+      {
+        "coverage": 7954,
+        "lilies": 57,
+        "cattails": 54,
+        "trees": 110
+      },
+      {
+        "coverage": 8226,
+        "lilies": 57,
+        "cattails": 54,
+        "trees": 110
+      },
+      {
+        "coverage": 7741,
+        "lilies": 53,
+        "cattails": 43,
+        "trees": 122
+      },
+      {
+        "coverage": 7729,
+        "lilies": 53,
+        "cattails": 43,
+        "trees": 122
+      },
+      {
+        "coverage": 7807,
+        "lilies": 53,
+        "cattails": 43,
+        "trees": 122
+      },
+      {
+        "coverage": 7928,
+        "lilies": 53,
+        "cattails": 43,
+        "trees": 122
+      },
+      {
+        "coverage": 8071,
+        "lilies": 53,
+        "cattails": 43,
+        "trees": 122
+      },
+      {
+        "coverage": 8154,
+        "lilies": 53,
+        "cattails": 43,
+        "trees": 147
+      },
+      {
+        "coverage": 8171,
+        "lilies": 53,
+        "cattails": 43,
+        "trees": 147
+      },
+      {
+        "coverage": 8267,
+        "lilies": 53,
+        "cattails": 43,
+        "trees": 147
+      },
+      {
+        "coverage": 8453,
+        "lilies": 53,
+        "cattails": 43,
+        "trees": 147
+      },
+      {
+        "coverage": 8666,
+        "lilies": 53,
+        "cattails": 43,
+        "trees": 147
+      },
+      {
+        "coverage": 8880,
+        "lilies": 53,
+        "cattails": 43,
+        "trees": 155
+      },
+      {
+        "coverage": 9065,
+        "lilies": 53,
+        "cattails": 43,
+        "trees": 155
+      },
+      {
+        "coverage": 9219,
+        "lilies": 52,
+        "cattails": 43,
+        "trees": 155
+      },
+      {
+        "coverage": 9362,
+        "lilies": 52,
+        "cattails": 43,
+        "trees": 155
+      },
+      {
+        "coverage": 9500,
+        "lilies": 52,
+        "cattails": 42,
+        "trees": 155
+      },
+      {
+        "coverage": 9621,
+        "lilies": 52,
+        "cattails": 42,
+        "trees": 171
+      },
+      {
+        "coverage": 9731,
+        "lilies": 52,
+        "cattails": 42,
+        "trees": 171
+      },
+      {
+        "coverage": 9834,
+        "lilies": 52,
+        "cattails": 42,
+        "trees": 170
+      },
+      {
+        "coverage": 9914,
+        "lilies": 52,
+        "cattails": 42,
+        "trees": 170
+      },
+      {
+        "coverage": 9980,
+        "lilies": 52,
+        "cattails": 42,
+        "trees": 170
+      }
+    ],
+    "control": [
+      {
+        "coverage": 7741,
+        "lilies": 64,
+        "cattails": 55,
+        "trees": 92
+      },
+      {
+        "coverage": 7729,
+        "lilies": 64,
+        "cattails": 55,
+        "trees": 92
+      },
+      {
+        "coverage": 7807,
+        "lilies": 64,
+        "cattails": 55,
+        "trees": 92
+      },
+      {
+        "coverage": 7928,
+        "lilies": 64,
+        "cattails": 55,
+        "trees": 92
+      },
+      {
+        "coverage": 8071,
+        "lilies": 64,
+        "cattails": 55,
+        "trees": 92
+      },
+      {
+        "coverage": 7741,
+        "lilies": 46,
+        "cattails": 46,
+        "trees": 120
+      },
+      {
+        "coverage": 7729,
+        "lilies": 46,
+        "cattails": 46,
+        "trees": 120
+      },
+      {
+        "coverage": 7807,
+        "lilies": 46,
+        "cattails": 46,
+        "trees": 120
+      },
+      {
+        "coverage": 7928,
+        "lilies": 46,
+        "cattails": 46,
+        "trees": 120
+      },
+      {
+        "coverage": 8071,
+        "lilies": 46,
+        "cattails": 46,
+        "trees": 120
+      },
+      {
+        "coverage": 8190,
+        "lilies": 46,
+        "cattails": 46,
+        "trees": 133
+      },
+      {
+        "coverage": 8301,
+        "lilies": 46,
+        "cattails": 46,
+        "trees": 133
+      },
+      {
+        "coverage": 8405,
+        "lilies": 46,
+        "cattails": 46,
+        "trees": 133
+      },
+      {
+        "coverage": 8501,
+        "lilies": 46,
+        "cattails": 46,
+        "trees": 133
+      },
+      {
+        "coverage": 8584,
+        "lilies": 46,
+        "cattails": 46,
+        "trees": 133
+      },
+      {
+        "coverage": 8657,
+        "lilies": 48,
+        "cattails": 46,
+        "trees": 147
+      },
+      {
+        "coverage": 8721,
+        "lilies": 48,
+        "cattails": 46,
+        "trees": 147
+      },
+      {
+        "coverage": 8780,
+        "lilies": 48,
+        "cattails": 46,
+        "trees": 147
+      },
+      {
+        "coverage": 8833,
+        "lilies": 48,
+        "cattails": 46,
+        "trees": 147
+      },
+      {
+        "coverage": 8880,
+        "lilies": 48,
+        "cattails": 46,
+        "trees": 147
+      },
+      {
+        "coverage": 8922,
+        "lilies": 50,
+        "cattails": 46,
+        "trees": 163
+      },
+      {
+        "coverage": 8959,
+        "lilies": 50,
+        "cattails": 46,
+        "trees": 163
+      },
+      {
+        "coverage": 8991,
+        "lilies": 50,
+        "cattails": 46,
+        "trees": 163
+      },
+      {
+        "coverage": 9016,
+        "lilies": 50,
+        "cattails": 46,
+        "trees": 163
+      },
+      {
+        "coverage": 9036,
+        "lilies": 50,
+        "cattails": 46,
+        "trees": 163
+      }
+    ]
+  },
+  "stats": {
+    "treesDowned": 34,
+    "sticksPlaced": 21,
+    "mudPatted": 62,
+    "massiveTreesFelled": 7,
+    "mudDug": 71,
+    "maxWaterCoverage": 0,
+    "snacksEaten": 2
+  },
+  "aiBehaviorStats": {
+    "IDLE": 3983.1740000004206,
+    "GATHER_MUD": 59847.60599999996,
+    "FIND_TREE": 103145.87400000008,
+    "CHOP_TREE": 96579.47000003938,
+    "FORTIFY_DAM": 238490.4599999995,
+    "PLAY": 39898.40399999994,
+    "EAT": 5949.762000000032,
+    "WAIT_LOG": 14849.405999999915,
+    "DELIVER_WATER": 64297.42799999994,
+    "DIG_CHANNEL": 367218.6439999994,
+    "EXPLORE": 205641.77400000047
+  },
+  "experiment": {
+    "name": "Bank-Breaching Beaver + Higher Flow",
+    "description": "DIG_CHANNEL AI behavior: beaver digs lateral trenches through riverbanks upstream of dam. River flow 0.18\u21920.35. Bank lip 5\u21922.5. Cattail range extended to 0.6.",
+    "changes": [
+      "BeaverAI.ts: Added DIG_CHANNEL state \u2014 digs 4 lateral channels on alternating sides",
+      "BeaverAI.ts: Reduced play/eat frequency (0.25\u21920.15) for more dam-building time",
+      "WaterEngine.ts: River source 0.18\u21920.35, cap 10\u219215",
+      "terrain.ts: Bank lip 5\u21922.5, slope 0.5\u21920.3 (lower, gentler banks)",
+      "ecology.ts: Cattail range 0.02-0.4\u21920.02-0.6, cap 6\u219210"
+    ],
+    "timestamp": "2026-04-11T05:03:00"
+  }
+}

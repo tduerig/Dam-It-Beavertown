@@ -85,45 +85,39 @@ export function WaterRenderer() {
       // Single pass: compute vertex Y positions AND analytical normals inline.
       // This replaces the separate computeVertexNormals() call which was O(N²)
       // and cost 2-3ms on web, 6-10ms on Android.
+      const renderConfig = getRenderConfig();
+      const doNormals = renderConfig.computeWaterNormals;
+
+      // O(1) Memory loop for height retrieval (bypasses 1.5 million array condition branches per second)
       for (let z = 0; z < WATER_SIZE; z++) {
         for (let x = 0; x < WATER_SIZE; x++) {
           const i = z * WATER_SIZE + x;
           const w = waterEngine.W[i];
-          const vx = waterEngine.VX[i];
-          const vz = waterEngine.VZ[i];
-          const speed = Math.sqrt(vx*vx + vz*vz);
           
-          let y: number;
           let ripple = 0;
-          
-          if (w > 0.05) {
-            const worldX = waterEngine.originX - (WATER_SIZE / 2) + x;
-            const worldZ = waterEngine.originZ - (WATER_SIZE / 2) + z;
-            const renderConfig = getRenderConfig();
-            
-            // Bypass high-cost trigonometry entirely on Low/Med mobile tiers
-            if (renderConfig.computeWaterNormals) {
-              const flowDirX = speed > 0.1 ? vx / speed : 0;
-              const flowDirZ = speed > 0.1 ? vz / speed : 1;
-              // Pseudo-sine fast approximation using triangle wave for mobile
-              // Valid mathematically mostly locally:
-              const tx = (worldX * 1.5 - flowDirX * time * 5) % (Math.PI * 2);
-              const tz = (worldZ * 1.5 - flowDirZ * time * 5) % (Math.PI * 2);
-              
-              ripple = Math.sin(tx) * 0.04 + Math.sin(tz) * 0.04;
-            }
+          if (doNormals && w > 0.05) {
+             const vx = waterEngine.VX[i];
+             const vz = waterEngine.VZ[i];
+             const speed = Math.sqrt(vx*vx + vz*vz);
+             
+             const worldX = waterEngine.originX - (WATER_SIZE / 2) + x;
+             const worldZ = waterEngine.originZ - (WATER_SIZE / 2) + z;
+             
+             const flowDirX = speed > 0.1 ? vx / speed : 0;
+             const flowDirZ = speed > 0.1 ? vz / speed : 1;
+             
+             const tx = (worldX * 1.5 - flowDirX * time * 5) % (Math.PI * 2);
+             const tz = (worldZ * 1.5 - flowDirZ * time * 5) % (Math.PI * 2);
+             
+             ripple = Math.sin(tx) * 0.04 + Math.sin(tz) * 0.04;
           }
           
-          // Continuous sloped entry into the terrain prevents jagged vertical blocks. 
-          // Subtracted 0.1 drops dry vertices comfortably below the terrain (no z-fighting)
-          y = waterEngine.T[i] + w - 0.1 + ripple;
-          pos[i * 3 + 1] = y;
+          pos[i * 3 + 1] = waterEngine.RenderY[i] + ripple;
         }
       }
       
       // Analytical normals: for a regular grid, normal = cross(dz, dx) of height differences.
       // This is ~10× cheaper than Three.js's generic face-by-face computeVertexNormals().
-      const renderConfig = getRenderConfig();
       if (renderConfig.computeWaterNormals) {
         const shouldCompute = renderConfig.waterNormalSkipFrames === 0 ||
           (Math.floor(time * 60) % (renderConfig.waterNormalSkipFrames + 1) === 0);

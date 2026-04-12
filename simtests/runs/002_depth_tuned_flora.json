@@ -1,0 +1,317 @@
+{
+  "status": "NPC_SIMULATION_COMPLETE_20_MINS",
+  "timeseries": {
+    "npc_beaver": [
+      {
+        "coverage": 12037,
+        "lilies": 45,
+        "cattails": 55,
+        "trees": 122
+      },
+      {
+        "coverage": 12500,
+        "lilies": 45,
+        "cattails": 54,
+        "trees": 122
+      },
+      {
+        "coverage": 12664,
+        "lilies": 45,
+        "cattails": 54,
+        "trees": 122
+      },
+      {
+        "coverage": 12171,
+        "lilies": 56,
+        "cattails": 44,
+        "trees": 131
+      },
+      {
+        "coverage": 12693,
+        "lilies": 56,
+        "cattails": 44,
+        "trees": 131
+      },
+      {
+        "coverage": 12845,
+        "lilies": 56,
+        "cattails": 44,
+        "trees": 131
+      },
+      {
+        "coverage": 12963,
+        "lilies": 56,
+        "cattails": 44,
+        "trees": 131
+      },
+      {
+        "coverage": 12908,
+        "lilies": 55,
+        "cattails": 44,
+        "trees": 131
+      },
+      {
+        "coverage": 12969,
+        "lilies": 55,
+        "cattails": 44,
+        "trees": 153
+      },
+      {
+        "coverage": 13101,
+        "lilies": 55,
+        "cattails": 44,
+        "trees": 152
+      },
+      {
+        "coverage": 13237,
+        "lilies": 54,
+        "cattails": 43,
+        "trees": 152
+      },
+      {
+        "coverage": 13341,
+        "lilies": 52,
+        "cattails": 43,
+        "trees": 152
+      },
+      {
+        "coverage": 13493,
+        "lilies": 52,
+        "cattails": 43,
+        "trees": 152
+      },
+      {
+        "coverage": 13643,
+        "lilies": 52,
+        "cattails": 41,
+        "trees": 168
+      },
+      {
+        "coverage": 13754,
+        "lilies": 52,
+        "cattails": 41,
+        "trees": 168
+      },
+      {
+        "coverage": 13903,
+        "lilies": 52,
+        "cattails": 41,
+        "trees": 167
+      },
+      {
+        "coverage": 14053,
+        "lilies": 52,
+        "cattails": 40,
+        "trees": 166
+      },
+      {
+        "coverage": 14199,
+        "lilies": 52,
+        "cattails": 40,
+        "trees": 166
+      },
+      {
+        "coverage": 14361,
+        "lilies": 51,
+        "cattails": 40,
+        "trees": 178
+      },
+      {
+        "coverage": 14493,
+        "lilies": 51,
+        "cattails": 40,
+        "trees": 178
+      },
+      {
+        "coverage": 14600,
+        "lilies": 51,
+        "cattails": 40,
+        "trees": 178
+      },
+      {
+        "coverage": 14684,
+        "lilies": 51,
+        "cattails": 40,
+        "trees": 178
+      },
+      {
+        "coverage": 14747,
+        "lilies": 51,
+        "cattails": 40,
+        "trees": 178
+      }
+    ],
+    "control": [
+      {
+        "coverage": 12171,
+        "lilies": 50,
+        "cattails": 48,
+        "trees": 118
+      },
+      {
+        "coverage": 12693,
+        "lilies": 50,
+        "cattails": 48,
+        "trees": 118
+      },
+      {
+        "coverage": 12845,
+        "lilies": 50,
+        "cattails": 48,
+        "trees": 118
+      },
+      {
+        "coverage": 12171,
+        "lilies": 33,
+        "cattails": 55,
+        "trees": 126
+      },
+      {
+        "coverage": 12693,
+        "lilies": 33,
+        "cattails": 55,
+        "trees": 126
+      },
+      {
+        "coverage": 12845,
+        "lilies": 33,
+        "cattails": 55,
+        "trees": 126
+      },
+      {
+        "coverage": 12963,
+        "lilies": 33,
+        "cattails": 55,
+        "trees": 126
+      },
+      {
+        "coverage": 13089,
+        "lilies": 33,
+        "cattails": 55,
+        "trees": 126
+      },
+      {
+        "coverage": 13212,
+        "lilies": 35,
+        "cattails": 55,
+        "trees": 133
+      },
+      {
+        "coverage": 13334,
+        "lilies": 35,
+        "cattails": 55,
+        "trees": 133
+      },
+      {
+        "coverage": 13445,
+        "lilies": 35,
+        "cattails": 55,
+        "trees": 133
+      },
+      {
+        "coverage": 13546,
+        "lilies": 35,
+        "cattails": 55,
+        "trees": 133
+      },
+      {
+        "coverage": 13634,
+        "lilies": 35,
+        "cattails": 55,
+        "trees": 133
+      },
+      {
+        "coverage": 13704,
+        "lilies": 37,
+        "cattails": 55,
+        "trees": 140
+      },
+      {
+        "coverage": 13757,
+        "lilies": 37,
+        "cattails": 55,
+        "trees": 140
+      },
+      {
+        "coverage": 13800,
+        "lilies": 37,
+        "cattails": 55,
+        "trees": 140
+      },
+      {
+        "coverage": 13836,
+        "lilies": 37,
+        "cattails": 55,
+        "trees": 140
+      },
+      {
+        "coverage": 13867,
+        "lilies": 37,
+        "cattails": 55,
+        "trees": 140
+      },
+      {
+        "coverage": 13893,
+        "lilies": 40,
+        "cattails": 55,
+        "trees": 151
+      },
+      {
+        "coverage": 13914,
+        "lilies": 40,
+        "cattails": 55,
+        "trees": 151
+      },
+      {
+        "coverage": 13929,
+        "lilies": 40,
+        "cattails": 55,
+        "trees": 151
+      },
+      {
+        "coverage": 13942,
+        "lilies": 40,
+        "cattails": 55,
+        "trees": 151
+      },
+      {
+        "coverage": 13955,
+        "lilies": 40,
+        "cattails": 55,
+        "trees": 151
+      }
+    ]
+  },
+  "stats": {
+    "treesDowned": 65,
+    "sticksPlaced": 19,
+    "mudPatted": 150,
+    "massiveTreesFelled": 8,
+    "mudDug": 156,
+    "maxWaterCoverage": 0,
+    "snacksEaten": 9
+  },
+  "aiBehaviorStats": {
+    "IDLE": 5633.107999999744,
+    "GATHER_MUD": 178692.85199999996,
+    "EAT": 27998.879999999954,
+    "FIND_TREE": 305804.4339999901,
+    "CHOP_TREE": 163193.47199999995,
+    "WAIT_LOG": 24749.009999999944,
+    "DELIVER_WATER": 50497.98000000008,
+    "FORTIFY_DAM": 384084.6360000001,
+    "PLAY": 50097.9960000001,
+    "FIND_LOG": 799.9680000000226,
+    "EXPLORE": 8349.665999999968
+  },
+  "experiment": {
+    "name": "Depth-Responsive Flora Tuning",
+    "description": "Lilies require depth>=0.5 with depthBonus scaling. Cattails shallow band 0.02-0.4 with shallowBonus. Ecology ticks every 5 min.",
+    "changes": [
+      "ecology.ts: lily depth 0.2\u21920.5, spawn rate 0.08\u21920.10*depthBonus",
+      "ecology.ts: cattail range 0.01-0.2\u21920.02-0.4, rate 0.20\u21920.18*(0.5+shallowBonus)",
+      "npc-sim: control-world ecology synced with same rules"
+    ],
+    "timestamp": "2026-04-10T16:40:00"
+  }
+}

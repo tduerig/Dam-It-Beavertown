@@ -4,6 +4,7 @@ import { Platform } from 'react-native';
 import { useGameStore, BlockType } from '../store';
 import { woodEngine } from '../utils/woodEngine';
 import { getTerrainHeight, getBaseTerrainHeight, getRiverCenter, RIVER_WIDTH, CHUNK_SIZE, generateTreesForChunk } from '../utils/terrain';
+import { canGatherMud, gatherMud } from '../utils/mudEngine';
 import * as THREE from 'three';
 import { soundEngine } from '../utils/SoundEngine';
 
@@ -107,15 +108,15 @@ export function Interaction() {
         }
       }
 
-      const riverX = getRiverCenter(playerVec.z);
-      if (!collected && Math.abs(playerVec.x - riverX) < RIVER_WIDTH + 2) {
-        const distance = 2;
-        const dx = Math.sin(state.playerRotation + Math.PI) * distance;
-        const dz = Math.cos(state.playerRotation + Math.PI) * distance;
-        const digX = playerVec.x + dx;
-        const digZ = playerVec.z + dz;
+      const distance = 2;
+      const dx = Math.sin(state.playerRotation + Math.PI) * distance;
+      const dz = Math.cos(state.playerRotation + Math.PI) * distance;
+      const digX = playerVec.x + dx;
+      const digZ = playerVec.z + dz;
 
+      if (!collected && canGatherMud(digX, digZ)) {
         state.modifyTerrain(digX, digZ, -0.5, 3.0);
+        gatherMud(digX, digZ);
         state.addInventory('mud', 1);
         state.triggerAction('gather', 'mud');
         soundEngine.playSplash();
@@ -247,39 +248,31 @@ export function Interaction() {
     }
   }, [handleAction]);
 
-  const lastActionTime = useRef(0);
-
-  useEffect(() => {
-    if (virtualButtons.action1 && !prevButtons.current.action1) {
-      handleAction('KeyE');
-      lastActionTime.current = performance.now() + 150; // Small delay before auto-repeat kicks in
-    }
-    if (virtualButtons.action2 && !prevButtons.current.action2) {
-      handleAction('KeyF');
-      lastActionTime.current = performance.now() + 150;
-    }
-    if (virtualButtons.action3 && !prevButtons.current.action3) {
-      handleAction('KeyG');
-      lastActionTime.current = performance.now() + 150;
-    }
-    prevButtons.current = virtualButtons;
-  }, [virtualButtons, handleAction]);
+  const lastPressTimes = useRef({ action1: 0, action2: 0, action3: 0 });
+  const prevButtonsFrame = useRef({ jump: false, crouch: false, action1: false, action2: false, action3: false });
 
   useFrame(() => {
     const now = performance.now();
-    if (now - lastActionTime.current > 80) {
-      const state = useGameStore.getState().virtualButtons;
-      if (state.action1) {
-        handleAction('KeyE');
-        lastActionTime.current = now;
-      } else if (state.action2) {
-        handleAction('KeyF');
-        lastActionTime.current = now;
-      } else if (state.action3) {
-        handleAction('KeyG');
-        lastActionTime.current = now;
-      }
+    const state = useGameStore.getState().virtualButtons;
+
+    const justPressed1 = state.action1 && !prevButtonsFrame.current.action1;
+    const justPressed2 = state.action2 && !prevButtonsFrame.current.action2;
+    const justPressed3 = state.action3 && !prevButtonsFrame.current.action3;
+
+    // Strict Discrete Single-Tap Logic: Fires only once per physical rising edge.
+    // 150ms hardware jitter debounce ensures double-firing never occurs from touch bouncing.
+    if (justPressed1 && now - lastPressTimes.current.action1 > 150) {
+      handleAction('KeyE');
+      lastPressTimes.current.action1 = now;
+    } else if (justPressed2 && now - lastPressTimes.current.action2 > 150) {
+      handleAction('KeyF');
+      lastPressTimes.current.action2 = now;
+    } else if (justPressed3 && now - lastPressTimes.current.action3 > 150) {
+      handleAction('KeyG');
+      lastPressTimes.current.action3 = now;
     }
+
+    prevButtonsFrame.current = { ...state };
   });
 
   return null;

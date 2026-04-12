@@ -8,6 +8,7 @@ import { rebuildRegionData } from './components/GlobalFlora';
 import { woodEngine } from './utils/woodEngine';
 import { QualitySettings, QualityLevel, detectDefaultQuality, updateCachedConfigs } from './utils/qualityTier';
 import { applyTerrainMod, applyTerrainBatch, serializeOffsets, deserializeOffsets, getGlobalStamp } from './utils/terrainOffsets';
+import { serializeMud, deserializeMud, clearMud } from './utils/mudEngine';
 
 export type BlockType = 'stick' | 'mud';
 
@@ -226,7 +227,8 @@ export const useGameStore = create<GameState>((set, get) => ({
     const saveState = {
       inventory, stats, settings, placedBlocks, draggableLogs, playerPosition, playerRotation, timeOfDay,
       terrainOffsets: serializeOffsets(),
-      treeSticks: woodEngine.serialize()
+      treeSticks: woodEngine.serialize(),
+      mudSaturation: serializeMud()
     };
     try {
       await AsyncStorage.setItem('beavertown_save', JSON.stringify(saveState));
@@ -247,6 +249,9 @@ export const useGameStore = create<GameState>((set, get) => ({
           woodEngine.deserialize(loadedState.treeSticks);
         } else {
           woodEngine.deserialize({});
+        }
+        if (loadedState.mudSaturation) {
+          deserializeMud(loadedState.mudSaturation);
         }
         set({
           inventory: loadedState.inventory,
@@ -270,6 +275,7 @@ export const useGameStore = create<GameState>((set, get) => ({
     // we do a deep state reset instead to avoid crashing the RN app.
     deserializeOffsets({}); 
     woodEngine.deserialize({}); 
+    clearMud();
     floraCache.clear();
     const { clearGeneratedTerrain } = require('./utils/terrain');
     clearGeneratedTerrain();

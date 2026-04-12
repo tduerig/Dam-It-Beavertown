@@ -16,10 +16,12 @@ export const RIVER_WIDTH = 8; // Legacy export for minor uses. Real width is in 
 export const SLOPE = 0.1; // Downhill towards +Z
 
 export function getRiverCenter(z: number): number {
+  if (z > 1000) z -= 2000;
   return noise2D(z * globalTerrainConfig.twistFrequency, 0) * globalTerrainConfig.twistAmplitude; // Meandering river
 }
 
 export function getBaseTerrainHeight(x: number, z: number): number {
+  if (z > 1000) z -= 2000;
   let height = noise2D(x * 0.05, z * 0.05) * 5;
   height += noise2D(x * 0.1, z * 0.1) * 2;
   
@@ -31,7 +33,7 @@ export function getBaseTerrainHeight(x: number, z: number): number {
     const riverBedHeight = -globalTerrainConfig.riverDepth + noise2D(x * 0.2, z * 0.2);
     height = riverBedHeight * (1 - t) + height * t;
   } else {
-    height += Math.max(0, 5 - (distFromRiver - globalTerrainConfig.riverWidth) * 0.5);
+    height += Math.max(0, globalTerrainConfig.bankLipHeight - (distFromRiver - globalTerrainConfig.riverWidth) * globalTerrainConfig.bankSlope);
   }
 
   // Apply global slope
@@ -75,9 +77,11 @@ export function generateTreesForChunk(chunkX: number, chunkZ: number) {
   
   // Decreased density by 60% (from 80 to 32)
   for (let i = 0; i < 32; i++) {
+    // Map logical chunkZ for noise evaluation so the Control biome matches the Beaver biome perfectly
+    const logicalChunkZ = chunkZ > 25 ? chunkZ - 50 : chunkZ;
     // Use noise to get deterministic random-like values between 0 and 1
-    const rx = (noise2D(chunkX + i * 0.1, chunkZ) + 1) / 2;
-    const rz = (noise2D(chunkX, chunkZ + i * 0.1) + 1) / 2;
+    const rx = (noise2D(chunkX + i * 0.1, logicalChunkZ) + 1) / 2;
+    const rz = (noise2D(chunkX, logicalChunkZ + i * 0.1) + 1) / 2;
     
     const x = offsetX + (rx - 0.5) * CHUNK_SIZE;
     const z = offsetZ + (rz - 0.5) * CHUNK_SIZE;

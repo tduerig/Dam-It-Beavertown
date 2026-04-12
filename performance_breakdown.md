@@ -34,4 +34,25 @@ Below is the granular layout of where `Beavertown` consumes these MS, backed up 
 
 > [!WARNING]
 > **Mobile Starvation Vector**
-> The current setup sits at `~14ms/16.6ms` rendering load mathematically during active massive sweeps (tree collapsing into multiple logs). If a mobile device processor struggles with WebGL instantiation and pushes rendering into `12ms` territory, the frame will immediately drop resulting in ~40 FPS. The `InstancedMesh` guarantees we survive without completely dropping to 5 FPS.
+> The current setup sits at `~14ms/16.6ms` rendering load mathematically during active massive sweeps. If a mobile device processor struggles with WebGL instantiation and pushes rendering into `12ms` territory, the frame will immediately drop resulting in ~40 FPS. The `InstancedMesh` guarantees we survive without completely dropping to 5 FPS.
+
+---
+
+### Expanded Android V8 Bottleneck Report
+When running Dam It Beavertown on older Android devices (Snapdragon chips) vs modern iPhones, Android tends to throttle drastically in **two** specific arenas:
+
+1. **Analytical Geometry Computations (Trigonometry)**
+   Android's WebGL overhead suffers immensely when Javascript hands it structurally changing vertices that were computed via `Math.sin()`. Previously, our Medium quality tier computed `Math.sin()` for all 3600+ water cells every tick to generate wave ripples. 
+   **The Fix:** We downgraded Android to only render flat topological water arrays native to the `WaterEngine`, bypassing thousands of geometry math evaluations in JS.
+
+2. **The Zustand Ticking Storm (GC Overhead)**
+   Android's native V8 JavaScript garbage collector is notoriously aggressive and block-heavy. Before optimization, `Beaver.tsx` pushed `playerPosition` and `playerRotation`, alongside `LightingSystem.tsx`'s `timeOfDay`, exactly 60 times a second using the normal Zustand `set()` dispatcher.
+   - This forced Zustand to shallow-copy the monolithic `GameState` root object 180 times a second.
+   - It also forced Zustand to check all UI React Selectors 180 times a second.
+   **The In-Place Mutation Curing:** We completely severed these high-frequency reads from the React DOM tree. `Beaver.tsx` and `LightingSystem.tsx` now pull the immediate `getState()` reference pointer and physically assign `[pos.x, pos.y, pos.z]` values into the exact same array bounds instantly, completely bypassing the Zustand reactive merge and producing **0 garbage objects per frame**.
+
+3. **React `useFrame` Vertex Iteration Limits**
+   Even after throttling WebGL graphics (like shadows and water geometry normals), we discovered that traversing arrays *inside* `useFrame` causes massive CPU wait cycles on slower mobile architectures. `WaterRenderer.tsx` evaluates a flat plane grid mathematically mapping to `WaterEngine`.
+   - **The Bottleneck**: Originally, pulling 160x160 vertices (25,600 iterations/frame) to map to WebGL wasn't too bad, but 90% of the map routinely remains "dry". If the node reported false on a depth check, it blindly triggered 4 directional array lookups (`i-1`, `i+1`, `i-size`, `i+size`) to bind adjacent edge vertices. This meant executing **~1.54 million logic branches per second** inside the exact loop that dictates frames-per-second lockstep.
+   - **The Engine Architectural Decoupling**: We explicitly relocated all branching geometry bounds (dry adjacent bounds smoothing logic) directly into `WaterEngine.ts`. It now computes `RenderY` natively at the tail offset of the physical simulation loop, which inherently runs at a decoupled internal metric of **15 / 30 TPS** bounds.
+   - Now, the 60hz `useFrame()` visual hook has zero mathematical branches; it literally maps array to array at `O(1)` memory lookup. The CPU overhead is essentially obliterated, leaving pure graphics to push frames.

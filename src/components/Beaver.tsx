@@ -446,9 +446,12 @@ export function Beaver() {
       }
     }
 
-    // Update store
-    setPlayerPosition([pos.x, pos.y, pos.z]);
-    setPlayerRotation(groupRef.current.rotation.y);
+    // Update store (In-place mutation prevents Zustand GC ticking storm at 60Hz!)
+    const gState = useGameStore.getState();
+    gState.playerPosition[0] = pos.x;
+    gState.playerPosition[1] = pos.y;
+    gState.playerPosition[2] = pos.z;
+    gState.playerRotation = groupRef.current.rotation.y;
 
     // Animate gather/place
     const { lastAction } = useGameStore.getState();

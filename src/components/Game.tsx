@@ -23,7 +23,7 @@ export function Game() {
 
   return (
     <>
-      <Canvas shadows={gfx.shadowsEnabled} camera={{ position: [0, 10, 20], fov: 60 }} gl={{ antialias: gfx.antiAlias }}>
+      <Canvas shadows={gfx.shadowsEnabled} camera={{ position: [0, 10, 20], fov: 60 }} gl={{ antialias: gfx.antiAlias, preserveDrawingBuffer: true }}>
         {showStats && <PerfProbe />}
         <fog attach="fog" args={['#87a96b', gfx.fogNear, gfx.fogFar]} />
         <Suspense fallback={null}>

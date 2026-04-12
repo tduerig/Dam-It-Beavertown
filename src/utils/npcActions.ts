@@ -1,6 +1,7 @@
 import { useGameStore, BlockType } from '../store';
 import { woodEngine } from './woodEngine';
 import { getTerrainHeight, getBaseTerrainHeight } from './terrain';
+import { gatherMud } from './mudEngine';
 import * as THREE from 'three';
 import { soundEngine } from './SoundEngine';
 
@@ -42,6 +43,7 @@ export const npcActions = {
   digMud(targetCoords: { x: number, z: number }) {
     const state = useGameStore.getState();
     state.modifyTerrain(targetCoords.x, targetCoords.z, -0.5, 3.0);
+    gatherMud(targetCoords.x, targetCoords.z);
     state.addInventory('mud', 1);
     soundEngine.playSplash();
   },

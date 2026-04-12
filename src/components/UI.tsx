@@ -8,6 +8,31 @@ import { Minimap, MinimapLegend } from './Minimap';
 import { ElevationGauge } from './ElevationGauge';
 import { Gesture, GestureDetector } from 'react-native-gesture-handler';
 
+const ActionButton = ({ icon: Icon, actionName }: { icon: any, actionName: 'jump' | 'crouch' | 'action1' | 'action2' | 'action3' }) => {
+  const setVirtualButton = useGameStore((state) => state.setVirtualButton);
+  const [pressed, setPressed] = useState(false);
+  
+  const gesture = Gesture.Pan()
+    .runOnJS(true)
+    .minDistance(0)
+    .onBegin(() => {
+      setVirtualButton(actionName, true);
+      setPressed(true);
+    })
+    .onFinalize(() => {
+      setVirtualButton(actionName, false);
+      setPressed(false);
+    });
+
+  return (
+    <GestureDetector gesture={gesture}>
+      <View style={[styles.actionButton, pressed && styles.actionButtonPressed]} pointerEvents="auto">
+        <Icon color="#fff" size={24} />
+      </View>
+    </GestureDetector>
+  );
+};
+
 export function UI() {
   const { width: windowWidth, height: windowHeight } = useWindowDimensions();
   const isCompact = windowWidth < 600 || windowHeight < 600;
@@ -65,7 +90,26 @@ export function UI() {
       };
       checkMobile();
       window.addEventListener('resize', checkMobile);
-      return () => window.removeEventListener('resize', checkMobile);
+
+      // Secret 'P' Hotkey to grab raw WebGL Icon Screenshot
+      const handleScreenshot = (e: KeyboardEvent) => {
+        if (e.key === 'p' || e.key === 'P') {
+          const canvas = document.querySelector('canvas') as HTMLCanvasElement | null;
+          if (canvas) {
+            const dataUrl = canvas.toDataURL('image/png');
+            const link = document.createElement('a');
+            link.download = 'icon-capture.png';
+            link.href = dataUrl;
+            link.click();
+          }
+        }
+      };
+      window.addEventListener('keydown', handleScreenshot);
+
+      return () => {
+        window.removeEventListener('resize', checkMobile);
+        window.removeEventListener('keydown', handleScreenshot);
+      };
     }
   }, []);
 
@@ -142,7 +186,7 @@ export function UI() {
           contentContainerStyle={[styles.startMenu, isCompact && { paddingVertical: 40 }]} 
           pointerEvents="auto"
         >
-          <Text style={[styles.title, isCompact && { fontSize: 32 }]}>{gameState === 'paused' ? 'PAUSED' : 'Dam It! Beavertown'}</Text>
+          <Text style={[styles.title, isCompact && { fontSize: 32 }]}>{gameState === 'paused' ? 'PAUSED' : 'Beavers Dam It!'}</Text>
           {gameState === 'start_menu' && <Text style={[styles.subtitle, isCompact && { fontSize: 14, marginBottom: 16 }]}>Protect the ecosystem. Build the ultimate dam.</Text>}
           
           {gameState === 'paused' && (
@@ -269,18 +313,18 @@ export function UI() {
           </GestureDetector>
 
           {/* Static Left Joystick */}
-          <View style={[styles.joystickBase, styles.joystickLeft]} pointerEvents="box-none">
-            <GestureDetector gesture={leftPan}>
-              <View style={[styles.joystickNub, { transform: [{ translateX: leftStick.x }, { translateY: leftStick.y }], opacity: leftStick.active ? 0.9 : 0.4 }]} pointerEvents="auto" />
-            </GestureDetector>
-          </View>
+          <GestureDetector gesture={leftPan}>
+            <View style={[styles.joystickBase, styles.joystickLeft]} pointerEvents="auto">
+              <View style={[styles.joystickNub, { transform: [{ translateX: leftStick.x }, { translateY: leftStick.y }], opacity: leftStick.active ? 0.9 : 0.4 }]} pointerEvents="none" />
+            </View>
+          </GestureDetector>
           
           {/* Static Right Joystick */}
-          <View style={[styles.joystickBase, styles.joystickRight]} pointerEvents="box-none">
-            <GestureDetector gesture={rightPan}>
-              <View style={[styles.joystickNub, { transform: [{ translateX: rightStick.x }, { translateY: rightStick.y }], opacity: rightStick.active ? 0.9 : 0.4 }]} pointerEvents="auto" />
-            </GestureDetector>
-          </View>
+          <GestureDetector gesture={rightPan}>
+            <View style={[styles.joystickBase, styles.joystickRight]} pointerEvents="auto">
+              <View style={[styles.joystickNub, { transform: [{ translateX: rightStick.x }, { translateY: rightStick.y }], opacity: rightStick.active ? 0.9 : 0.4 }]} pointerEvents="none" />
+            </View>
+          </GestureDetector>
         </View>
       )}
 
@@ -339,47 +383,17 @@ export function UI() {
           <View style={styles.mobileActionsRight} pointerEvents="box-none">
             <View style={styles.actionRow}>
               {/* Jump */}
-              <Pressable
-                style={({ pressed }) => [styles.actionButton, pressed && styles.actionButtonPressed]}
-                onPressIn={() => setVirtualButton('jump', true)}
-                onPressOut={() => setVirtualButton('jump', false)}
-              >
-                <ArrowUp color="#fff" size={24} />
-              </Pressable>
+              <ActionButton icon={ArrowUp} actionName="jump" />
               {/* Crouch/Dive */}
-              <Pressable
-                style={({ pressed }) => [styles.actionButton, pressed && styles.actionButtonPressed]}
-                onPressIn={() => setVirtualButton('crouch', true)}
-                onPressOut={() => setVirtualButton('crouch', false)}
-              >
-                <ArrowDown color="#fff" size={24} />
-              </Pressable>
+              <ActionButton icon={ArrowDown} actionName="crouch" />
             </View>
             <View style={styles.actionRow}>
               {/* Action 1 */}
-              <Pressable
-                style={({ pressed }) => [styles.actionButton, pressed && styles.actionButtonPressed]}
-                onPressIn={() => setVirtualButton('action1', true)}
-                onPressOut={() => setVirtualButton('action1', false)}
-              >
-                <Hammer color="#fff" size={24} />
-              </Pressable>
+              <ActionButton icon={Hammer} actionName="action1" />
               {/* Action 2 */}
-              <Pressable
-                style={({ pressed }) => [styles.actionButton, pressed && styles.actionButtonPressed]}
-                onPressIn={() => setVirtualButton('action2', true)}
-                onPressOut={() => setVirtualButton('action2', false)}
-              >
-                <TreePine color="#fff" size={24} />
-              </Pressable>
+              <ActionButton icon={TreePine} actionName="action2" />
               {/* Action 3 */}
-              <Pressable
-                style={({ pressed }) => [styles.actionButton, pressed && styles.actionButtonPressed]}
-                onPressIn={() => setVirtualButton('action3', true)}
-                onPressOut={() => setVirtualButton('action3', false)}
-              >
-                <Droplets color="#fff" size={24} />
-              </Pressable>
+              <ActionButton icon={Droplets} actionName="action3" />
             </View>
           </View>
         </>

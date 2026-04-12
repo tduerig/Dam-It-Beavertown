@@ -4,9 +4,10 @@ import { floraCache, FloraItem } from './floraCache';
 import { waterEngine } from './WaterEngine';
 import { getGlobalStamp } from './terrainOffsets';
 
-export function propagateForest() {
+export function propagateForest(customEng?: any, customPos?: [number, number, number]) {
   const state = useGameStore.getState();
-  const [px, py, pz] = state.playerPosition;
+  const [px, py, pz] = customPos || state.playerPosition;
+  const eng = customEng || waterEngine;
   
   let triggered = false;
   
@@ -16,10 +17,10 @@ export function propagateForest() {
       const rz = pz + (Math.random() * 80 - 40);
       
       const height = getTerrainHeight(rx, rz);
-      const depth = waterEngine.getWaterDepth(rx, rz);
+      const depth = eng.getWaterDepth(rx, rz);
       
       // Flow velocity check — lilies and cattails need relatively calm water
-      const vel = waterEngine.getVelocity(rx, rz);
+      const vel = eng.getVelocity(rx, rz);
       const speed = Math.sqrt(vel.x * vel.x + vel.z * vel.z);
       const isCalmWater = speed < 1.5;
               
@@ -45,7 +46,9 @@ export function propagateForest() {
       const greenZoneFalloff = Math.max(0, 1 - Math.abs(surfaceAlt - 5) / 7);
 
       // Deep calm water -> Water Lilies (capped at 8 per chunk)
-      if (isCalmWater && depth >= 0.2 && lilyCount < 8 && Math.random() < 0.08 * greenZoneFalloff) {
+      // Lilies THRIVE in deep, still water — exactly what beaver ponds create
+      const depthBonus = Math.min(1.5, depth / 2.0); // Deeper water = more lilies
+      if (isCalmWater && depth >= 0.5 && lilyCount < 8 && Math.random() < 0.10 * greenZoneFalloff * depthBonus) {
           const pos: [number, number, number] = [rx, height + depth, rz];
           if (!tooCloseToExisting(pos, 3)) {
               const id = `lily_${Date.now()}_${i}`;
@@ -53,8 +56,10 @@ export function propagateForest() {
               triggered = true;
           }
       }
-      // Shallow calm water -> Cattails (capped at 6 per chunk)
-      else if (isCalmWater && depth > 0.01 && depth < 0.2 && cattailCount < 6 && Math.random() < 0.20 * greenZoneFalloff) {
+      // Shallow calm water -> Cattails (capped at 10 per chunk)
+      // Cattails love the marshy edges — shallow flooded banks from beaver channels
+      // shallowBonus peaks at very shallow depth, fading toward 0.6
+      else if (isCalmWater && depth > 0.02 && depth < 0.6 && cattailCount < 10 && Math.random() < 0.18 * greenZoneFalloff * (0.5 + Math.max(0, 1 - depth / 0.6))) {
           const pos: [number, number, number] = [rx, height + depth, rz];
           if (!tooCloseToExisting(pos, 3)) {
               const id = `cattail_${Date.now()}_${i}`;

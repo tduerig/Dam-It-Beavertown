@@ -1,0 +1,114 @@
+
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Ecological World-Sim Journal</title>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <style>
+        body { font-family: system-ui, sans-serif; background: #0f172a; color: #f8fafc; padding: 2rem; max-width: 1300px; margin: auto; }
+        .card { background: #1e293b; border-radius: 12px; padding: 24px; margin-bottom: 24px; border: 1px solid #334155; }
+        .header { margin-bottom: 1rem; border-bottom: 1px solid #334155; padding-bottom: 0.5rem; color: #38bdf8; }
+        pre { background: #000; padding: 1rem; border-radius: 6px; overflow-x: auto; color: #4ade80; font-size: 15px;}
+        .grid { display: grid; grid-template-columns: 1fr 1fr; gap: 2rem; }
+        @media (max-width: 768px) { .grid { grid-template-columns: 1fr; } }
+    </style>
+</head>
+<body>
+    <h1>Beavertown Ecological Automation</h1>
+    <p style="color: #94a3b8; margin-bottom: 2rem;">A/B mapping of Artificial Beaver dams versus Natural River conditions.</p>
+    
+        <div class="card">
+            <h2 class="header">World-Sim Ecological Benchmark <span style="font-size: 14px; float: right;">Date: 4/8/2026, 10:05:22 PM</span></h2>
+            
+            <div class="grid">
+                <div>
+                    <h3>Otter AI Impact (Z=0)</h3>
+                    <pre>
+Trees Downed: 2
+Massive Oaks Felled: 2
+Mud Patted: 10
+Flora Snacks Eaten: 12
+                    </pre>
+                </div>
+            </div>
+
+            <div class="grid" style="margin-top: 24px;">
+                <!-- Water Coverage -->
+                <div style="background: rgba(0,0,0,0.3); padding: 16px; border-radius: 8px;">
+                    <h3 style="color: #60a5fa; margin-top: 0;">Dam Water Coverage (%)</h3>
+                    <canvas id="chart_coverage" width="400" height="200"></canvas>
+                </div>
+                
+                <!-- Flora Biomass -->
+                <div style="background: rgba(0,0,0,0.3); padding: 16px; border-radius: 8px;">
+                    <h3 style="color: #4ade80; margin-top: 0;">Flora (Lilies & Cattails) Count</h3>
+                    <canvas id="chart_flora" width="400" height="200"></canvas>
+                </div>
+            </div>
+
+            <script>
+                document.addEventListener('DOMContentLoaded', function() {
+                    const ctx1 = document.getElementById('chart_coverage').getContext('2d');
+                    new Chart(ctx1, {
+                        type: 'line',
+                        data: {
+                            labels: [0,1,2,3,4,5,6,7,8,9,10,11,12,13,14,15,16,17,18,19],
+                            datasets: [
+                                {
+                                    label: 'Beaver Dam Coverage (%)',
+                                    data: [19,18,17,16,15,15,14,14,14,13,13,13,13,13,13,13,13,13,13,13],
+                                    borderColor: '#3b82f6',
+                                    backgroundColor: 'rgba(59, 130, 246, 0.2)',
+                                    fill: true,
+                                    tension: 0.3
+                                },
+                                {
+                                    label: 'Control Baseline (%)',
+                                    data: [19,19,19,18,18,17,17,17,17,17,16,16,16,16,16,16,16,16,16,16],
+                                    borderColor: '#94a3b8',
+                                    backgroundColor: 'transparent',
+                                    borderDash: [5, 5],
+                                    fill: false,
+                                    tension: 0.3
+                                }
+                            ]
+                        },
+                        options: { responsive: true, scales: { y: { min: 0 } } }
+                    });
+
+                    const ctx2 = document.getElementById('chart_flora').getContext('2d');
+                    new Chart(ctx2, {
+                        type: 'line',
+                        data: {
+                            labels: [0,1,2,3,4,5,6,7,8,9,10,11,12,13,14,15,16,17,18,19],
+                            datasets: [
+                                {
+                                    label: 'Beaver Flora Biomass',
+                                    data: [39,39,39,39,39,39,39,39,38,38,38,38,37,37,37,37,37,37,37,37],
+                                    borderColor: '#22c55e',
+                                    backgroundColor: 'rgba(34, 197, 94, 0.2)',
+                                    fill: true,
+                                    tension: 0.3
+                                },
+                                {
+                                    label: 'Control Flora Biomass',
+                                    data: [47,47,47,47,47,47,47,47,47,47,47,47,47,47,47,47,47,47,47,47],
+                                    borderColor: '#64748b',
+                                    backgroundColor: 'transparent',
+                                    borderDash: [5, 5],
+                                    fill: false,
+                                    tension: 0.3
+                                }
+                            ]
+                        },
+                        options: { responsive: true, scales: { y: { min: 0 } } }
+                    });
+                });
+            </script>
+        </div>
+    
+</body>
+</html>
+    

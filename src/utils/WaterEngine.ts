@@ -2,6 +2,7 @@ import { getTerrainHeight, getBaseTerrainHeight, getRiverCenter } from './terrai
 import { globalTerrainConfig } from './terrainConfig';
 import { PlacedBlock, DraggableLog } from '../store';
 import { getUpdateFlag, hasAnyOffsets, getOffset } from './terrainOffsets';
+import { shouldUpdate as shouldUpdateMud, updateMudSaturation } from './mudEngine';
 
 import { getSimConfig } from './qualityTier';
 
@@ -13,12 +14,14 @@ export class WaterEngine {
   W = new Float32Array(this.size * this.size);
   T = new Float32Array(this.size * this.size);
   T_base = new Float32Array(this.size * this.size);
+  T_terrain = new Float32Array(this.size * this.size);
   VX = new Float32Array(this.size * this.size);
   VZ = new Float32Array(this.size * this.size);
   
   // Pre-allocated arrays for the simulation loop to prevent GC OOM crashes natively
   outFlow = new Float32Array(this.size * this.size * 4);
   newT = new Float32Array(this.size * this.size);
+  RenderY = new Float32Array(this.size * this.size);
   
   originX = 0;
   originZ = 0;
@@ -60,6 +63,15 @@ export class WaterEngine {
     for (let i = 0; i < steps; i++) {
       this.simulate();
     }
+    
+    // Update mud saturation at 1Hz — piggybacked on WaterEngine tick
+    // Uses our pre-computed W[] and T_base[] arrays (zero additional terrain lookups)
+    if (shouldUpdateMud(Date.now())) {
+      updateMudSaturation(this.W, this.T_base, this.size, this.originX, this.originZ, WATER_HALF);
+    }
+
+    // Evaluate the final target rendering heights off the render thread
+    this.updateRenderY();
   }
 
   initBase() {
@@ -71,6 +83,7 @@ export class WaterEngine {
         const hFull = getTerrainHeight(wx, wz); // Keep getTerrainHeight for W/T initially
         this.T_base[x + z * this.size] = hBase;
         this.T[x + z * this.size] = hFull;
+        this.T_terrain[x + z * this.size] = hFull;
         this.VX[x + z * this.size] = 0;
         this.VZ[x + z * this.size] = 0;
         
@@ -92,6 +105,7 @@ export class WaterEngine {
     
     const newW = new Float32Array(this.size * this.size);
     const newT_base = new Float32Array(this.size * this.size);
+    const newT_terrain = new Float32Array(this.size * this.size);
     const newT = new Float32Array(this.size * this.size);
     const newVX = new Float32Array(this.size * this.size);
     const newVZ = new Float32Array(this.size * this.size);
@@ -106,6 +120,7 @@ export class WaterEngine {
           const oldIdx = oldX + oldZ * this.size;
           newW[idx] = this.W[oldIdx];
           newT_base[idx] = this.T_base[oldIdx];
+          newT_terrain[idx] = this.T_terrain[oldIdx];
           newT[idx] = this.T[oldIdx];
           newVX[idx] = this.VX[oldIdx];
           newVZ[idx] = this.VZ[oldIdx];
@@ -115,6 +130,7 @@ export class WaterEngine {
           const hBase = getBaseTerrainHeight(wx, wz);
           const hFull = getTerrainHeight(wx, wz);
           newT_base[idx] = hBase;
+          newT_terrain[idx] = hFull;
           newT[idx] = hFull;
           newVX[idx] = 0;
           newVZ[idx] = 0;
@@ -132,6 +148,7 @@ export class WaterEngine {
     
     this.W = newW;
     this.T_base = newT_base;
+    this.T_terrain = newT_terrain;
     this.T = newT;
     this.VX = newVX;
     this.VZ = newVZ;
@@ -182,6 +199,7 @@ export class WaterEngine {
         }
         
         this.newT[i] = h;
+        this.T_terrain[i] = h;
     }
 
     
@@ -193,8 +211,16 @@ export class WaterEngine {
       if (block.type === 'mud') {
         const cx = Math.floor(bx) - this.originX + WATER_HALF;
         const cz = Math.floor(bz) - this.originZ + WATER_HALF;
-        if (cx >= 0 && cx < this.size && cz >= 0 && cz < this.size) {
-          this.newT[cx + cz * this.size] = Math.max(this.newT[cx + cz * this.size], by + 0.25);
+        for (let ix = -1; ix <= 1; ix++) {
+            for (let iz = -1; iz <= 1; iz++) {
+                const px = cx + ix;
+                const pz = cz + iz;
+                if (px >= 0 && px < this.size && pz >= 0 && pz < this.size) {
+                    // Distribute slightly lower on edges to form a mound
+                    const edgeDrop = (Math.abs(ix) === 1 && Math.abs(iz) === 1) ? 0.05 : 0;
+                    this.newT[px + pz * this.size] = Math.max(this.newT[px + pz * this.size], by + 0.25 - edgeDrop);
+                }
+            }
         }
       } else if (block.type === 'stick') {
         const rot = block.rotation[2];
@@ -261,7 +287,9 @@ export class WaterEngine {
           const dist = Math.sqrt((wx - projX)**2 + (wz - projZ)**2);
           
           if (dist < 2.0) { // Log radius is ~1.12, use 2.0 for solid barrier overlapping grid diagonals
-            this.newT[x + z * this.size] = Math.max(this.newT[x + z * this.size], by + 2.0); // Allow moderate overtopping unless mudded
+            // Mudded logs form a solid dam. Unmudded logs should let water flow so they can drift!
+            const barrierHeight = log.isMudded ? 2.0 : 0.2; 
+            this.newT[x + z * this.size] = Math.max(this.newT[x + z * this.size], by + barrierHeight);
           }
         }
       }
@@ -370,7 +398,7 @@ export class WaterEngine {
             this.W[idx] += (targetW - this.W[idx]) * 0.05;
           }
         } else if (this.W[idx] > 0) {
-          this.W[idx] = Math.max(0, this.W[idx] - 0.0001);
+          this.W[idx] = Math.max(0, this.W[idx] - globalTerrainConfig.groundAbsorptionRate);
         }
       }
     }
@@ -387,8 +415,8 @@ export class WaterEngine {
         
         if (globalSourceZ > -140 && Math.abs(wx - riverX) < globalTerrainConfig.riverWidth) {
           const idx = x + sourceZ * this.size;
-          this.W[idx] += 0.18; // Increased native flow for deeper twists
-          if (this.W[idx] > 10.0) this.W[idx] = 10.0; 
+          this.W[idx] += globalTerrainConfig.waterSourceRate; // Configured river flow
+          if (this.W[idx] > 15.0) this.W[idx] = 15.0; 
         }
       }
       
@@ -405,6 +433,36 @@ export class WaterEngine {
     for (let z = zStart; z < zEnd; z++) {
       this.W[0 + z * this.size] = 0;
       this.W[this.size - 1 + z * this.size] = 0;
+    }
+  }
+
+  updateRenderY() {
+    const W = this.W;
+    const T = this.T;
+    const T_terrain = this.T_terrain;
+    const length = this.size * this.size;
+
+    for (let i = 0; i < length; i++) {
+      const w = W[i];
+      if (w > globalTerrainConfig.waterRenderThreshold) {
+        this.RenderY[i] = T[i] + w - 0.1;
+      } else {
+        const x = i % this.size;
+        const z = Math.floor(i / this.size);
+        
+        let maxWetH = -1000;
+        
+        if (x > 0 && W[i - 1] > 0.05) maxWetH = Math.max(maxWetH, T[i - 1] + W[i - 1]);
+        if (x < this.size - 1 && W[i + 1] > 0.05) maxWetH = Math.max(maxWetH, T[i + 1] + W[i + 1]);
+        if (z > 0 && W[i - this.size] > 0.05) maxWetH = Math.max(maxWetH, T[i - this.size] + W[i - this.size]);
+        if (z < this.size - 1 && W[i + this.size] > 0.05) maxWetH = Math.max(maxWetH, T[i + this.size] + W[i + this.size]);
+        
+        if (maxWetH > -999) {
+           this.RenderY[i] = Math.min(T_terrain[i] - 0.1, maxWetH - 0.2);
+        } else {
+           this.RenderY[i] = T_terrain[i] - 0.5;
+        }
+      }
     }
   }
 

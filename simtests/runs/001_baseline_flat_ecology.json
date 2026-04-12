@@ -1,0 +1,279 @@
+{
+  "status": "NPC_SIMULATION_COMPLETE_20_MINS",
+  "timeseries": {
+    "npc_beaver": [
+      {
+        "coverage": 4421,
+        "lilies": 29,
+        "cattails": 29,
+        "trees": 107
+      },
+      {
+        "coverage": 4534,
+        "lilies": 29,
+        "cattails": 29,
+        "trees": 107
+      },
+      {
+        "coverage": 4599,
+        "lilies": 29,
+        "cattails": 29,
+        "trees": 107
+      },
+      {
+        "coverage": 4642,
+        "lilies": 29,
+        "cattails": 29,
+        "trees": 107
+      },
+      {
+        "coverage": 4675,
+        "lilies": 29,
+        "cattails": 29,
+        "trees": 107
+      },
+      {
+        "coverage": 4700,
+        "lilies": 35,
+        "cattails": 33,
+        "trees": 115
+      },
+      {
+        "coverage": 4745,
+        "lilies": 35,
+        "cattails": 33,
+        "trees": 115
+      },
+      {
+        "coverage": 4776,
+        "lilies": 35,
+        "cattails": 33,
+        "trees": 115
+      },
+      {
+        "coverage": 4802,
+        "lilies": 35,
+        "cattails": 33,
+        "trees": 115
+      },
+      {
+        "coverage": 4826,
+        "lilies": 35,
+        "cattails": 33,
+        "trees": 115
+      },
+      {
+        "coverage": 4886,
+        "lilies": 42,
+        "cattails": 38,
+        "trees": 127
+      },
+      {
+        "coverage": 4916,
+        "lilies": 42,
+        "cattails": 38,
+        "trees": 127
+      },
+      {
+        "coverage": 4939,
+        "lilies": 42,
+        "cattails": 38,
+        "trees": 127
+      },
+      {
+        "coverage": 4960,
+        "lilies": 42,
+        "cattails": 38,
+        "trees": 127
+      },
+      {
+        "coverage": 4981,
+        "lilies": 42,
+        "cattails": 38,
+        "trees": 127
+      },
+      {
+        "coverage": 5028,
+        "lilies": 44,
+        "cattails": 40,
+        "trees": 141
+      },
+      {
+        "coverage": 5058,
+        "lilies": 44,
+        "cattails": 40,
+        "trees": 141
+      },
+      {
+        "coverage": 5089,
+        "lilies": 48,
+        "cattails": 63,
+        "trees": 163
+      },
+      {
+        "coverage": 5122,
+        "lilies": 48,
+        "cattails": 63,
+        "trees": 163
+      },
+      {
+        "coverage": 5194,
+        "lilies": 48,
+        "cattails": 63,
+        "trees": 163
+      }
+    ],
+    "control": [
+      {
+        "coverage": 3822,
+        "lilies": 33,
+        "cattails": 28,
+        "trees": 95
+      },
+      {
+        "coverage": 3889,
+        "lilies": 33,
+        "cattails": 28,
+        "trees": 95
+      },
+      {
+        "coverage": 3932,
+        "lilies": 33,
+        "cattails": 28,
+        "trees": 95
+      },
+      {
+        "coverage": 3960,
+        "lilies": 33,
+        "cattails": 28,
+        "trees": 95
+      },
+      {
+        "coverage": 3983,
+        "lilies": 33,
+        "cattails": 28,
+        "trees": 95
+      },
+      {
+        "coverage": 4010,
+        "lilies": 39,
+        "cattails": 31,
+        "trees": 102
+      },
+      {
+        "coverage": 4035,
+        "lilies": 39,
+        "cattails": 31,
+        "trees": 102
+      },
+      {
+        "coverage": 4058,
+        "lilies": 39,
+        "cattails": 31,
+        "trees": 102
+      },
+      {
+        "coverage": 4078,
+        "lilies": 39,
+        "cattails": 31,
+        "trees": 102
+      },
+      {
+        "coverage": 4096,
+        "lilies": 39,
+        "cattails": 31,
+        "trees": 102
+      },
+      {
+        "coverage": 4125,
+        "lilies": 48,
+        "cattails": 35,
+        "trees": 112
+      },
+      {
+        "coverage": 4151,
+        "lilies": 48,
+        "cattails": 35,
+        "trees": 112
+      },
+      {
+        "coverage": 4173,
+        "lilies": 48,
+        "cattails": 35,
+        "trees": 112
+      },
+      {
+        "coverage": 4193,
+        "lilies": 48,
+        "cattails": 35,
+        "trees": 112
+      },
+      {
+        "coverage": 4211,
+        "lilies": 48,
+        "cattails": 35,
+        "trees": 112
+      },
+      {
+        "coverage": 4230,
+        "lilies": 52,
+        "cattails": 38,
+        "trees": 120
+      },
+      {
+        "coverage": 4249,
+        "lilies": 52,
+        "cattails": 38,
+        "trees": 120
+      },
+      {
+        "coverage": 4265,
+        "lilies": 63,
+        "cattails": 49,
+        "trees": 130
+      },
+      {
+        "coverage": 4265,
+        "lilies": 63,
+        "cattails": 49,
+        "trees": 130
+      },
+      {
+        "coverage": 4265,
+        "lilies": 63,
+        "cattails": 49,
+        "trees": 130
+      }
+    ]
+  },
+  "aiBehaviorStats": {
+    "IDLE": 5300,
+    "PLAY": 48400,
+    "GATHER_MUD": 120400,
+    "FIND_TREE": 362200,
+    "CHOP_TREE": 151800,
+    "FORTIFY_DAM": 387700,
+    "WAIT_LOG": 23100,
+    "DELIVER_WATER": 81700,
+    "EAT": 19200
+  },
+  "stats": {
+    "treesDowned": 75,
+    "sticksPlaced": 34,
+    "mudPatted": 129,
+    "massiveTreesFelled": 14,
+    "mudDug": 0,
+    "maxWaterCoverage": 0,
+    "snacksEaten": 11
+  },
+  "experiment": {
+    "name": "Baseline (Flat Ecology Rules)",
+    "description": "Original ecology: lilies at depth>=0.2, cattails 0.01-0.2, flat spawn rates with no depth/shallow bonuses.",
+    "changes": [
+      "Fixed simulate() args bug",
+      "Restored twisty terrain defaults",
+      "Added ecology ticks + tree tracking"
+    ],
+    "timestamp": "2026-04-10T12:04:00"
+  }
+}
