@@ -451,9 +451,7 @@ export function Chunk({ chunkX, chunkZ }: { chunkX: number, chunkZ: number }) {
 
   return (
     <group position={[chunkX * CHUNK_SIZE, 0, chunkZ * CHUNK_SIZE]}>
-      <mesh geometry={terrainGeo} receiveShadow>
-        <meshStandardMaterial vertexColors={true} roughness={0.8} metalness={0.1} />
-      </mesh>
+      {/* Terrain is now rendered by MergedTerrain (single draw call for all chunks) */}
 
       {maxInstances > 0 && (
         <>
