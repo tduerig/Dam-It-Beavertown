@@ -19,9 +19,16 @@ const VERTS_PER_SIDE = 41; // 40 segments + 1
 const VERTS_PER_CHUNK = VERTS_PER_SIDE * VERTS_PER_SIDE;
 const TRIS_PER_CHUNK = 40 * 40 * 2;
 
+// Create a single static template to guarantee identical vertex ordering and triangle 
+// winding/diagonals as the old Chunk.tsx PlaneGeometry.
+const _chunkTemplate = new THREE.PlaneGeometry(CHUNK_SIZE, CHUNK_SIZE, 40, 40);
+_chunkTemplate.rotateX(-Math.PI / 2);
+const _templatePos = _chunkTemplate.attributes.position.array;
+const _templateIdx = _chunkTemplate.index!.array;
+
 /**
- * Fill a subsection of the merged position/color buffers for one chunk.
- * vertexOffset = chunkSlotIndex * VERTS_PER_CHUNK * 3
+ * Fill a subsection of the merged position/color buffers for one chunk
+ * using the static template to guarantee exact vertex matching.
  */
 function fillChunkVertices(
   pos: Float32Array,
@@ -32,82 +39,57 @@ function fillChunkVertices(
 ) {
   const worldOffsetX = chunkX * CHUNK_SIZE;
   const worldOffsetZ = chunkZ * CHUNK_SIZE;
-  const step = CHUNK_SIZE / 40; // distance between vertices
 
-  let vi = vertexOffset;
-  for (let iz = 0; iz <= 40; iz++) {
-    for (let ix = 0; ix <= 40; ix++) {
-      // Local position within chunk (-CHUNK_SIZE/2 to +CHUNK_SIZE/2)
-      const localX = -CHUNK_SIZE / 2 + ix * step;
-      const localZ = -CHUNK_SIZE / 2 + iz * step;
+  for (let i = 0; i < _templatePos.length; i += 3) {
+    const vi = vertexOffset + i;
+    
+    // World position (template is centered at 0,0,0)
+    const wx = _templatePos[i] + worldOffsetX;
+    const wz = _templatePos[i + 2] + worldOffsetZ;
+    const y = getTerrainHeight(wx, wz);
+    const baseY = getBaseTerrainHeight(wx, wz);
+    const offset = y - baseY;
 
-      // World position
-      const wx = localX + worldOffsetX;
-      const wz = localZ + worldOffsetZ;
-      const y = getTerrainHeight(wx, wz);
-      const baseY = getBaseTerrainHeight(wx, wz);
-      const offset = y - baseY;
+    pos[vi]     = wx;
+    pos[vi + 1] = y;
+    pos[vi + 2] = wz;
 
-      // World-space position (no group transform needed — we bake it in)
-      pos[vi]     = wx;
-      pos[vi + 1] = y;
-      pos[vi + 2] = wz;
-
-      // Biome colors (identical to Chunk.tsx buildTerrainGeometry)
-      if (y > 14) {
-        _color.copy(_snowColor);
-      } else if (y > 10) {
-        _color.copy(_rockColor).lerp(_snowColor, (y - 10) / 4);
-      } else if (y > 0) {
-        _color.copy(_forestColor).lerp(_rockColor, y / 10);
-      } else if (y > -4) {
-        _color.copy(_sandColor).lerp(_forestColor, (y + 4) / 4);
-      } else {
-        _color.copy(_sandColor);
-      }
-
-      const mudSat = getMudLevel(wx, wz);
-      if (Math.abs(offset) > 0.05 || mudSat > 0.05) {
-        const offsetBlend = Math.abs(offset) > 0.05 ? Math.min(1, Math.abs(offset) / 0.8) : 0;
-        const blend = Math.max(offsetBlend, mudSat);
-        _color.lerp(_mudColor, blend);
-      }
-
-      colors[vi]     = _color.r;
-      colors[vi + 1] = _color.g;
-      colors[vi + 2] = _color.b;
-
-      vi += 3;
+    // Biome colors
+    if (y > 14) {
+      _color.copy(_snowColor);
+    } else if (y > 10) {
+      _color.copy(_rockColor).lerp(_snowColor, (y - 10) / 4);
+    } else if (y > 0) {
+      _color.copy(_forestColor).lerp(_rockColor, y / 10);
+    } else if (y > -4) {
+      _color.copy(_sandColor).lerp(_forestColor, (y + 4) / 4);
+    } else {
+      _color.copy(_sandColor);
     }
+
+    const mudSat = getMudLevel(wx, wz);
+    if (Math.abs(offset) > 0.05 || mudSat > 0.05) {
+      const offsetBlend = Math.abs(offset) > 0.05 ? Math.min(1, Math.abs(offset) / 0.8) : 0;
+      const blend = Math.max(offsetBlend, mudSat);
+      _color.lerp(_mudColor, blend);
+    }
+
+    colors[vi]     = _color.r;
+    colors[vi + 1] = _color.g;
+    colors[vi + 2] = _color.b;
   }
 }
 
 /**
- * Build the index buffer for one chunk grid within the merged geometry.
- * indexOffset = chunkSlotIndex * TRIS_PER_CHUNK * 3
- * vertexBase  = chunkSlotIndex * VERTS_PER_CHUNK
+ * Build the index buffer for one chunk grid using the template indices.
  */
 function fillChunkIndices(
   indices: Uint32Array,
   indexOffset: number,
   vertexBase: number
 ) {
-  let ii = indexOffset;
-  for (let iz = 0; iz < 40; iz++) {
-    for (let ix = 0; ix < 40; ix++) {
-      const a = vertexBase + iz * VERTS_PER_SIDE + ix;
-      const b = a + 1;
-      const c = a + VERTS_PER_SIDE;
-      const d = c + 1;
-
-      indices[ii++] = a;
-      indices[ii++] = c;
-      indices[ii++] = b;
-
-      indices[ii++] = b;
-      indices[ii++] = c;
-      indices[ii++] = d;
-    }
+  for (let i = 0; i < _templateIdx.length; i++) {
+    indices[indexOffset + i] = vertexBase + _templateIdx[i];
   }
 }
 
