@@ -458,9 +458,13 @@ export class WaterEngine {
         if (z < this.size - 1 && W[i + this.size] > 0.05) maxWetH = Math.max(maxWetH, T[i + this.size] + W[i + this.size]);
         
         if (maxWetH > -999) {
-           this.RenderY[i] = Math.min(T_terrain[i] - 0.1, maxWetH - 0.2);
+           // Pull the water edge steeply down into the riverbank so it intersects
+           // the terrain cleanly rather than shallowly 'slivering' along the slope.
+           this.RenderY[i] = Math.min(T_terrain[i] - 0.5, maxWetH - 0.4);
         } else {
-           this.RenderY[i] = T_terrain[i] - 0.5;
+           // Fully dry terrain MUST be buried deep underground (-100) to ensure
+           // the inactive water mesh never clips through steep mountain polygons.
+           this.RenderY[i] = -100;
         }
       }
     }

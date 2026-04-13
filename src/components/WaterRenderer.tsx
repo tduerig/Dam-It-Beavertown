@@ -74,9 +74,11 @@ export function WaterRenderer() {
     if (gameState !== 'playing') return;
        
     if (meshRef.current && geoRef.current) {
-      // Snap mesh to the origin of the water engine grid
-      meshRef.current.position.x = waterEngine.originX;
-      meshRef.current.position.z = waterEngine.originZ;
+      // Snap mesh to the origin of the water engine grid.
+      // Since PlaneGeometry is 159 wide, its local vertices start at -79.5.
+      // To align with the terrain's pure integer grid (e.g. -80.0), we offset by -0.5.
+      meshRef.current.position.x = waterEngine.originX - 0.5;
+      meshRef.current.position.z = waterEngine.originZ - 0.5;
       
       const pos = geoRef.current.attributes.position.array as Float32Array;
       const norm = geoRef.current.attributes.normal.array as Float32Array;
