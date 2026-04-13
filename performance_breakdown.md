@@ -56,3 +56,69 @@ When running Dam It Beavertown on older Android devices (Snapdragon chips) vs mo
    - **The Bottleneck**: Originally, pulling 160x160 vertices (25,600 iterations/frame) to map to WebGL wasn't too bad, but 90% of the map routinely remains "dry". If the node reported false on a depth check, it blindly triggered 4 directional array lookups (`i-1`, `i+1`, `i-size`, `i+size`) to bind adjacent edge vertices. This meant executing **~1.54 million logic branches per second** inside the exact loop that dictates frames-per-second lockstep.
    - **The Engine Architectural Decoupling**: We explicitly relocated all branching geometry bounds (dry adjacent bounds smoothing logic) directly into `WaterEngine.ts`. It now computes `RenderY` natively at the tail offset of the physical simulation loop, which inherently runs at a decoupled internal metric of **15 / 30 TPS** bounds.
    - Now, the 60hz `useFrame()` visual hook has zero mathematical branches; it literally maps array to array at `O(1)` memory lookup. The CPU overhead is essentially obliterated, leaving pure graphics to push frames.
+
+4. **GPU Draw Call Batching: Terrain Merge** *(April 2026)*
+   Each of the 25 visible terrain chunks was emitting its own `<mesh>` element with a separate `PlaneGeometry` and `meshStandardMaterial`. That's 25 draw calls just for the ground.
+   - **The Fix**: Created `MergedTerrain.tsx`, a single `BufferGeometry` containing all 25 chunk terrains concatenated into a slot-based vertex buffer. One draw call replaces 25.
+   - Dirty-flag subsection updates ensure only modified chunks (dig/place/mud) rebuild their vertex range — no wasted work.
+   - **Impact**: 25 terrain draw calls → 1. Total draw calls from ~140 → ~116.
+
+---
+
+### Draw Call Census (Post-Optimization, Medium Tier)
+
+| Source | Draw Calls | Status |
+|---|---|---|
+| **Terrain** (merged) | **1** | ✅ Optimized |
+| **Chunk trunks** × 25 | 25 | ⚠️ Could be pooled |
+| **Chunk leaves** × 25 | 25 | ⚠️ Could be pooled |
+| **Chunk branches** × 25 | 25 | ⚠️ Could be pooled |
+| **Chunk stumps** × 25 | 25 | ⚠️ Could be pooled |
+| **WaterRenderer** | 1 | ✅ Single mesh |
+| **Dam sticks** | 1 | ✅ InstancedMesh |
+| **Dam mud** | 1 | ✅ InstancedMesh |
+| **FloatingLogs** | 1 | ✅ InstancedMesh |
+| **DraggableLogs** (body+leaves+branches+whittle) | 4 | ✅ InstancedMesh |
+| **GlobalFlora** (lilies + cattails) | ~6-12 | ⚠️ Per-region |
+| **Beaver** | ~3 | ✅ Character model |
+| **TOTAL** | **~116-120** | |
+
+---
+
+### Optimization Timeline
+
+| Date | Optimization | Draw Calls Saved | JS ms/frame Saved | Commit |
+|---|---|---|---|---|
+| Apr 5 | Distance-gated flora rendering | — | ~2ms | ✅ |
+| Apr 5 | Quality tier throttle (medium: no normals, chunkDist=2) | — | ~3ms | ✅ |
+| Apr 9 | Zustand in-place mutation (playerPos, playerRot, timeOfDay) | — | ~1-2ms | ✅ |
+| Apr 10 | WaterRenderer RenderY decoupling | — | ~1-2ms | ✅ |
+| Apr 13 | Terrain chunk batching (MergedTerrain) | **24** | — | ✅ |
+
+**Net effect**: JS main thread went from ~12ms/frame → ~1-2ms/frame on medium. GPU draw calls reduced from ~164 → ~116.
+
+---
+
+### Roadmap: Remaining Draw Call Reduction Opportunities
+
+These are all **zero-quality-impact** optimizations that follow the exact same pattern as the terrain merge:
+
+#### Phase 2: Global Tree Pool (HIGH IMPACT — saves ~96 draw calls)
+Pool all chunk tree `InstancedMesh` components (trunks, leaves, branches, stumps) into 4 global `InstancedMesh` elements, exactly like `GlobalFlora` does for lilies/cattails. This collapses 100 per-chunk draw calls into 4 global ones.
+- **Complexity**: Medium-high. Custom shader attributes (`aWhittle`, `aDissolve`) need global slot management.
+- **Expected total after**: ~20 draw calls. This would be transformative for Android.
+
+#### Phase 3: GlobalFlora Region Consolidation (MEDIUM IMPACT — saves ~6-8 draw calls)
+Currently `GlobalFlora` creates separate `InstancedMesh` pairs per "region" (chunk-aligned area). Merging all lily instances into one global mesh and all cattail instances into one global pair would eliminate the per-region overhead.
+- **Complexity**: Low. Already follows the pool pattern.
+- **Expected savings**: ~6-8 draw calls.
+
+#### Phase 4: Material Downgrade on Medium Tier (GPU SHADER COST)
+Switch from `meshStandardMaterial` to `meshLambertMaterial` on medium/low quality tiers. Lambert shading skips the specular/roughness PBR calculations entirely, which is significantly cheaper on mobile fragment shaders. Zero visual impact at the fog distances used on medium (25-65 units).
+- **Complexity**: Very low. One-line material swap per component.
+- **Expected impact**: ~15-25% GPU fragment shader savings. Hard to measure without physical device.
+
+#### Stretch: Terrain LOD
+Reduce terrain vertex density for distant chunks (e.g. 20×20 instead of 40×40 for chunks beyond viewDistance=1). Would halve the vertex count for edge chunks.
+- **Complexity**: Medium. Needs seam stitching at LOD boundaries.
+- **Expected savings**: ~30% fewer terrain vertices uploaded.
