@@ -114,8 +114,8 @@ export function GlobalTrees() {
     // ── Leaves ──
     const lGeo = new THREE.ConeGeometry(2.5, 5, 8);
     lGeo.setAttribute('aDissolve', new THREE.InstancedBufferAttribute(new Float32Array(MAX_TREES), 1));
-    // Removed side: THREE.DoubleSide to halve the leaf fill-rate
-    const lMat = new THREE.MeshStandardMaterial({ color: '#228B22' });
+    // Restored DoubleSide to eliminate shadow/normal artifacts on mobile
+    const lMat = new THREE.MeshStandardMaterial({ color: '#228B22', side: THREE.DoubleSide });
     lMat.onBeforeCompile = (shader) => {
       shader.uniforms.tNoise = { value: noiseTex };
       shader.vertexShader = `
@@ -140,14 +140,16 @@ export function GlobalTrees() {
         `vec4 diffuseColor = vec4( diffuse, opacity );`,
         `
         vec4 diffuseColor = vec4( diffuse, opacity );
+        
+        // Hoisted OUTSIDE dynamic flow control to prevent Adreno driver corruption
+        float rawNoise = texture2D(tNoise, vPos.xy * 0.5).r;
+        
         if (vDissolve < 0.99) {
-          // Texture fetch replaces 8 hashes and 7 mixes
-          float n = texture2D(tNoise, vPos.xy * 0.5).r;
           float threshold = vDissolve * 1.2 - 0.1;
-          if (n > threshold) {
+          if (rawNoise > threshold) {
             discard;
           }
-          if (n > threshold - 0.15) {
+          if (rawNoise > threshold - 0.15) {
             diffuseColor.rgb = mix(diffuseColor.rgb, vec3(0.4, 0.2, 0.0), 0.8);
           }
         }
@@ -157,6 +159,8 @@ export function GlobalTrees() {
 
     // ── Branches ──
     const bGeo = new THREE.CylinderGeometry(0.1, 0.2, 1.5, 8);
+    // CRITICAL: MUST provide aWhittle attribute because it shares trunkMat. Missing this causes global WebGL corruption on Android!
+    bGeo.setAttribute('aWhittle', new THREE.InstancedBufferAttribute(new Float32Array(MAX_TREES * NUM_BRANCHES), 1));
 
     // ── Stumps ──
     const sGeo = new THREE.ConeGeometry(0.6, 0.5, 8);
