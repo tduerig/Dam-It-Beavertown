@@ -1,4 +1,4 @@
-import { useMemo, useRef, useState } from 'react';
+import { useMemo, useRef } from 'react';
 import { useFrame } from '@react-three/fiber';
 import { CHUNK_SIZE, generateTreesForChunk } from '../utils/terrain';
 import { isChunkTerrainDirty, getGlobalStamp } from '../utils/terrainOffsets';
