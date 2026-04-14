@@ -96,11 +96,28 @@ export function GlobalTrees() {
       );
     };
 
+    // ── Precompute Noise Texture ──
+    // Replaces the 70-FLOP procedural noise shader on mobile for massive fill-rate savings
+    const texSize = 64;
+    const texData = new Uint8Array(texSize * texSize * 4);
+    for (let i = 0; i < texSize * texSize * 4; i += 4) {
+      const v = Math.random() * 255;
+      texData[i] = v; texData[i + 1] = v; texData[i + 2] = v; texData[i + 3] = 255;
+    }
+    const noiseTex = new THREE.DataTexture(texData, texSize, texSize, THREE.RGBAFormat);
+    noiseTex.wrapS = THREE.RepeatWrapping;
+    noiseTex.wrapT = THREE.RepeatWrapping;
+    noiseTex.magFilter = THREE.LinearFilter;
+    noiseTex.minFilter = THREE.LinearFilter;
+    noiseTex.needsUpdate = true;
+
     // ── Leaves ──
     const lGeo = new THREE.ConeGeometry(2.5, 5, 8);
     lGeo.setAttribute('aDissolve', new THREE.InstancedBufferAttribute(new Float32Array(MAX_TREES), 1));
-    const lMat = new THREE.MeshStandardMaterial({ color: '#228B22', side: THREE.DoubleSide });
+    // Removed side: THREE.DoubleSide to halve the leaf fill-rate
+    const lMat = new THREE.MeshStandardMaterial({ color: '#228B22' });
     lMat.onBeforeCompile = (shader) => {
+      shader.uniforms.tNoise = { value: noiseTex };
       shader.vertexShader = `
         attribute float aDissolve;
         varying float vDissolve;
@@ -115,30 +132,17 @@ export function GlobalTrees() {
         `
       );
       shader.fragmentShader = `
+        uniform sampler2D tNoise;
         varying float vDissolve;
         varying vec3 vPos;
-        
-        float hash(vec3 p) {
-          p = fract(p * 0.3183099 + .1);
-          p *= 17.0;
-          return fract(p.x * p.y * p.z * (p.x + p.y + p.z));
-        }
-        float noise(vec3 x) {
-          vec3 i = floor(x);
-          vec3 f = fract(x);
-          f = f * f * (3.0 - 2.0 * f);
-          return mix(mix(mix(hash(i + vec3(0,0,0)), hash(i + vec3(1,0,0)), f.x),
-                         mix(hash(i + vec3(0,1,0)), hash(i + vec3(1,1,0)), f.x), f.y),
-                     mix(mix(hash(i + vec3(0,0,1)), hash(i + vec3(1,0,1)), f.x),
-                         mix(hash(i + vec3(0,1,1)), hash(i + vec3(1,1,1)), f.x), f.y), f.z);
-        }
         ${shader.fragmentShader}
       `.replace(
         `vec4 diffuseColor = vec4( diffuse, opacity );`,
         `
         vec4 diffuseColor = vec4( diffuse, opacity );
         if (vDissolve < 0.99) {
-          float n = noise(vPos * 2.0);
+          // Texture fetch replaces 8 hashes and 7 mixes
+          float n = texture2D(tNoise, vPos.xy * 0.5).r;
           float threshold = vDissolve * 1.2 - 0.1;
           if (n > threshold) {
             discard;
