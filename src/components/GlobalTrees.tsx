@@ -31,6 +31,12 @@ const NUM_BRANCHES = BRANCH_CONFIGS.length; // 8
 const _dummy = new THREE.Object3D();
 const _treePoolObj = new THREE.Object3D();
 const _branchPoolObjs = Array.from({ length: 8 }, () => new THREE.Object3D());
+
+// Frustum culling – replaces the per-chunk frustumCulled={true} that the old
+// Chunk InstancedMeshes got for free from Three.js.
+const _frustum = new THREE.Frustum();
+const _projScreenMatrix = new THREE.Matrix4();
+const _chunkSphere = new THREE.Sphere(new THREE.Vector3(), CHUNK_SIZE * 0.75); // generous radius
 const _hiddenMatrix = new THREE.Matrix4().makeTranslation(0, -1000, 0).scale(new THREE.Vector3(0, 0, 0));
 
 export function GlobalTrees() {
@@ -178,6 +184,16 @@ export function GlobalTrees() {
     const cz = Math.floor(gs.playerPosition[2] / CHUNK_SIZE);
     const coordsKey = `${cx},${cz}`;
 
+    // ── Build camera frustum for per-chunk culling ──
+    // This replaces the automatic frustumCulled={true} that each old
+    // per-chunk InstancedMesh got for free. Without it, we vertex-shade
+    // every tree in the world including those behind the camera.
+    _projScreenMatrix.multiplyMatrices(
+      state.camera.projectionMatrix,
+      state.camera.matrixWorldInverse
+    );
+    _frustum.setFromProjectionMatrix(_projScreenMatrix);
+
     // ── Detect chunk boundary crossing → full rebuild ──
     let needsFullRebuild = false;
     if (coordsKey !== lastChunkCoordsRef.current) {
@@ -215,7 +231,7 @@ export function GlobalTrees() {
 
     if (!anyDirty && !doWaterCheck) return;
 
-    // ── Gather all trees across visible chunks ──
+    // ── Gather all trees across VISIBLE chunks ──
     let slot = 0;
     for (let dx = -viewDistance; dx <= viewDistance; dx++) {
       for (let dz = -viewDistance; dz <= viewDistance; dz++) {
@@ -223,6 +239,16 @@ export function GlobalTrees() {
         const kcz = cz + dz;
         const key = `${kcx},${kcz}`;
         const trees = generateTreesForChunk(kcx, kcz);
+
+        // ── Per-chunk frustum cull ──
+        // Test the chunk's bounding sphere against the camera frustum.
+        // If the entire chunk is off-screen, skip all its trees.
+        _chunkSphere.center.set(kcx * CHUNK_SIZE, 5, kcz * CHUNK_SIZE);
+        if (!_frustum.intersectsSphere(_chunkSphere)) {
+          // Still update the flora stamp so we don't re-trigger dirty next frame
+          floraStampsRef.current.set(key, woodEngine.getChunkStamp(key));
+          continue;
+        }
 
         // Update flora stamp for this chunk
         floraStampsRef.current.set(key, woodEngine.getChunkStamp(key));
