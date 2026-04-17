@@ -9,6 +9,108 @@ import { woodEngine } from './utils/woodEngine';
 import { QualitySettings, QualityLevel, detectDefaultQuality, updateCachedConfigs } from './utils/qualityTier';
 import { applyTerrainMod, applyTerrainBatch, serializeOffsets, deserializeOffsets, getGlobalStamp } from './utils/terrainOffsets';
 import { serializeMud, deserializeMud, clearMud } from './utils/mudEngine';
+import { captureMinimapThumbnail } from './components/Minimap';
+
+// ── Multi-Slot Save Types ────────────────────────────────────────
+export interface SaveSlotMeta {
+  id: string;            // UUID or 'autosave'
+  timestamp: number;     // Date.now() at save time
+  thumbnail: string;     // base64 BMP data URI from minimap
+  screenshot: string;    // base64 JPEG data URI from WebGL canvas (web only)
+  stats: {
+    waterCoverage: number;
+    treesDowned: number;
+    sticksPlaced: number;
+    dayNumber: number;
+  };
+}
+
+/**
+ * Screenshot cache — captures frames while playing so we have a recent
+ * screenshot available when the user pauses and saves. The pause overlay
+ * blocks the canvas, so we can't capture at save time.
+ */
+let _cachedScreenshot = '';
+
+function _refreshScreenshotCache(): void {
+  if (typeof document === 'undefined') return;
+  try {
+    const canvas = document.querySelector('canvas') as HTMLCanvasElement | null;
+    if (!canvas || canvas.width === 0) return;
+    const w = 320;
+    const h = Math.round(w * (canvas.height / canvas.width));
+    const offscreen = document.createElement('canvas');
+    offscreen.width = w;
+    offscreen.height = h;
+    const ctx = offscreen.getContext('2d');
+    if (!ctx) return;
+    ctx.drawImage(canvas, 0, 0, w, h);
+    _cachedScreenshot = offscreen.toDataURL('image/jpeg', 0.55);
+  } catch { /* ignore */ }
+}
+
+/** 
+ * Synchronously capture the WebGL canvas before the UI renders over it.
+ * Called immediately when transitioning to the Pause menu.
+ */
+
+function captureScreenshot(): string {
+  return _cachedScreenshot;
+}
+
+
+const SAVES_INDEX_KEY = 'beavertown_saves_index';
+const SLOT_KEY_PREFIX = 'beavertown_slot_';
+const LEGACY_SAVE_KEY = 'beavertown_save';
+
+async function loadSavesIndex(): Promise<SaveSlotMeta[]> {
+  try {
+    const raw = await AsyncStorage.getItem(SAVES_INDEX_KEY);
+    return raw ? JSON.parse(raw) : [];
+  } catch { return []; }
+}
+
+async function writeSavesIndex(index: SaveSlotMeta[]): Promise<void> {
+  await AsyncStorage.setItem(SAVES_INDEX_KEY, JSON.stringify(index));
+}
+
+/** One-time migration of legacy single-save to the new multi-slot system. */
+async function migrateLegacySave(): Promise<void> {
+  try {
+    const legacy = await AsyncStorage.getItem(LEGACY_SAVE_KEY);
+    if (!legacy) return;
+    const index = await loadSavesIndex();
+    // Only migrate if the index is empty (first run after upgrade)
+    if (index.length > 0) {
+      // Already migrated — just clean up the old key
+      await AsyncStorage.removeItem(LEGACY_SAVE_KEY);
+      return;
+    }
+    const parsed = JSON.parse(legacy);
+    const slotId = 'migrated_' + Date.now();
+    const meta: SaveSlotMeta = {
+      id: slotId,
+      timestamp: Date.now(),
+      thumbnail: '', // No thumbnail for legacy saves
+      screenshot: '', // No screenshot for legacy saves
+      stats: {
+        waterCoverage: parsed.stats?.maxWaterCoverage || 0,
+        treesDowned: parsed.stats?.treesDowned || 0,
+        sticksPlaced: parsed.stats?.sticksPlaced || 0,
+        dayNumber: 0,
+      },
+    };
+    await AsyncStorage.setItem(SLOT_KEY_PREFIX + slotId, legacy);
+    await writeSavesIndex([meta]);
+    await AsyncStorage.removeItem(LEGACY_SAVE_KEY);
+    console.log('[SaveSystem] Migrated legacy save to slot:', slotId);
+  } catch (e) {
+    console.warn('[SaveSystem] Migration error:', e);
+  }
+}
+
+// Kick off migration immediately (fire-and-forget)
+migrateLegacySave();
 
 export type BlockType = 'stick' | 'mud';
 
@@ -73,6 +175,7 @@ interface GameState {
   virtualButtons: { jump: boolean, crouch: boolean, action1: boolean, action2: boolean, action3: boolean };
   timeOfDay: number;
   dayLength: number;
+  dayNumber: number;
   autopilot: boolean;
   aiState: string;
   aiTarget: [number, number, number] | null;
@@ -87,8 +190,10 @@ interface GameState {
   setSetting: (key: keyof GameState['settings'], value: any) => void;
   setQuality: (aspect: keyof QualitySettings, level: QualityLevel) => void;
   batchModifyTerrain: (modifications: Array<{x: number, z: number, amount: number, radius: number}>) => void;
-  saveGame: () => Promise<void>;
-  loadGame: () => Promise<void>;
+  saveGame: (slotId?: string) => Promise<void>;
+  loadGame: (slotId: string) => Promise<void>;
+  getSaveSlots: () => Promise<SaveSlotMeta[]>;
+  deleteSlot: (slotId: string) => Promise<void>;
   resetGame: () => void;
   setVirtualJoystick: (x: number, y: number) => void;
   setVirtualCamera: (x: number, y: number) => void;
@@ -150,22 +255,36 @@ export const useGameStore = create<GameState>((set, get) => ({
   particleEmitters: [],
   timeOfDay: 0,
   dayLength: 300, // 5 minutes real-time for testing purposes
+  dayNumber: 1,
   autopilot: false,
   aiState: 'IDLE',
   aiTarget: null,
   setAutopilot: (val: boolean) => set({ autopilot: val }),
   setAIState: (val: string) => set({ aiState: val }),
   setAITarget: (val: [number, number, number] | null) => set({ aiTarget: val }),
-  setGameState: (state) => set({ gameState: state }),
+  setGameState: (state) => {
+    // Capture the WebGL state synchronously BEFORE the React render pass paints the Pause Overlay
+    if (state === 'paused' || state === 'start_menu') {
+      _refreshScreenshotCache();
+    }
+    set({ gameState: state });
+  },
   
   updateTimeOfDay: (dt) => set((state) => {
     // 75% Day / 25% Night mapping
     let newTime = state.timeOfDay + (dt / state.dayLength);
+    let newDay = state.dayNumber;
     if (newTime >= 1.0) {
         newTime = newTime % 1.0;
+        newDay = state.dayNumber + 1;
         state.triggerEcologyTick(); // Evolve map at the break of dawn!
+        // Auto-save at dawn
+        setTimeout(() => {
+          useGameStore.getState().saveGame('autosave');
+          console.log('[AutoSave] Dawn of Day', newDay);
+        }, 0);
     }
-    return { timeOfDay: newTime };
+    return { timeOfDay: newTime, dayNumber: newDay };
   }),
   
   triggerEcologyTick: () => {
@@ -222,24 +341,58 @@ export const useGameStore = create<GameState>((set, get) => ({
     };
   }),
 
-  saveGame: async () => {
-    const { inventory, stats, settings, placedBlocks, draggableLogs, playerPosition, playerRotation, timeOfDay } = get();
-    const saveState = {
-      inventory, stats, settings, placedBlocks, draggableLogs, playerPosition, playerRotation, timeOfDay,
+  saveGame: async (slotId?: string) => {
+    const { inventory, stats, settings, placedBlocks, draggableLogs, playerPosition, playerRotation, timeOfDay, dayNumber } = get();
+    const savePayload = {
+      inventory, stats, settings, placedBlocks, draggableLogs, playerPosition, playerRotation, timeOfDay, dayNumber,
       terrainOffsets: serializeOffsets(),
       treeSticks: woodEngine.serialize(),
       mudSaturation: serializeMud()
     };
     try {
-      await AsyncStorage.setItem('beavertown_save', JSON.stringify(saveState));
+      const id = slotId || ('save_' + Date.now());
+      const isAutoSave = id === 'autosave';
+
+      // Capture minimap thumbnail + WebGL screenshot
+      let thumbnail = '';
+      let screenshot = '';
+      try { thumbnail = captureMinimapThumbnail(); } catch (_) {}
+      try { screenshot = captureScreenshot(); } catch (_) {}
+
+      // Write payload
+      await AsyncStorage.setItem(SLOT_KEY_PREFIX + id, JSON.stringify(savePayload));
+
+      // Update index
+      const index = await loadSavesIndex();
+      const meta: SaveSlotMeta = {
+        id,
+        timestamp: Date.now(),
+        thumbnail,
+        screenshot,
+        stats: {
+          waterCoverage: stats.maxWaterCoverage,
+          treesDowned: stats.treesDowned,
+          sticksPlaced: stats.sticksPlaced,
+          dayNumber: dayNumber,
+        },
+      };
+      // Replace existing slot or append
+      const existingIdx = index.findIndex(s => s.id === id);
+      if (existingIdx >= 0) {
+        index[existingIdx] = meta;
+      } else {
+        index.push(meta);
+      }
+      await writeSavesIndex(index);
+      if (!isAutoSave) console.log('[SaveSystem] Saved to slot:', id);
     } catch (e) {
-      console.warn("Save Error:", e);
+      console.warn('[SaveSystem] Save Error:', e);
     }
   },
 
-  loadGame: async () => {
+  loadGame: async (slotId: string) => {
     try {
-      const data = await AsyncStorage.getItem('beavertown_save');
+      const data = await AsyncStorage.getItem(SLOT_KEY_PREFIX + slotId);
       if (data) {
         const loadedState = JSON.parse(data);
         if (loadedState.terrainOffsets) {
@@ -261,12 +414,31 @@ export const useGameStore = create<GameState>((set, get) => ({
           draggableLogs: loadedState.draggableLogs,
           playerPosition: loadedState.playerPosition,
           playerRotation: loadedState.playerRotation,
+          timeOfDay: loadedState.timeOfDay || 0,
+          dayNumber: loadedState.dayNumber || 1,
           terrainStamp: getGlobalStamp(),
           gameState: 'paused',
         });
+        console.log('[SaveSystem] Loaded slot:', slotId);
       }
     } catch (e) {
-      console.warn("Load Error:", e);
+      console.warn('[SaveSystem] Load Error:', e);
+    }
+  },
+
+  getSaveSlots: async () => {
+    return loadSavesIndex();
+  },
+
+  deleteSlot: async (slotId: string) => {
+    try {
+      await AsyncStorage.removeItem(SLOT_KEY_PREFIX + slotId);
+      const index = await loadSavesIndex();
+      const filtered = index.filter(s => s.id !== slotId);
+      await writeSavesIndex(filtered);
+      console.log('[SaveSystem] Deleted slot:', slotId);
+    } catch (e) {
+      console.warn('[SaveSystem] Delete Error:', e);
     }
   },
 
@@ -291,6 +463,7 @@ export const useGameStore = create<GameState>((set, get) => ({
       terrainStamp: getGlobalStamp(),
       ecologyStamp: get().ecologyStamp + 1,
       timeOfDay: 0,
+      dayNumber: 1,
       autopilot: false,
       aiState: 'IDLE',
       aiTarget: null,

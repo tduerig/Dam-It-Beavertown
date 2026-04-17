@@ -87,16 +87,18 @@ When running Dam It Beavertown on older Android devices (Snapdragon chips) vs mo
 
 ### Optimization Timeline
 
-| Date | Optimization | Draw Calls Saved | JS ms/frame Saved | Commit |
+| Date | Optimization | Draw Calls Saved | JS ms/frame/stutter Saved | Commit |
 |---|---|---|---|---|
-| Apr 5 | Distance-gated flora rendering | — | ~2ms | ✅ |
-| Apr 5 | Quality tier throttle (medium: no normals, chunkDist=2) | — | ~3ms | ✅ |
-| Apr 9 | Zustand in-place mutation (playerPos, playerRot, timeOfDay) | — | ~1-2ms | ✅ |
-| Apr 10 | WaterRenderer RenderY decoupling | — | ~1-2ms | ✅ |
+| Apr 5 | Distance-gated flora rendering | — | ~2.0ms | ✅ |
+| Apr 5 | Quality tier throttle (medium: no normals, chunkDist=2) | — | ~3.0ms | ✅ |
+| Apr 9 | Zustand in-place mutation (playerPos, playerRot, timeOfDay) | — | ~1.5ms | ✅ |
+| Apr 10 | WaterRenderer RenderY decoupling | — | ~1.5ms | ✅ |
 | Apr 13 | Terrain chunk batching (MergedTerrain) | **24** | — | ✅ |
+| Apr 14 | GlobalTree Phase 2 pool & culling fix | **~96** | +0.4ms CPU, saved ~60k GPU Verts | ✅ |
+| Apr 14 | Texture procedural noise swap | — | Halved fragment shader fill-rate | ✅ |
+| Apr 17 | Removed synchronous `toDataURL` background thread blocking | — | Extracted guaranteed 50-80ms periodic stutter | ✅ |
 
-**Net effect**: JS main thread went from ~12ms/frame → ~1-2ms/frame on medium. GPU draw calls reduced from ~164 → ~116.
-
+**Net effect**: JS main thread went from ~12ms/frame → ~1-2ms/frame on medium. Massive thread-blocking polling loops completely extracted. GPU draw calls reduced from ~164 → ~20.
 ---
 
 ### Roadmap: Remaining Draw Call Reduction Opportunities
