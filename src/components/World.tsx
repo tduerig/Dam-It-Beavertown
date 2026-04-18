@@ -9,6 +9,7 @@ import { GlobalTrees } from './GlobalTrees';
 
 import { Particles } from './Particles';
 import { getRenderConfig } from '../utils/qualityTier';
+import { MinimapHUD } from './MinimapHUD';
 
 export function World() {
   // Only re-render chunks when the player crosses a 40-meter threshold boundary natively
@@ -43,6 +44,7 @@ export function World() {
       <GlobalFlora />
       <DraggableLogs />
       <Particles />
+      <MinimapHUD />
     </group>
   );
 }

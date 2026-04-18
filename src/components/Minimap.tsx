@@ -7,57 +7,11 @@ import { woodEngine } from '../utils/woodEngine';
 import { Sun, Moon } from 'lucide-react-native';
 import { getRenderConfig } from '../utils/qualityTier';
 
-const chars = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/';
-function encodeB64(bytes: Uint8Array) {
-  let result = '';
-  const len = bytes.byteLength;
-  for (let i = 0; i < len; i += 3) {
-    const a = bytes[i];
-    const b = i + 1 < len ? bytes[i + 1] : 0;
-    const c = i + 2 < len ? bytes[i + 2] : 0;
-    const n = (a << 16) | (b << 8) | c;
-    result += chars[n >> 18] + chars[(n >> 12) & 63] + chars[(n >> 6) & 63] + chars[n & 63];
-  }
-  const padding = len % 3;
-  if (padding === 1) return result.slice(0, -2) + '==';
-  if (padding === 2) return result.slice(0, -1) + '=';
-  return result;
-}
-
-function generateBMPb64(width: number, height: number, getPixel: (x: number, y: number) => {r:number, g:number, b:number}) {
-  const rowSize = width * 3; 
-  const padding = (4 - (rowSize % 4)) % 4;
-  const rowStride = rowSize + padding;
-  const fileSize = 54 + height * rowStride;
-  const buffer = new ArrayBuffer(fileSize);
-  const view = new DataView(buffer);
-  
-  view.setUint8(0, 0x42); // 'B'
-  view.setUint8(1, 0x4D); // 'M'
-  view.setUint32(2, fileSize, true);
-  view.setUint32(10, 54, true); 
-  
-  view.setUint32(14, 40, true); 
-  view.setUint32(18, width, true);
-  view.setInt32(22, height, true); // Strictly positive height for better cross-platform decoder compat
-  view.setUint16(26, 1, true);
-  view.setUint16(28, 24, true);
-  
-  const bytes = new Uint8Array(buffer);
-  let offset = 54;
-  
-  for (let y = 0; y < height; y++) {
-    for (let x = 0; x < width; x++) {
-      const p = getPixel(x, y);
-      bytes[offset++] = p.b;
-      bytes[offset++] = p.g;
-      bytes[offset++] = p.r;
-    }
-    offset += padding;
-  }
-  
-  return 'data:image/bmp;base64,' + encodeB64(bytes);
-}
+/**
+ * Capture a minimap thumbnail for save-slot previews.
+ * Generates a 64x64 BMP data URI centered on the current player position.
+ * Called on-demand at save time — not on a timer.
+ */
 
 export function MinimapLegend() {
   return (
@@ -73,8 +27,59 @@ export function MinimapLegend() {
   );
 }
 
+
+export function captureMinimapThumbnail(): string {
+  const size = 64;
+  const halfSize = 32;
+  const state = useGameStore.getState();
+  const [px, _py, pz] = state.playerPosition;
+  const placedBlocks = state.placedBlocks;
+  const draggableLogs = state.draggableLogs;
+
+  // Build features map
+  const chunkMap = new Map<string, {r:number, g:number, b:number}>();
+
+  // Trees
+  const chunkX = Math.floor((px + CHUNK_SIZE / 2) / CHUNK_SIZE);
+  const chunkZ = Math.floor((pz + CHUNK_SIZE / 2) / CHUNK_SIZE);
+  for (let cx = chunkX - 2; cx <= chunkX + 2; cx++) {
+    for (let cz = chunkZ - 2; cz <= chunkZ + 2; cz++) {
+      const trees = generateTreesForChunk(cx, cz);
+      for (const tree of trees) {
+        const isBig = tree.type === 'big';
+        const sticks = woodEngine.getSticks(tree.id, isBig);
+        if (sticks > 0) {
+          const mx = Math.floor(tree.position[0] - px + halfSize);
+          const mz = Math.floor(pz - tree.position[2] + halfSize);
+          if (mx >= 1 && mx < size-1 && mz >= 1 && mz < size-1) {
+            const treeColor = tree.type === 'big' ? {r: 10, g: 100, b: 10} : {r: 34, g: 139, b: 34};
+            for(let i=-1; i<=1; i++) {
+              for(let j=-1; j<=1; j++) {
+                chunkMap.set(`${mx+i},${mz+j}`, treeColor);
+              }
+            }
+          }
+        }
+      }
+    }
+  }
+
+  // Placed blocks
+  for (const block of placedBlocks) {
+    const mx = Math.floor(block.position[0] - px + halfSize);
+    const mz = Math.floor(pz - block.position[2] + halfSize);
+    if (mx >= 1 && mx < size-1 && mz >= 1 && mz < size-1) {
+      const color = block.type === 'stick' ? {r: 139, g: 69, b: 19} : {r: 61, g: 40, b: 23};
+      for(let i=-1; i<=1; i++) {
+        for(let j=-1; j<=1; j++) {
+          chunkMap.set(`${mx+i},${mz+j}`, color);
+        }
+      }
+    }
+  return '';
+}
+
 export function Minimap() {
-  const [mapSource, setMapSource] = useState<string>('');
   const [coverage, setCoverage] = useState<{current: number, max: number}>({current: 0, max: 0});
   const [maxRecord, setMaxRecord] = useState(0);
   const [isHovered, setIsHovered] = useState(false);
@@ -92,66 +97,6 @@ export function Minimap() {
     const interval = setInterval(() => {
       const state = useGameStore.getState();
       setTimeOfDay(state.timeOfDay);
-      const [px, py, pz] = state.playerPosition;
-      const placedBlocks = state.placedBlocks;
-      const draggableLogs = state.draggableLogs;
-      
-      // Calculate local features map
-      const chunkMap = new Map<string, {r:number, g:number, b:number}>();
-      
-      // Plot Trees
-      const chunkX = Math.floor((px + CHUNK_SIZE / 2) / CHUNK_SIZE);
-      const chunkZ = Math.floor((pz + CHUNK_SIZE / 2) / CHUNK_SIZE);
-      for (let cx = chunkX - 2; cx <= chunkX + 2; cx++) {
-        for (let cz = chunkZ - 2; cz <= chunkZ + 2; cz++) {
-          const trees = generateTreesForChunk(cx, cz);
-          for (const tree of trees) {
-            const isBig = tree.type === 'big';
-            const sticks = woodEngine.getSticks(tree.id, isBig);
-            if (sticks > 0) {
-              const mx = Math.floor(tree.position[0] - px + halfSize);
-              const mz = Math.floor(pz - tree.position[2] + halfSize); // Flip Z: upstream=top
-              
-              if (mx >= 1 && mx < size-1 && mz >= 1 && mz < size-1) {
-                  const treeColor = tree.type === 'big' ? {r: 10, g: 100, b: 10} : {r: 34, g: 139, b: 34};
-                  for(let i=-1; i<=1; i++) {
-                     for(let j=-1; j<=1; j++) {
-                         chunkMap.set(`${mx+i},${mz+j}`, treeColor); 
-                     }
-                  }
-              }
-            }
-          }
-        }
-      }
-
-      // Plot placed blocks (Dams)
-      for (const block of placedBlocks) {
-        const mx = Math.floor(block.position[0] - px + halfSize);
-        const mz = Math.floor(pz - block.position[2] + halfSize); // Flip Z: upstream=top
-        if (mx >= 1 && mx < size-1 && mz >= 1 && mz < size-1) {
-           const color = block.type === 'stick' ? {r: 139, g: 69, b: 19} : {r: 61, g: 40, b: 23};
-           for(let i=-1; i<=1; i++) {
-               for(let j=-1; j<=1; j++) {
-                   chunkMap.set(`${mx+i},${mz+j}`, color); 
-               }
-           }
-        }
-      }
-
-      // Plot DraggableLogs
-      for (const log of draggableLogs) {
-        const mx = Math.floor(log.position[0] - px + halfSize);
-        const mz = Math.floor(pz - log.position[2] + halfSize); // Flip Z: upstream=top
-        if (mx >= 1 && mx < size-1 && mz >= 1 && mz < size-1) {
-           const logColor = log.isMudded ? {r: 61, g: 40, b: 23} : {r: 139, g: 69, b: 19};
-           for(let i=-1; i<=1; i++) {
-               for(let j=-1; j<=1; j++) {
-                   chunkMap.set(`${mx+i},${mz+j}`, logColor); 
-               }
-           }
-        }
-      }
 
       // Calculate global water coverage metrics mapping native physics array tracking!
       let activeTiles = 0;
@@ -173,29 +118,7 @@ export function Minimap() {
       });
       setCoverage({ current: activeTiles, max: totalTiles });
 
-      // Generate Native Pixel Layer
-      const bmpData = generateBMPb64(size, size, (x, y) => {
-        // Player cursor
-        if (Math.abs(x - halfSize) <= 2 && Math.abs(y - halfSize) <= 2) {
-          return {r: 255, g: 0, b: 0}; 
-        }
-        
-        const overlay = chunkMap.get(`${x},${y}`);
-        if (overlay) return overlay;
-
-        const worldX = px + (x - halfSize);
-        const worldZ = pz - (y - halfSize); // Flip Z: upstream (negative Z) = top of map
-        const waterHeight = waterEngine.getSurfaceHeight(worldX, worldZ);
-        
-        // Deep blue for flooded, vibrant grass-green for land 
-        if (waterHeight > -50) {
-          return {r: 28, g: 163, b: 236}; // River blue
-        } else {
-          return {r: 85, g: 195, b: 85}; // Vibrant grass green
-        }
-      });
-
-      setMapSource(bmpData);
+      setCoverage({ current: activeTiles, max: totalTiles });
     }, renderCfg.minimapUpdateMs);
     
     return () => clearInterval(interval);
@@ -207,13 +130,6 @@ export function Minimap() {
   return (
     <View style={styles.nativeWrapper} pointerEvents="box-none">
       
-      {/* Dynamic Hover Legend */}
-      {isHovered && Platform.OS === 'web' && (
-        <View style={styles.hoverLegendPos}>
-           <MinimapLegend />
-        </View>
-      )}
-
       <Pressable 
          onHoverIn={() => setIsHovered(true)} 
          onHoverOut={() => setIsHovered(false)}
@@ -237,20 +153,15 @@ export function Minimap() {
           </View>
         </View>
 
-        <View style={styles.canvasWrapper}>
-          {mapSource ? (
-            <Image 
-              source={{ uri: mapSource }} 
-              style={{ width: 160, height: 160, resizeMode: 'stretch' }} 
-              {...Platform.select({ web: { style: { width: 160, height: 160, imageRendering: 'pixelated' } } })}
-            />
-          ) : (
-            <View style={styles.placeholder}>
-               <Text style={styles.placeholderText}>Mapping...</Text>
-            </View>
-          )}
-        </View>
+        <View style={styles.canvasWrapper} />
       </Pressable>
+
+      {/* Dynamic Hover Legend */}
+      {isHovered && Platform.OS === 'web' && (
+        <View style={styles.hoverLegendPos}>
+           <MinimapLegend />
+        </View>
+      )}
     </View>
   );
 }
@@ -277,7 +188,7 @@ const styles = StyleSheet.create({
     shadowRadius: 4,
   },
   hoverLegendPos: {
-    marginRight: 12,
+    marginLeft: 12,
   },
   statsPanel: {
     paddingVertical: 6,
@@ -313,9 +224,9 @@ const styles = StyleSheet.create({
     textAlign: 'center',
   },
   canvasWrapper: {
-    width: 160,
-    height: 160,
-    backgroundColor: '#55c355', 
+    width: 154,
+    height: 154,
+    backgroundColor: 'transparent', 
   },
   
   // Legend Styles
