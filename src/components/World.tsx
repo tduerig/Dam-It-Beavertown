@@ -4,7 +4,7 @@ import { CHUNK_SIZE } from '../utils/terrain';
 import { Chunk } from './Chunk';
 import { GlobalFlora } from './GlobalFlora';
 import { DraggableLogs } from './DraggableLogs';
-import { MergedTerrain } from './MergedTerrain';
+import { TerrainLODManager } from './TerrainLODManager';
 import { GlobalTrees } from './GlobalTrees';
 
 import { Particles } from './Particles';
@@ -38,7 +38,7 @@ export function World() {
 
   return (
     <group>
-      <MergedTerrain />
+      <TerrainLODManager />
       <GlobalTrees />
       {chunks}
       <GlobalFlora />

@@ -101,6 +101,7 @@ When running Dam It Beavertown on older Android devices (Snapdragon chips) vs mo
 | Apr 18 | Dynamic Material Downgrade (`MeshLambertMaterial`) | — | Stripped massive Fragment Shader PBR on Medium/Low | ✅ |
 | Apr 18 | GlobalFlora Phase 3 Region Consolidation | **~8** | Eliminated per-region InstancedMesh overhead for lilies/cattails | ✅ |
 | Apr 18 | WebGL Native DataTexture Minimap (Phase 5.2) | — | Eliminated Base64 500ms stutter loop entirely from JS main thread | ✅ |
+| Apr 18 | Dynamic Terrain LOD Rings (Phase 5.1) | — | Quadratic vertex polygon falloff. Slashed landscape vertices by 68%. | ✅ |
 
 **Net effect**: JS main thread went from ~12ms/frame → ~1-2ms/frame on medium. Massive thread-blocking polling loops completely extracted. GPU draw calls reduced from ~164 → ~20. Fragment shader throughput structurally increased on low-end.
 ---
