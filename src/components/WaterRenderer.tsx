@@ -167,11 +167,10 @@ export function WaterRenderer() {
           side={THREE.DoubleSide} 
         />
       ) : (
-        <meshStandardMaterial
+        <meshLambertMaterial
           color="#4da6ff" 
           transparent 
           opacity={0.8} 
-          roughness={0.1} 
           side={THREE.DoubleSide} 
         />
       )}

@@ -4,6 +4,7 @@ import * as THREE from 'three';
 import { useGameStore } from '../store';
 import { waterEngine } from '../utils/WaterEngine';
 import { getTerrainHeight } from '../utils/terrain';
+import { createMaterial } from '../utils/qualityTier';
 
 const dummy = new THREE.Object3D();
 const _playerPosScratch = new THREE.Vector3();
@@ -16,7 +17,7 @@ export function FloatingLogs() {
   
   const { geo, mat } = useMemo(() => ({
     geo: new THREE.CylinderGeometry(0.5, 0.5, 4, 8),
-    mat: new THREE.MeshStandardMaterial({ color: '#8B4513' })
+    mat: createMaterial({ color: '#8B4513' })
   }), []);
 
   const meshRef = useRef<THREE.InstancedMesh>(null);

@@ -4,6 +4,7 @@ import { useGameStore } from '../store';
 import { getTerrainHeight } from '../utils/terrain';
 import { waterEngine } from '../utils/WaterEngine';
 import * as THREE from 'three';
+import { createMaterial } from '../utils/qualityTier';
 
 const dummy = new THREE.Object3D();
 
@@ -19,8 +20,8 @@ export function Dam() {
     return {
       stickGeometry: new THREE.CylinderGeometry(0.5, 0.5, 4, 8),
       mudGeometry: new THREE.DodecahedronGeometry(0.6, 1),
-      stickMaterial: new THREE.MeshStandardMaterial({ color: '#8B4513' }),
-      mudMaterial: new THREE.MeshStandardMaterial({ color: '#5C4033', roughness: 1 }),
+      stickMaterial: createMaterial({ color: '#8B4513' }),
+      mudMaterial: createMaterial({ color: '#5C4033', roughness: 1 } as any),
     };
   }, []);
 

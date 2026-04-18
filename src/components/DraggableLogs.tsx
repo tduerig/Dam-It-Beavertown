@@ -2,6 +2,7 @@ import { useFrame } from '@react-three/fiber';
 import { useGameStore, PlacedBlock } from '../store';
 import { waterEngine } from '../utils/WaterEngine';
 import { getTerrainHeight } from '../utils/terrain';
+import { createMaterial } from '../utils/qualityTier';
 import * as THREE from 'three';
 import { useMemo, useRef, useEffect } from 'react';
 
@@ -73,15 +74,38 @@ export function DraggableLogs() {
 
   const { logGeo, logMat, leavesGeo, leavesMat, branchGeo, whittleGeo, whittleMat } = useMemo(() => {
     const lGeo = new THREE.CylinderGeometry(1.12, 1.68, 11.2, 8);
-    const lMat = new THREE.MeshStandardMaterial({ color: '#5C4033' });
-    const wMat = new THREE.MeshStandardMaterial({ color: '#E6C280' }); // Lighter wood color
+    const lMat = createMaterial({ color: '#5C4033' });
+    const wMat = createMaterial({ color: '#E6C280' }); // Lighter wood color
+    
+    // Inject custom varying logic into the material
+    const injectWhittle = (shader: any) => {
+      shader.vertexShader = `
+        attribute float aWhittle;
+        varying float vWhittle;
+        ${shader.vertexShader}
+      `.replace(
+        `#include <begin_vertex>`,
+        `
+        #include <begin_vertex>
+        vWhittle = aWhittle;
+        `
+      );
+      // Wait for fragment shader to be handled
+      shader.fragmentShader = `
+        varying float vWhittle;
+        ${shader.fragmentShader}
+      `;
+    };
+
+    lMat.onBeforeCompile = injectWhittle;
+    wMat.onBeforeCompile = injectWhittle;
     
     const maxLogs = 1000;
     
     const leGeo = new THREE.ConeGeometry(7, 14, 8);
     leGeo.setAttribute('aDissolve', new THREE.InstancedBufferAttribute(new Float32Array(maxLogs), 1));
     
-    const leMat = new THREE.MeshStandardMaterial({ color: '#228B22', side: THREE.DoubleSide });
+    const leMat = createMaterial({ color: '#228B22', side: THREE.DoubleSide });
     leMat.onBeforeCompile = (shader) => {
       shader.vertexShader = `
         attribute float aDissolve;

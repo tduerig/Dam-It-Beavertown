@@ -6,6 +6,7 @@ import { floraCache, FloraItem } from '../utils/floraCache';
 import { useGameStore } from '../store';
 import { getGlobalStamp } from '../utils/terrainOffsets';
 import { waterEngine } from '../utils/WaterEngine';
+import { createMaterial } from '../utils/qualityTier';
 
 const dummy = new THREE.Object3D();
 const HIDDEN_MATRIX = new THREE.Matrix4().makeTranslation(0, -1000, 0).scale(new THREE.Vector3(0, 0, 0));
@@ -180,17 +181,16 @@ function RegionalCattails({ regionKey, stalkGeo, headGeo, stalkMat, headMat }: {
 
     for (let i = 0; i < renderCount; i++) {
       const c = items[i];
-      if (isNaN(c.position[0]) || isNaN(c.position[1]) || isNaN(c.position[2])) {
-        c.position[1] = 0;
-      }
+      const terrainY = getTerrainHeight(c.position[0], c.position[2]);
+      c.position[1] = terrainY;
 
-      dummy.position.set(c.position[0], c.position[1] + 1.5, c.position[2]);
+      dummy.position.set(c.position[0], terrainY + 1.5, c.position[2]);
       dummy.rotation.set(0, 0, 0);
       dummy.scale.setScalar(1);
       dummy.updateMatrix();
       stalkRef.current.setMatrixAt(i, dummy.matrix);
 
-      dummy.position.set(c.position[0], c.position[1] + 3.2, c.position[2]);
+      dummy.position.set(c.position[0], terrainY + 3.2, c.position[2]);
       dummy.updateMatrix();
       headRef.current.setMatrixAt(i, dummy.matrix);
     }
@@ -235,12 +235,17 @@ export function GlobalFlora() {
   const cattailKeys = useMemo(() => Array.from(_cattailRegionData.keys()), [ecologyStamp]);
 
   const { lilyGeo, lilyMat, cattailStalkGeo, cattailHeadGeo, cattailStalkMat, cattailHeadMat } = useMemo(() => {
-    const lilyGeo = new THREE.CylinderGeometry(0.8, 0.8, 0.05, 8);
-    const lilyMat = new THREE.MeshStandardMaterial({ color: '#2ecc71', roughness: 0.9 });
-    const cattailStalkGeo = new THREE.CylinderGeometry(0.08, 0.1, 3.0, 5);
-    const cattailStalkMat = new THREE.MeshStandardMaterial({ color: '#27ae60' });
-    const cattailHeadGeo = new THREE.CylinderGeometry(0.2, 0.15, 0.6, 6);
-    const cattailHeadMat = new THREE.MeshStandardMaterial({ color: '#8b4513' });
+    // ── Precompute Shared Flora Geometries & Materials ──
+    const lilyGeo = new THREE.CylinderGeometry(0.8, 0.8, 0.1, 8);
+    const lilyMat = createMaterial({ color: '#2ecc71', roughness: 0.9 } as any);
+    
+    // Stalks (1st instanced mesh pair for cattails)
+    const cattailStalkGeo = new THREE.CylinderGeometry(0.08, 0.1, 3.5, 6);
+    const cattailStalkMat = createMaterial({ color: '#27ae60' });
+
+    // Brown Heads (2nd instanced mesh pair for cattails)
+    const cattailHeadGeo = new THREE.CylinderGeometry(0.2, 0.2, 1.2, 6);
+    const cattailHeadMat = createMaterial({ color: '#8b4513' });
     return { lilyGeo, lilyMat, cattailStalkGeo, cattailHeadGeo, cattailStalkMat, cattailHeadMat };
   }, []);
 

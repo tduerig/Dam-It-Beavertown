@@ -16,7 +16,8 @@ import { useGameStore } from '../store';
 import { waterEngine } from '../utils/WaterEngine';
 import { BRANCH_CONFIGS } from './DraggableLogs';
 import { woodEngine } from '../utils/woodEngine';
-import { getRenderConfig } from '../utils/qualityTier';
+import { woodEngine } from '../utils/woodEngine';
+import { getRenderConfig, createMaterial } from '../utils/qualityTier';
 
 // Types that render as 3D tree geometry (same filter as old Chunk.tsx)
 const TREE_TYPES = new Set(['big', 'small', 'sapling']);
@@ -57,7 +58,7 @@ export function GlobalTrees() {
     // ── Trunk ──
     const tGeo = new THREE.CylinderGeometry(0.4, 0.6, 4, 8);
     tGeo.setAttribute('aWhittle', new THREE.InstancedBufferAttribute(new Float32Array(MAX_TREES), 1));
-    const tMat = new THREE.MeshStandardMaterial({ color: '#5C4033' });
+    const tMat = createMaterial({ color: '#5C4033' });
     tMat.onBeforeCompile = (shader) => {
       shader.vertexShader = `
         attribute float aWhittle;
@@ -115,7 +116,7 @@ export function GlobalTrees() {
     const lGeo = new THREE.ConeGeometry(2.5, 5, 8);
     lGeo.setAttribute('aDissolve', new THREE.InstancedBufferAttribute(new Float32Array(MAX_TREES), 1));
     // Restored DoubleSide to eliminate shadow/normal artifacts on mobile
-    const lMat = new THREE.MeshStandardMaterial({ color: '#228B22', side: THREE.DoubleSide });
+    const lMat = createMaterial({ color: '#228B22', side: THREE.DoubleSide });
     lMat.onBeforeCompile = (shader) => {
       shader.uniforms.tNoise = { value: noiseTex };
       shader.vertexShader = `
@@ -164,7 +165,7 @@ export function GlobalTrees() {
 
     // ── Stumps ──
     const sGeo = new THREE.ConeGeometry(0.6, 0.5, 8);
-    const sMat = new THREE.MeshStandardMaterial({ color: '#E6C280' });
+    const sMat = createMaterial({ color: '#E6C280' });
 
     // Large bounding sphere so frustum culling doesn't hide distant instances
     const cullingSphere = new THREE.Sphere(new THREE.Vector3(0, 0, 0), 500);

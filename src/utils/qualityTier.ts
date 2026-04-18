@@ -1,3 +1,5 @@
+import * as THREE from 'three';
+
 /**
  * Per-Aspect Quality Tier System
  * 
@@ -139,8 +141,25 @@ export function getGraphicsConfig(): GraphicsConfig {
   return _cachedGfx;
 }
 
+}
+
 export function getRenderConfig(): RenderingConfig {
   return _cachedRender;
+}
+
+// ─── Material Generator ─────────────────────────────────────────────────────
+
+/**
+ * Creates an optimal material based on the current Graphics Quality tier.
+ * Strips massive per-pixel PBR calculation overhead on Medium/Low by falling back to Lambert.
+ */
+export function createMaterial(options: THREE.MeshStandardMaterialParameters): THREE.MeshStandardMaterial | THREE.MeshLambertMaterial {
+  // We use usePhysicalWaterMat as a proxy flag for high-end rendering capabilities
+  if (_cachedGfx.usePhysicalWaterMat) {
+    return new THREE.MeshStandardMaterial(options);
+  } else {
+    return new THREE.MeshLambertMaterial(options as THREE.MeshLambertMaterialParameters);
+  }
 }
 
 // ─── Auto-detection ─────────────────────────────────────────────────────────

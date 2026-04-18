@@ -2,6 +2,7 @@ import { useRef, useMemo } from 'react';
 import { useFrame } from '@react-three/fiber';
 import * as THREE from 'three';
 import { useGameStore } from '../store';
+import { createMaterial } from '../utils/qualityTier';
 
 const PARTICLE_COUNT = 20;
 const LIFETIME = 1.0;
@@ -15,7 +16,7 @@ export function Particles() {
   
   const { geo, mat } = useMemo(() => ({
     geo: new THREE.BoxGeometry(0.2, 0.2, 0.2),
-    mat: new THREE.MeshStandardMaterial({ color: '#D2B48C' }) // Sawdust color
+    mat: createMaterial({ color: '#D2B48C' }) // Sawdust color
   }), []);
 
   // Store particle data: [x, y, z, vx, vy, vz, life, emitterId]
