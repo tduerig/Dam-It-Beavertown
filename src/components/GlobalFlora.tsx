@@ -12,61 +12,51 @@ const dummy = new THREE.Object3D();
 const HIDDEN_MATRIX = new THREE.Matrix4().makeTranslation(0, -1000, 0).scale(new THREE.Vector3(0, 0, 0));
 const REGION_SIZE = 120;
 
-// ─── Shared stamp that GlobalFlora bumps on every rebuild ───
-// RegionalLilies/Cattails poll this inside useFrame to detect
-// changes WITHOUT relying on React prop diffing or closure capture.
+// ─── Shared data written by GlobalFlora.render(), read by useFrame ───
 let _globalFloraStamp = 0;
-
-// ─── Shared region data written by GlobalFlora.render(), read by useFrame ───
-let _lilyRegionData = new Map<string, FloraItem[]>();
-let _cattailRegionData = new Map<string, FloraItem[]>();
+let _allLilies: FloraItem[] = [];
+let _allCattails: FloraItem[] = [];
 
 export function rebuildRegionData() {
-  const lRegions = new Map<string, FloraItem[]>();
-  const cRegions = new Map<string, FloraItem[]>();
+  const lAll: FloraItem[] = [];
+  const cAll: FloraItem[] = [];
 
   floraCache.getAllChunks().forEach(chunkFlora => {
     chunkFlora.forEach((item: FloraItem) => {
-      const rx = Math.floor(item.position[0] / REGION_SIZE);
-      const rz = Math.floor(item.position[2] / REGION_SIZE);
-      const rKey = `${rx}_${rz}`;
-
       if (item.type === 'lily') {
-        if (!lRegions.has(rKey)) lRegions.set(rKey, []);
-        lRegions.get(rKey)!.push(item);
+         lAll.push(item);
       } else if (item.type === 'cattail') {
-        if (!cRegions.has(rKey)) cRegions.set(rKey, []);
-        cRegions.get(rKey)!.push(item);
+         cAll.push(item);
       }
     });
   });
 
-  _lilyRegionData = lRegions;
-  _cattailRegionData = cRegions;
+  _allLilies = lAll;
+  _allCattails = cAll;
   _globalFloraStamp++;
 }
 
-function RegionalLilies({ regionKey, geometry, material }: { regionKey: string, geometry: THREE.BufferGeometry, material: THREE.Material }) {
+function GlobalLilies({ geometry, material }: { geometry: THREE.BufferGeometry, material: THREE.Material }) {
   const meshRef = useRef<THREE.InstancedMesh>(null);
   const lastStamp = useRef(-1);
+  const MAX_GLOBAL_LILIES = 2500;
 
   useFrame((state, delta) => {
     if (!meshRef.current) return;
     const dt = Math.min(delta, 0.1);
 
-    // Read items directly from the shared module-level map — bypasses
-    // React closure staleness entirely.
-    const items = _lilyRegionData.get(regionKey) || [];
+    // Read items directly from the shared module-level array
+    const items = _allLilies;
 
     // ── Dirty check: rebuild when global stamp changes ──
     const needsRebuild = lastStamp.current !== _globalFloraStamp;
     if (needsRebuild) {
       lastStamp.current = _globalFloraStamp;
-      const renderCount = Math.min(items.length, 500);
+      const renderCount = Math.min(items.length, MAX_GLOBAL_LILIES);
 
       meshRef.current.count = renderCount;
 
-      for (let i = renderCount; i < 500; i++) {
+      for (let i = renderCount; i < MAX_GLOBAL_LILIES; i++) {
         meshRef.current.setMatrixAt(i, HIDDEN_MATRIX);
       }
 
@@ -138,37 +128,33 @@ function RegionalLilies({ regionKey, geometry, material }: { regionKey: string, 
 
   const localGeo = useMemo(() => {
     const geo = geometry.clone();
-    const [rx, rz] = regionKey.split('_').map(Number);
-    // REGION_SIZE is 120. Bounds center is safely constructed using region offset.
-    geo.boundingSphere = new THREE.Sphere(
-      new THREE.Vector3(rx * REGION_SIZE + REGION_SIZE / 2, 0, rz * REGION_SIZE + REGION_SIZE / 2),
-      100
-    );
+    geo.boundingSphere = new THREE.Sphere(new THREE.Vector3(0, 0, 0), 5000);
     return geo;
-  }, [geometry, regionKey]);
+  }, [geometry]);
 
-  return <instancedMesh frustumCulled={true} ref={meshRef} args={[localGeo, material, 500]} />;
+  return <instancedMesh frustumCulled={true} ref={meshRef} args={[localGeo, material, MAX_GLOBAL_LILIES]} />;
 }
 
-function RegionalCattails({ regionKey, stalkGeo, headGeo, stalkMat, headMat }: { regionKey: string, stalkGeo: THREE.BufferGeometry, headGeo: THREE.BufferGeometry, stalkMat: THREE.Material, headMat: THREE.Material }) {
+function GlobalCattails({ stalkGeo, headGeo, stalkMat, headMat }: { stalkGeo: THREE.BufferGeometry, headGeo: THREE.BufferGeometry, stalkMat: THREE.Material, headMat: THREE.Material }) {
   const stalkRef = useRef<THREE.InstancedMesh>(null);
   const headRef = useRef<THREE.InstancedMesh>(null);
   const lastStamp = useRef(-1);
+  const MAX_GLOBAL_CATTAILS = 2500;
 
   useFrame(() => {
     if (!stalkRef.current || !headRef.current) return;
 
-    const items = _cattailRegionData.get(regionKey) || [];
+    const items = _allCattails;
 
     if (lastStamp.current === _globalFloraStamp) return;
     lastStamp.current = _globalFloraStamp;
 
-    const renderCount = Math.min(items.length, 500);
+    const renderCount = Math.min(items.length, MAX_GLOBAL_CATTAILS);
 
     stalkRef.current.count = renderCount;
     headRef.current.count = renderCount;
 
-    for (let i = renderCount; i < 500; i++) {
+    for (let i = renderCount; i < MAX_GLOBAL_CATTAILS; i++) {
       stalkRef.current.setMatrixAt(i, HIDDEN_MATRIX);
       headRef.current.setMatrixAt(i, HIDDEN_MATRIX);
     }
@@ -202,20 +188,16 @@ function RegionalCattails({ regionKey, stalkGeo, headGeo, stalkMat, headMat }: {
   const { localStalkGeo, localHeadGeo } = useMemo(() => {
     const sG = stalkGeo.clone();
     const hG = headGeo.clone();
-    const [rx, rz] = regionKey.split('_').map(Number);
-    const sphere = new THREE.Sphere(
-      new THREE.Vector3(rx * REGION_SIZE + REGION_SIZE / 2, 0, rz * REGION_SIZE + REGION_SIZE / 2),
-      100
-    );
+    const sphere = new THREE.Sphere(new THREE.Vector3(0, 0, 0), 5000);
     sG.boundingSphere = sphere;
     hG.boundingSphere = sphere;
     return { localStalkGeo: sG, localHeadGeo: hG };
-  }, [stalkGeo, headGeo, regionKey]);
+  }, [stalkGeo, headGeo]);
 
   return (
     <group>
-      <instancedMesh frustumCulled={true} ref={stalkRef} args={[localStalkGeo, stalkMat, 500]} />
-      <instancedMesh frustumCulled={true} ref={headRef} args={[localHeadGeo, headMat, 500]} />
+      <instancedMesh frustumCulled={true} ref={stalkRef} args={[localStalkGeo, stalkMat, MAX_GLOBAL_CATTAILS]} />
+      <instancedMesh frustumCulled={true} ref={headRef} args={[localHeadGeo, headMat, MAX_GLOBAL_CATTAILS]} />
     </group>
   );
 }
@@ -228,11 +210,6 @@ export function GlobalFlora() {
   useMemo(() => {
     rebuildRegionData();
   }, [ecologyStamp]);
-
-  // Region keys determine which Regional* components mount.
-  // We derive them from the shared data so React can diff the tree.
-  const lilyKeys = useMemo(() => Array.from(_lilyRegionData.keys()), [ecologyStamp]);
-  const cattailKeys = useMemo(() => Array.from(_cattailRegionData.keys()), [ecologyStamp]);
 
   const { lilyGeo, lilyMat, cattailStalkGeo, cattailHeadGeo, cattailStalkMat, cattailHeadMat } = useMemo(() => {
     // ── Precompute Shared Flora Geometries & Materials ──
@@ -251,12 +228,8 @@ export function GlobalFlora() {
 
   return (
     <group>
-      {lilyKeys.map(key => (
-         <RegionalLilies key={`lily-${key}`} regionKey={key} geometry={lilyGeo} material={lilyMat} />
-      ))}
-      {cattailKeys.map(key => (
-         <RegionalCattails key={`cat-${key}`} regionKey={key} stalkGeo={cattailStalkGeo} headGeo={cattailHeadGeo} stalkMat={cattailStalkMat} headMat={cattailHeadMat} />
-      ))}
+      <GlobalLilies geometry={lilyGeo} material={lilyMat} />
+      <GlobalCattails stalkGeo={cattailStalkGeo} headGeo={cattailHeadGeo} stalkMat={cattailStalkMat} headMat={cattailHeadMat} />
     </group>
   );
 }
