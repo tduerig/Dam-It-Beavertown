@@ -1,5 +1,5 @@
 import React, { useEffect, useState, useRef } from 'react';
-import { View, Text, StyleSheet, Platform, Pressable, ScrollView, useWindowDimensions } from 'react-native';
+import { View, Text, StyleSheet, Platform, Pressable, ScrollView, useWindowDimensions, Animated } from 'react-native';
 import { useGameStore } from '../store';
 import { Hammer, Droplets, TreePine, Download, Upload, CloudRain, ArrowUp, ArrowDown, Settings, Save, FolderOpen, Leaf, Bot } from 'lucide-react-native';
 import { getTerrainHeight, getRiverCenter, RIVER_WIDTH } from '../utils/terrain';
@@ -7,6 +7,7 @@ import { QualityLevel } from '../utils/qualityTier';
 import { Minimap, MinimapLegend } from './Minimap';
 import { ElevationGauge } from './ElevationGauge';
 import { Gesture, GestureDetector } from 'react-native-gesture-handler';
+import { SaveLoadModal } from './SaveLoadModal';
 
 const ActionButton = ({ icon: Icon, actionName }: { icon: any, actionName: 'jump' | 'crouch' | 'action1' | 'action2' | 'action3' }) => {
   const setVirtualButton = useGameStore((state) => state.setVirtualButton);
@@ -69,9 +70,9 @@ export function UI() {
   const autopilot = useGameStore((state) => state.autopilot);
   const aiState = useGameStore((state) => state.aiState);
   const setAutopilot = useGameStore((state) => state.setAutopilot);
-  const saveGame = useGameStore((state) => state.saveGame);
-  const loadGame = useGameStore((state) => state.loadGame);
   const resetGame = useGameStore((state) => state.resetGame);
+  const [saveModalVisible, setSaveModalVisible] = useState(false);
+  const [saveModalMode, setSaveModalMode] = useState<'save' | 'load'>('save');
   const stats = useGameStore((state) => state.stats);
   const settings = useGameStore((state) => state.settings);
   const setSetting = useGameStore((state) => state.setSetting);
@@ -113,15 +114,20 @@ export function UI() {
     }
   }, []);
 
-  const [leftStick, setLeftStick] = useState({ x: 0, y: 0, active: false });
-  const [rightStick, setRightStick] = useState({ x: 0, y: 0, active: false });
+  const leftStickX = useRef(new Animated.Value(0)).current;
+  const leftStickY = useRef(new Animated.Value(0)).current;
+  const [leftStickActive, setLeftStickActive] = useState(false);
+
+  const rightStickX = useRef(new Animated.Value(0)).current;
+  const rightStickY = useRef(new Animated.Value(0)).current;
+  const [rightStickActive, setRightStickActive] = useState(false);
 
   // Left side screen pan for Movement
   const leftPan = Gesture.Pan()
     .hitSlop({ top: 20, bottom: 20, left: 20, right: 20 })
     .runOnJS(true)
     .onBegin(() => {
-      setLeftStick(prev => ({ ...prev, active: true }));
+      setLeftStickActive(true);
     })
     .onUpdate((e) => {
       // Normalize to roughly -1 to 1 based on a 100px radius
@@ -133,11 +139,14 @@ export function UI() {
         dx = (dx / dist) * maxDist;
         dy = (dy / dist) * maxDist;
       }
-      setLeftStick({ x: dx, y: dy, active: true });
+      leftStickX.setValue(dx);
+      leftStickY.setValue(dy);
       setVirtualJoystick(dx / maxDist, dy / maxDist);
     })
     .onFinalize(() => {
-      setLeftStick({ x: 0, y: 0, active: false });
+      leftStickX.setValue(0);
+      leftStickY.setValue(0);
+      setLeftStickActive(false);
       setVirtualJoystick(0, 0);
     });
 
@@ -146,7 +155,7 @@ export function UI() {
     .hitSlop({ top: 20, bottom: 20, left: 20, right: 20 })
     .runOnJS(true)
     .onBegin(() => {
-      setRightStick(prev => ({ ...prev, active: true }));
+      setRightStickActive(true);
     })
     .onUpdate((e) => {
       const maxDist = 100;
@@ -157,11 +166,14 @@ export function UI() {
         dx = (dx / dist) * maxDist;
         dy = (dy / dist) * maxDist;
       }
-      setRightStick({ x: dx, y: dy, active: true });
+      rightStickX.setValue(dx);
+      rightStickY.setValue(dy);
       setVirtualCamera(dx / maxDist, dy / maxDist);
     })
     .onFinalize(() => {
-      setRightStick({ x: 0, y: 0, active: false });
+      rightStickX.setValue(0);
+      rightStickY.setValue(0);
+      setRightStickActive(false);
       setVirtualCamera(0, 0);
     });
 
@@ -212,11 +224,11 @@ export function UI() {
                   </Text>
                 </Pressable>
                 <View style={[styles.saveLoadRow, isCompact && { marginTop: 8 }]}>
-                  <Pressable style={styles.saveLoadBtn} onPress={() => saveGame()}>
+                  <Pressable style={styles.saveLoadBtn} onPress={() => { setSaveModalMode('save'); setSaveModalVisible(true); }}>
                     <Save color="#fff" size={20} />
                     <Text style={styles.saveLoadText}>Save</Text>
                   </Pressable>
-                  <Pressable style={styles.saveLoadBtn} onPress={() => loadGame()}>
+                  <Pressable style={styles.saveLoadBtn} onPress={() => { setSaveModalMode('load'); setSaveModalVisible(true); }}>
                     <FolderOpen color="#fff" size={20} />
                     <Text style={styles.saveLoadText}>Load</Text>
                   </Pressable>
@@ -292,7 +304,7 @@ export function UI() {
             {gameState === 'start_menu' && (
               <Pressable 
                 style={({ pressed }) => [styles.loadButtonMain, pressed && styles.loadButtonMainPressed, isCompact && { paddingHorizontal: 32 }]}
-                onPress={() => loadGame()}
+                onPress={() => { setSaveModalMode('load'); setSaveModalVisible(true); }}
               >
                 <FolderOpen color="#fff" size={24} style={{ marginRight: 8 }} />
                 <Text style={[styles.loadButtonMainText, isCompact && { fontSize: 18 }]}>Load Game</Text>
@@ -315,14 +327,14 @@ export function UI() {
           {/* Static Left Joystick */}
           <GestureDetector gesture={leftPan}>
             <View style={[styles.joystickBase, styles.joystickLeft]} pointerEvents="auto">
-              <View style={[styles.joystickNub, { transform: [{ translateX: leftStick.x }, { translateY: leftStick.y }], opacity: leftStick.active ? 0.9 : 0.4 }]} pointerEvents="none" />
+              <Animated.View style={[styles.joystickNub, { transform: [{ translateX: leftStickX }, { translateY: leftStickY }], opacity: leftStickActive ? 0.9 : 0.4 }]} pointerEvents="none" />
             </View>
           </GestureDetector>
           
           {/* Static Right Joystick */}
           <GestureDetector gesture={rightPan}>
             <View style={[styles.joystickBase, styles.joystickRight]} pointerEvents="auto">
-              <View style={[styles.joystickNub, { transform: [{ translateX: rightStick.x }, { translateY: rightStick.y }], opacity: rightStick.active ? 0.9 : 0.4 }]} pointerEvents="none" />
+              <Animated.View style={[styles.joystickNub, { transform: [{ translateX: rightStickX }, { translateY: rightStickY }], opacity: rightStickActive ? 0.9 : 0.4 }]} pointerEvents="none" />
             </View>
           </GestureDetector>
         </View>
@@ -417,6 +429,12 @@ export function UI() {
       <Minimap />
         </View>
       )}
+      {/* Save/Load Modal */}
+      <SaveLoadModal
+        visible={saveModalVisible}
+        mode={saveModalMode}
+        onClose={() => setSaveModalVisible(false)}
+      />
     </View>
   );
 }
