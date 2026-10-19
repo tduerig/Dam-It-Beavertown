@@ -69,11 +69,37 @@ export function WaterRenderer() {
     return () => clearInterval(interval);
   }, []);
 
+  const lastRenderStamp = useRef(-1);
+
   useFrame((state, delta) => { 
     const { gameState } = useGameStore.getState();
     if (gameState !== 'playing') return;
        
     if (meshRef.current && geoRef.current) {
+      const renderConfig = getRenderConfig();
+      const doNormals = renderConfig.computeWaterNormals;
+
+      // On Low/Medium tiers (no per-frame ripple/normals), only upload vertex positions
+      // when the decoupled water physics tick has actually updated RenderY.
+      if (!doNormals) {
+        if (waterEngine.renderStamp === lastRenderStamp.current) return;
+        lastRenderStamp.current = waterEngine.renderStamp;
+
+        meshRef.current.position.x = waterEngine.originX - 0.5;
+        meshRef.current.position.z = waterEngine.originZ - 0.5;
+
+        const pos = geoRef.current.attributes.position.array as Float32Array;
+        const renderY = waterEngine.RenderY;
+        const total = WATER_SIZE * WATER_SIZE;
+        for (let i = 0; i < total; i++) {
+          pos[i * 3 + 1] = renderY[i];
+        }
+        geoRef.current.attributes.position.needsUpdate = true;
+        return;
+      }
+
+      lastRenderStamp.current = waterEngine.renderStamp;
+
       // Snap mesh to the origin of the water engine grid.
       // Since PlaneGeometry is 159 wide, its local vertices start at -79.5.
       // To align with the terrain's pure integer grid (e.g. -80.0), we offset by -0.5.
@@ -83,70 +109,78 @@ export function WaterRenderer() {
       const pos = geoRef.current.attributes.position.array as Float32Array;
       const norm = geoRef.current.attributes.normal.array as Float32Array;
       const time = state.clock.elapsedTime;
-      
-      // Single pass: compute vertex Y positions AND analytical normals inline.
-      // This replaces the separate computeVertexNormals() call which was O(N²)
-      // and cost 2-3ms on web, 6-10ms on Android.
-      const renderConfig = getRenderConfig();
-      const doNormals = renderConfig.computeWaterNormals;
+      const renderY = waterEngine.RenderY;
+      const W = waterEngine.W;
+      const VX = waterEngine.VX;
+      const VZ = waterEngine.VZ;
+      const baseOriginX = waterEngine.originX - (WATER_SIZE / 2);
+      const baseOriginZ = waterEngine.originZ - (WATER_SIZE / 2);
+      const time5 = time * 5;
+      const TWO_PI = Math.PI * 2;
 
-      // O(1) Memory loop for height retrieval (bypasses 1.5 million array condition branches per second)
       for (let z = 0; z < WATER_SIZE; z++) {
+        const worldZ = baseOriginZ + z;
+        const rowOffset = z * WATER_SIZE;
         for (let x = 0; x < WATER_SIZE; x++) {
-          const i = z * WATER_SIZE + x;
-          const w = waterEngine.W[i];
-          
+          const i = rowOffset + x;
           let ripple = 0;
-          if (doNormals && w > 0.05) {
-             const vx = waterEngine.VX[i];
-             const vz = waterEngine.VZ[i];
-             const speed = Math.sqrt(vx*vx + vz*vz);
-             
-             const worldX = waterEngine.originX - (WATER_SIZE / 2) + x;
-             const worldZ = waterEngine.originZ - (WATER_SIZE / 2) + z;
-             
-             const flowDirX = speed > 0.1 ? vx / speed : 0;
-             const flowDirZ = speed > 0.1 ? vz / speed : 1;
-             
-             const tx = (worldX * 1.5 - flowDirX * time * 5) % (Math.PI * 2);
-             const tz = (worldZ * 1.5 - flowDirZ * time * 5) % (Math.PI * 2);
-             
-             ripple = Math.sin(tx) * 0.04 + Math.sin(tz) * 0.04;
+          if (W[i] > 0.05) {
+            const vx = VX[i];
+            const vz = VZ[i];
+            const speedSq = vx * vx + vz * vz;
+            const worldX = baseOriginX + x;
+
+            let flowDirX = 0;
+            let flowDirZ = 1;
+            if (speedSq > 0.01) {
+              const invSpeed = 1.0 / Math.sqrt(speedSq);
+              flowDirX = vx * invSpeed;
+              flowDirZ = vz * invSpeed;
+            }
+
+            const tx = (worldX * 1.5 - flowDirX * time5) % TWO_PI;
+            const tz = (worldZ * 1.5 - flowDirZ * time5) % TWO_PI;
+
+            ripple = (Math.sin(tx) + Math.sin(tz)) * 0.04;
           }
-          
-          pos[i * 3 + 1] = waterEngine.RenderY[i] + ripple;
+
+          pos[i * 3 + 1] = renderY[i] + ripple;
         }
       }
       
       // Analytical normals: for a regular grid, normal = cross(dz, dx) of height differences.
-      // This is ~10× cheaper than Three.js's generic face-by-face computeVertexNormals().
-      if (renderConfig.computeWaterNormals) {
-        const shouldCompute = renderConfig.waterNormalSkipFrames === 0 ||
-          (Math.floor(time * 60) % (renderConfig.waterNormalSkipFrames + 1) === 0);
-        if (shouldCompute) {
-          for (let z = 0; z < WATER_SIZE; z++) {
-            for (let x = 0; x < WATER_SIZE; x++) {
-              const i = z * WATER_SIZE + x;
-              // Get neighbor heights (clamp at edges)
-              const hL = pos[(z * WATER_SIZE + Math.max(0, x - 1)) * 3 + 1];
-              const hR = pos[(z * WATER_SIZE + Math.min(WATER_SIZE - 1, x + 1)) * 3 + 1];
-              const hD = pos[(Math.max(0, z - 1) * WATER_SIZE + x) * 3 + 1];
-              const hU = pos[(Math.min(WATER_SIZE - 1, z + 1) * WATER_SIZE + x) * 3 + 1];
-              
-              // Normal = normalize(hL - hR, 2.0, hD - hU)
-              const nx = hL - hR;
-              const nz = hD - hU;
-              const ny = 2.0;
-              const len = Math.sqrt(nx * nx + ny * ny + nz * nz);
-              const invLen = 1.0 / len;
-              
-              norm[i * 3] = nx * invLen;
-              norm[i * 3 + 1] = ny * invLen;
-              norm[i * 3 + 2] = nz * invLen;
+      // Skip dry buried cells (renderY <= -99) to avoid 20,000+ redundant Math.sqrt calls.
+      const shouldCompute = renderConfig.waterNormalSkipFrames === 0 ||
+        (Math.floor(time * 60) % (renderConfig.waterNormalSkipFrames + 1) === 0);
+      if (shouldCompute) {
+        for (let z = 0; z < WATER_SIZE; z++) {
+          const rowOffset = z * WATER_SIZE;
+          const zD = Math.max(0, z - 1) * WATER_SIZE;
+          const zU = Math.min(WATER_SIZE - 1, z + 1) * WATER_SIZE;
+          for (let x = 0; x < WATER_SIZE; x++) {
+            const i = rowOffset + x;
+            const idx3 = i * 3;
+            if (renderY[i] <= -99) {
+              norm[idx3] = 0;
+              norm[idx3 + 1] = 1;
+              norm[idx3 + 2] = 0;
+              continue;
             }
+            const hL = pos[(rowOffset + Math.max(0, x - 1)) * 3 + 1];
+            const hR = pos[(rowOffset + Math.min(WATER_SIZE - 1, x + 1)) * 3 + 1];
+            const hD = pos[(zD + x) * 3 + 1];
+            const hU = pos[(zU + x) * 3 + 1];
+            
+            const nx = hL - hR;
+            const nz = hD - hU;
+            const invLen = 1.0 / Math.sqrt(nx * nx + 4.0 + nz * nz);
+            
+            norm[idx3] = nx * invLen;
+            norm[idx3 + 1] = 2.0 * invLen;
+            norm[idx3 + 2] = nz * invLen;
           }
-          geoRef.current.attributes.normal.needsUpdate = true;
         }
+        geoRef.current.attributes.normal.needsUpdate = true;
       }
       
       geoRef.current.attributes.position.needsUpdate = true;

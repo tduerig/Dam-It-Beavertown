@@ -12,25 +12,21 @@ import { SaveLoadModal } from './SaveLoadModal';
 const ActionButton = ({ icon: Icon, actionName }: { icon: any, actionName: 'jump' | 'crouch' | 'action1' | 'action2' | 'action3' }) => {
   const setVirtualButton = useGameStore((state) => state.setVirtualButton);
   const [pressed, setPressed] = useState(false);
-  
-  const gesture = Gesture.Pan()
-    .runOnJS(true)
-    .minDistance(0)
-    .onBegin(() => {
-      setVirtualButton(actionName, true);
-      setPressed(true);
-    })
-    .onFinalize(() => {
-      setVirtualButton(actionName, false);
-      setPressed(false);
-    });
 
   return (
-    <GestureDetector gesture={gesture}>
-      <View style={[styles.actionButton, pressed && styles.actionButtonPressed]} pointerEvents="auto">
-        <Icon color="#fff" size={24} />
-      </View>
-    </GestureDetector>
+    <Pressable
+      onPressIn={() => {
+        setVirtualButton(actionName, true);
+        setPressed(true);
+      }}
+      onPressOut={() => {
+        setVirtualButton(actionName, false);
+        setPressed(false);
+      }}
+      style={[styles.actionButton, pressed && styles.actionButtonPressed]}
+    >
+      <Icon color="#fff" size={24} />
+    </Pressable>
   );
 };
 

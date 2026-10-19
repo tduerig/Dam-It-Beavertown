@@ -21,6 +21,7 @@ export function Particles() {
 
   // Store particle data: [x, y, z, vx, vy, vz, life, emitterId]
   const particles = useRef<any[]>([]);
+  const lastCountRef = useRef(-1);
 
   useFrame((state, delta) => {
     if (!meshRef.current) return;
@@ -46,6 +47,8 @@ export function Particles() {
       }
     });
     
+    if (particles.current.length === 0 && lastCountRef.current === 0) return;
+
     // Update particles
     let instanceCount = 0;
     
@@ -74,6 +77,7 @@ export function Particles() {
     }
     
     meshRef.current.count = instanceCount;
+    lastCountRef.current = instanceCount;
     meshRef.current.instanceMatrix.needsUpdate = true;
     if (meshRef.current.instanceColor) {
       meshRef.current.instanceColor.needsUpdate = true;

@@ -136,6 +136,6 @@ export function FloatingLogs() {
   });
 
   return (
-    <instancedMesh ref={meshRef} args={[geo, mat, 1000]} castShadow receiveShadow />
+    <instancedMesh ref={meshRef} args={[geo, mat, 1000]} castShadow receiveShadow frustumCulled={false} />
   );
 }

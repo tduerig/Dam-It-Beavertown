@@ -28,16 +28,21 @@ const _logQuatScratch = new THREE.Quaternion();
 const _logScaleScratch = new THREE.Vector3(1, 1, 1);
 const _logPosScratch = new THREE.Vector3();
 
-// Spatial hash for O(1) block collision lookups
+// Spatial hash for O(1) block collision lookups (packed 32-bit integer keys, 0 allocations)
 const BLOCK_CELL_SIZE = 2; // 2-unit grid cells
-function blockHashKey(x: number, z: number): string {
-  return `${Math.floor(x / BLOCK_CELL_SIZE)},${Math.floor(z / BLOCK_CELL_SIZE)}`;
+const _nearbyBlocksScratch: any[] = [];
+
+function blockHashKey(cx: number, cz: number): number {
+  return ((cx + 32768) << 16) | ((cz + 32768) & 0xffff);
 }
 
-function buildBlockHash(blocks: any[]): Map<string, any[]> {
-  const hash = new Map<string, any[]>();
-  for (const block of blocks) {
-    const key = blockHashKey(block.position[0], block.position[2]);
+function buildBlockHash(blocks: any[]): Map<number, any[]> {
+  const hash = new Map<number, any[]>();
+  for (let i = 0; i < blocks.length; i++) {
+    const block = blocks[i];
+    const cx = Math.floor(block.position[0] / BLOCK_CELL_SIZE);
+    const cz = Math.floor(block.position[2] / BLOCK_CELL_SIZE);
+    const key = blockHashKey(cx, cz);
     let arr = hash.get(key);
     if (!arr) { arr = []; hash.set(key, arr); }
     arr.push(block);
@@ -45,19 +50,23 @@ function buildBlockHash(blocks: any[]): Map<string, any[]> {
   return hash;
 }
 
-function getBlocksNear(hash: Map<string, any[]>, x: number, z: number): any[] {
+function getBlocksNear(hash: Map<number, any[]>, x: number, z: number): any[] {
   // Check 3×3 neighborhood of grid cells to catch blocks near cell boundaries
+  _nearbyBlocksScratch.length = 0;
+  if (hash.size === 0) return _nearbyBlocksScratch;
   const cx = Math.floor(x / BLOCK_CELL_SIZE);
   const cz = Math.floor(z / BLOCK_CELL_SIZE);
-  let result: any[] = [];
   for (let dx = -1; dx <= 1; dx++) {
     for (let dz = -1; dz <= 1; dz++) {
-      const key = `${cx + dx},${cz + dz}`;
-      const arr = hash.get(key);
-      if (arr) result = result.concat(arr);
+      const arr = hash.get(blockHashKey(cx + dx, cz + dz));
+      if (arr) {
+        for (let i = 0; i < arr.length; i++) {
+          _nearbyBlocksScratch.push(arr[i]);
+        }
+      }
     }
   }
-  return result;
+  return _nearbyBlocksScratch;
 }
 
 export function Beaver() {
@@ -70,8 +79,6 @@ export function Beaver() {
   
   const { camera } = useThree();
   const keys = useKeyboard();
-  const setPlayerPosition = useGameStore((state) => state.setPlayerPosition);
-  const setPlayerRotation = useGameStore((state) => state.setPlayerRotation);
 
   const velocity = useRef(new THREE.Vector3());
   const isGrounded = useRef(true);
@@ -80,7 +87,7 @@ export function Beaver() {
   const lastFrameTime = useRef(performance.now());
   
   // Cached spatial hash for block collision — rebuilt only when blocks change
-  const blockHashRef = useRef<Map<string, any[]>>(new Map());
+  const blockHashRef = useRef<Map<number, any[]>>(new Map());
   const lastBlocksRef = useRef<any[] | null>(null);
 
   useFrame((state, delta) => {

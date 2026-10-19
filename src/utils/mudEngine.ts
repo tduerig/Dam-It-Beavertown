@@ -16,12 +16,13 @@ import { CHUNK_SIZE, getBaseTerrainHeight, getRiverCenter } from './terrain';
 import { globalTerrainConfig } from './terrainConfig';
 
 // ── Core data store ──────────────────────────────────────────────
-// "x,z" → saturation level (0.0 = depleted, 1.0+ = fully saturated/gatherable)
-const _mudSaturation = new Map<string, number>();
+// Packed 32-bit int key (x,z) → saturation level (0.0 = depleted, 1.0+ = fully saturated/gatherable)
+const _mudSaturation = new Map<number, number>();
 
-// Chunk dirty tracking — mirrors terrainOffsets pattern
-const _mudChunkStamps = new Map<string, number>();
+// Chunk dirty tracking — mirrors terrainOffsets pattern (packed 32-bit chunk key → stamp)
+const _mudChunkStamps = new Map<number, number>();
 let _mudGlobalStamp = 0;
+let _mudResetStamp = 0;
 let _lastUpdateTime = 0;
 
 // ── Constants ────────────────────────────────────────────────────
@@ -51,14 +52,18 @@ function isStaticRiverBank(wx: number, wz: number): boolean {
   return dist < globalTerrainConfig.riverWidth + 3;
 }
 
-function coordKey(x: number, z: number): string {
-  return `${Math.floor(x)},${Math.floor(z)}`;
+function packCoord(x: number, z: number): number {
+  return ((Math.floor(x) + 32768) << 16) | ((Math.floor(z) + 32768) & 0xffff);
 }
 
-function chunkKeyFromWorld(wx: number, wz: number): string {
+function unpackCoord(packed: number): [number, number] {
+  return [(packed >>> 16) - 32768, (packed & 0xffff) - 32768];
+}
+
+function chunkKeyFromWorld(wx: number, wz: number): number {
   const cx = Math.floor((wx + CHUNK_SIZE / 2) / CHUNK_SIZE);
   const cz = Math.floor((wz + CHUNK_SIZE / 2) / CHUNK_SIZE);
-  return `${cx},${cz}`;
+  return ((cx + 32768) << 16) | ((cz + 32768) & 0xffff);
 }
 
 function markChunkDirty(wx: number, wz: number): void {
@@ -68,12 +73,14 @@ function markChunkDirty(wx: number, wz: number): void {
   const cz = Math.floor((wz + CHUNK_SIZE / 2) / CHUNK_SIZE);
   for (let dx = -1; dx <= 1; dx++) {
     for (let dz = -1; dz <= 1; dz++) {
-      _mudChunkStamps.set(`${cx + dx},${cz + dz}`, _mudGlobalStamp);
+      _mudChunkStamps.set(((cx + dx + 32768) << 16) | ((cz + dz + 32768) & 0xffff), _mudGlobalStamp);
     }
   }
 }
 
 // ── Public API ───────────────────────────────────────────────────
+
+const _changedChunksScratch = new Set<number>();
 
 /**
  * Update mud saturation based on current water state.
@@ -92,7 +99,7 @@ export function updateMudSaturation(
   halfSize: number
 ): void {
   let anyChanged = false;
-  const changedChunks = new Set<string>();
+  _changedChunksScratch.clear();
 
   for (let i = 0; i < size * size; i++) {
     const waterDepth = W[i];
@@ -101,7 +108,7 @@ export function updateMudSaturation(
     if (waterDepth <= 0.02) continue;
 
     const x = i % size;
-    const z = Math.floor(i / size);
+    const z = (i / size) | 0;
     const wx = originX - halfSize + x;
     const wz = originZ - halfSize + z;
     const baseH = T_base[i];
@@ -109,7 +116,7 @@ export function updateMudSaturation(
     // Biome gate: no mud on sand or snow
     if (!isBiomeEligible(baseH)) continue;
 
-    const key = coordKey(wx, wz);
+    const key = packCoord(wx, wz);
     const current = _mudSaturation.get(key);
 
     // If this cell has no entry and is on the static river bank, it's
@@ -130,13 +137,13 @@ export function updateMudSaturation(
     // Track visual change (crossed from non-visible to visible, or visible shift)
     if ((prev < 0.1 && next >= 0.1) || (prev < GATHER_THRESHOLD && next >= GATHER_THRESHOLD)) {
       anyChanged = true;
-      changedChunks.add(chunkKeyFromWorld(wx, wz));
+      _changedChunksScratch.add(chunkKeyFromWorld(wx, wz));
     }
   }
 
   if (anyChanged) {
     _mudGlobalStamp++;
-    for (const ck of changedChunks) {
+    for (const ck of _changedChunksScratch) {
       _mudChunkStamps.set(ck, _mudGlobalStamp);
     }
   }
@@ -149,7 +156,7 @@ export function canGatherMud(wx: number, wz: number): boolean {
   const baseH = getBaseTerrainHeight(wx, wz);
   if (!isBiomeEligible(baseH)) return false;
 
-  const key = coordKey(wx, wz);
+  const key = packCoord(wx, wz);
   const sat = _mudSaturation.get(key);
 
   if (sat !== undefined) {
@@ -164,7 +171,7 @@ export function canGatherMud(wx: number, wz: number): boolean {
  * Deplete mud saturation at a coordinate (called when mud is gathered).
  */
 export function gatherMud(wx: number, wz: number): void {
-  const key = coordKey(wx, wz);
+  const key = packCoord(wx, wz);
   _mudSaturation.set(key, 0);
   _mudGlobalStamp++;
   markChunkDirty(wx, wz);
@@ -174,11 +181,11 @@ export function gatherMud(wx: number, wz: number): void {
  * Get the mud saturation level at a coordinate for visual blending.
  * Returns 0.0 (no mud) to 1.0 (fully saturated).
  */
-export function getMudLevel(wx: number, wz: number): number {
-  const baseH = getBaseTerrainHeight(wx, wz);
+export function getMudLevel(wx: number, wz: number, precomputedBaseH?: number): number {
+  const baseH = precomputedBaseH !== undefined ? precomputedBaseH : getBaseTerrainHeight(wx, wz);
   if (!isBiomeEligible(baseH)) return 0;
 
-  const key = coordKey(wx, wz);
+  const key = packCoord(wx, wz);
   const sat = _mudSaturation.get(key);
 
   if (sat !== undefined) {
@@ -193,9 +200,9 @@ export function getMudLevel(wx: number, wz: number): number {
  * Check if a chunk's mud state has changed since the given stamp.
  */
 export function isMudChunkDirty(chunkX: number, chunkZ: number, lastSeenStamp: number): boolean {
-  const key = `${chunkX},${chunkZ}`;
+  const key = ((chunkX + 32768) << 16) | ((chunkZ + 32768) & 0xffff);
   const chunkStamp = _mudChunkStamps.get(key) || 0;
-  return chunkStamp > lastSeenStamp;
+  return Math.max(_mudResetStamp, chunkStamp) > lastSeenStamp;
 }
 
 /** Get the current global mud stamp. */
@@ -219,24 +226,33 @@ export function shouldUpdate(now: number): boolean {
 
 export function serializeMud(): Record<string, number> {
   const obj: Record<string, number> = {};
-  for (const [key, val] of _mudSaturation) {
+  for (const [packed, val] of _mudSaturation) {
     // Only serialize cells that differ from default (saves space)
-    obj[key] = val;
+    const [x, z] = unpackCoord(packed);
+    obj[`${x},${z}`] = val;
   }
   return obj;
 }
 
 export function deserializeMud(data: Record<string, number>): void {
   _mudSaturation.clear();
+  _mudChunkStamps.clear();
   for (const [key, val] of Object.entries(data)) {
-    _mudSaturation.set(key, val);
+    const comma = key.indexOf(',');
+    if (comma !== -1) {
+      const x = parseInt(key.slice(0, comma), 10);
+      const z = parseInt(key.slice(comma + 1), 10);
+      _mudSaturation.set(((x + 32768) << 16) | ((z + 32768) & 0xffff), val);
+    }
   }
   _mudGlobalStamp++;
+  _mudResetStamp = _mudGlobalStamp;
 }
 
 export function clearMud(): void {
   _mudSaturation.clear();
   _mudChunkStamps.clear();
   _mudGlobalStamp++;
+  _mudResetStamp = _mudGlobalStamp;
   _lastUpdateTime = 0;
 }

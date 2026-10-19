@@ -15,9 +15,23 @@ export const getRiverWidth = () => globalTerrainConfig.riverWidth;
 export const RIVER_WIDTH = 8; // Legacy export for minor uses. Real width is in globalTerrainConfig.
 export const SLOPE = 0.1; // Downhill towards +Z
 
+let _lastRiverZ = NaN;
+let _lastTwistFreq = -1;
+let _lastTwistAmp = -1;
+let _lastRiverCenter = 0;
+
 export function getRiverCenter(z: number): number {
-  if (z > 1000) z -= 2000;
-  return noise2D(z * globalTerrainConfig.twistFrequency, 0) * globalTerrainConfig.twistAmplitude; // Meandering river
+  const freq = globalTerrainConfig.twistFrequency;
+  const amp = globalTerrainConfig.twistAmplitude;
+  if (z === _lastRiverZ && freq === _lastTwistFreq && amp === _lastTwistAmp) {
+    return _lastRiverCenter;
+  }
+  _lastRiverZ = z;
+  _lastTwistFreq = freq;
+  _lastTwistAmp = amp;
+  const zNorm = z > 1000 ? z - 2000 : z;
+  _lastRiverCenter = noise2D(zNorm * freq, 0) * amp; // Meandering river
+  return _lastRiverCenter;
 }
 
 export function getBaseTerrainHeight(x: number, z: number): number {
@@ -154,33 +168,45 @@ export function generateTreesForChunk(chunkX: number, chunkZ: number) {
 }
 
 class TerrainCache {
-    private chunks = new Map<string, Float32Array>();
+    private chunks = new Map<number, Float32Array>();
+    private _lastKey = -1;
+    private _lastBuf: Float32Array | null = null;
 
     public clear() {
         this.chunks.clear();
+        this._lastKey = -1;
+        this._lastBuf = null;
     }
 
-    private getChunkKey(cx: number, cz: number): string {
-        return `${cx}_${cz}`;
+    private getChunkKey(cx: number, cz: number): number {
+        return ((cx + 32768) << 16) | ((cz + 32768) & 0xffff);
     }
 
     public getChunk(cx: number, cz: number): Float32Array {
-        const key = this.getChunkKey(cx, cz);
-        if (this.chunks.has(key)) return this.chunks.get(key)!;
+        const key = ((cx + 32768) << 16) | ((cz + 32768) & 0xffff);
+        if (key === this._lastKey && this._lastBuf !== null) {
+            return this._lastBuf;
+        }
+        let buffer = this.chunks.get(key);
+        if (buffer !== undefined) {
+            this._lastKey = key;
+            this._lastBuf = buffer;
+            return buffer;
+        }
 
         // 41x41 nodes to hold smooth boundary vertices seamlessly
         const size = CHUNK_SIZE + 1;
-        const buffer = new Float32Array(size * size);
+        buffer = new Float32Array(size * size);
 
         const worldStartX = cx * CHUNK_SIZE;
         const worldStartZ = cz * CHUNK_SIZE;
 
         for (let x = 0; x < size; x++) {
+            const wx = worldStartX + x;
             for (let z = 0; z < size; z++) {
-                const wx = worldStartX + x;
                 const wz = worldStartZ + z;
                 
-                let h = getBaseTerrainHeight(wx, wz);
+                const h = getBaseTerrainHeight(wx, wz);
                 const offset = getInterpolatedOffset(wx, wz); // Fold established history perfectly
                 
                 buffer[x + z * size] = h + offset;
@@ -188,26 +214,42 @@ class TerrainCache {
         }
         
         this.chunks.set(key, buffer);
+        this._lastKey = key;
+        this._lastBuf = buffer;
         return buffer;
     }
 
     public getHeight(x: number, z: number): number {
         const x0 = Math.floor(x);
         const z0 = Math.floor(z);
+        const cx = Math.floor(x0 / CHUNK_SIZE);
+        const cz = Math.floor(z0 / CHUNK_SIZE);
+        const lx = x0 - cx * CHUNK_SIZE;
+        const lz = z0 - cz * CHUNK_SIZE;
+        const buffer = this.getChunk(cx, cz);
+        const idx = lx + lz * (CHUNK_SIZE + 1);
+
         const tx = x - x0;
         const tz = z - z0;
 
-        const h00 = this.getNearestVertex(x0, z0);
-        const h10 = this.getNearestVertex(x0 + 1, z0);
-        const h01 = this.getNearestVertex(x0, z0 + 1);
-        const h11 = this.getNearestVertex(x0 + 1, z0 + 1);
+        // Fast path when x and z are exact integers
+        if (tx === 0 && tz === 0) {
+            return buffer[idx];
+        }
 
-        const nx0 = h00 * (1 - tx) + h10 * tx;
-        const nx1 = h01 * (1 - tx) + h11 * tx;
-        return nx0 * (1 - tz) + nx1 * tz;
+        // Because each chunk buffer is (CHUNK_SIZE + 1) x (CHUNK_SIZE + 1) (41x41)
+        // and lx, lz are in [0, 39], all 4 corners (lx..lx+1, lz..lz+1) live in the same buffer!
+        const h00 = buffer[idx];
+        const h10 = buffer[idx + 1];
+        const h01 = buffer[idx + (CHUNK_SIZE + 1)];
+        const h11 = buffer[idx + (CHUNK_SIZE + 2)];
+
+        const nx0 = h00 + (h10 - h00) * tx;
+        const nx1 = h01 + (h11 - h01) * tx;
+        return nx0 + (nx1 - nx0) * tz;
     }
 
-    private getNearestVertex(wx: number, wz: number): number {
+    public getNearestVertex(wx: number, wz: number): number {
         const cx = Math.floor(wx / CHUNK_SIZE);
         const cz = Math.floor(wz / CHUNK_SIZE);
         
@@ -246,8 +288,9 @@ class TerrainCache {
     
     private syncBorder(wx: number, wz: number, delta: number, cx: number, cz: number, lx: number, lz: number) {
         const key = this.getChunkKey(cx, cz);
-        if (this.chunks.has(key)) {
-            this.chunks.get(key)![lx + lz * (CHUNK_SIZE + 1)] += delta;
+        const buf = this.chunks.get(key);
+        if (buf !== undefined) {
+            buf[lx + lz * (CHUNK_SIZE + 1)] += delta;
         }
     }
 }

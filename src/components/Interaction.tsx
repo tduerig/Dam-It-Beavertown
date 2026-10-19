@@ -11,9 +11,6 @@ import { soundEngine } from '../utils/SoundEngine';
 const INTERACTION_DISTANCE = 3;
 
 export function Interaction() {
-  const virtualButtons = useGameStore((state) => state.virtualButtons);
-  const prevButtons = useRef(virtualButtons);
-
   const handleAction = useCallback((code: string) => {
     soundEngine.init();
     const state = useGameStore.getState();
@@ -272,7 +269,11 @@ export function Interaction() {
       lastPressTimes.current.action3 = now;
     }
 
-    prevButtonsFrame.current = { ...state };
+    prevButtonsFrame.current.jump = state.jump;
+    prevButtonsFrame.current.crouch = state.crouch;
+    prevButtonsFrame.current.action1 = state.action1;
+    prevButtonsFrame.current.action2 = state.action2;
+    prevButtonsFrame.current.action3 = state.action3;
   });
 
   return null;

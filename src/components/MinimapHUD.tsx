@@ -8,6 +8,21 @@ import { CHUNK_SIZE, generateTreesForChunk } from '../utils/terrain';
 import { waterEngine } from '../utils/WaterEngine';
 import { woodEngine } from '../utils/woodEngine';
 
+export let currentWaterTiles = 0;
+
+function stamp3x3(data: Uint8Array, resolution: number, mx: number, mz: number, r: number, g: number, b: number) {
+  for (let dy = -1; dy <= 1; dy++) {
+    const rowOffset = (mz + dy) * resolution;
+    for (let dx = -1; dx <= 1; dx++) {
+      const i = (rowOffset + mx + dx) * 4;
+      data[i] = r;
+      data[i + 1] = g;
+      data[i + 2] = b;
+      data[i + 3] = 255;
+    }
+  }
+}
+
 export function MinimapHUD() {
   const { size } = useThree(); // Logical canvas size in CSS pixels
   
@@ -42,9 +57,41 @@ export function MinimapHUD() {
     const draggableLogs = store.draggableLogs;
     
     const halfSize = Math.floor(RESOLUTION / 2);
-    const chunkMap = new Map<string, {r:number, g:number, b:number}>();
-    
-    // --- 1. Evaluate Features (Trees, Blocks, Logs) ---
+
+    // --- 1. Update water coverage metric ---
+    let activeTiles = 0;
+    const totalTiles = waterEngine.size * waterEngine.size;
+    const W = waterEngine.W;
+    for (let i = 0; i < totalTiles; i++) {
+      if (W[i] > 0.1) activeTiles++;
+    }
+    currentWaterTiles = activeTiles;
+    const currentPct = Math.floor((activeTiles / totalTiles) * 100);
+    const prevMax = store.stats.maxWaterCoverage || 0;
+    if (currentPct > prevMax) {
+      useGameStore.setState(s => ({
+        stats: { ...s.stats, maxWaterCoverage: currentPct }
+      }));
+    }
+
+    // --- 2. Base pass: Write Water / Land directly to DataTexture buffer ---
+    for (let y = 0; y < RESOLUTION; y++) {
+      const worldZ = pz - (y - halfSize);
+      const rowOffset = y * RESOLUTION;
+      for (let x = 0; x < RESOLUTION; x++) {
+        const i = (rowOffset + x) * 4;
+        const worldX = px + (x - halfSize);
+        const waterHeight = waterEngine.getSurfaceHeight(worldX, worldZ);
+
+        if (waterHeight > -50) {
+          data[i] = 28; data[i + 1] = 163; data[i + 2] = 236; data[i + 3] = 255; // Water
+        } else {
+          data[i] = 85; data[i + 1] = 195; data[i + 2] = 85; data[i + 3] = 255; // Land
+        }
+      }
+    }
+
+    // --- 3. Stamp Features (Trees, Blocks, Logs) directly into buffer (0 Map/string allocations) ---
     const chunkX = Math.floor((px + CHUNK_SIZE / 2) / CHUNK_SIZE);
     const chunkZ = Math.floor((pz + CHUNK_SIZE / 2) / CHUNK_SIZE);
     
@@ -52,18 +99,18 @@ export function MinimapHUD() {
     for (let cx = chunkX - 2; cx <= chunkX + 2; cx++) {
       for (let cz = chunkZ - 2; cz <= chunkZ + 2; cz++) {
         const trees = generateTreesForChunk(cx, cz);
-        for (const tree of trees) {
+        for (let t = 0; t < trees.length; t++) {
+          const tree = trees[t];
           const isBig = tree.type === 'big';
           const sticks = woodEngine.getSticks(tree.id, isBig);
           if (sticks > 0) {
             const mx = Math.floor(tree.position[0] - px + halfSize);
             const mz = Math.floor(pz - tree.position[2] + halfSize);
-            if (mx >= 1 && mx < RESOLUTION-1 && mz >= 1 && mz < RESOLUTION-1) {
-              const treeColor = isBig ? {r: 10, g: 100, b: 10} : {r: 34, g: 139, b: 34};
-              for(let i=-1; i<=1; i++) {
-                for(let j=-1; j<=1; j++) {
-                  chunkMap.set(`${mx+i},${mz+j}`, treeColor); 
-                }
+            if (mx >= 1 && mx < RESOLUTION - 1 && mz >= 1 && mz < RESOLUTION - 1) {
+              if (isBig) {
+                stamp3x3(data, RESOLUTION, mx, mz, 10, 100, 10);
+              } else {
+                stamp3x3(data, RESOLUTION, mx, mz, 34, 139, 34);
               }
             }
           }
@@ -72,67 +119,49 @@ export function MinimapHUD() {
     }
 
     // Dams
-    for (const block of placedBlocks) {
+    for (let b = 0; b < placedBlocks.length; b++) {
+      const block = placedBlocks[b];
       const mx = Math.floor(block.position[0] - px + halfSize);
       const mz = Math.floor(pz - block.position[2] + halfSize);
-      if (mx >= 1 && mx < RESOLUTION-1 && mz >= 1 && mz < RESOLUTION-1) {
-         const color = block.type === 'stick' ? {r: 139, g: 69, b: 19} : {r: 61, g: 40, b: 23};
-         for(let i=-1; i<=1; i++) {
-           for(let j=-1; j<=1; j++) {
-             chunkMap.set(`${mx+i},${mz+j}`, color); 
-           }
-         }
+      if (mx >= 1 && mx < RESOLUTION - 1 && mz >= 1 && mz < RESOLUTION - 1) {
+        if (block.type === 'stick') {
+          stamp3x3(data, RESOLUTION, mx, mz, 139, 69, 19);
+        } else {
+          stamp3x3(data, RESOLUTION, mx, mz, 61, 40, 23);
+        }
       }
     }
 
     // Draggable Logs
-    for (const log of draggableLogs) {
+    for (let l = 0; l < draggableLogs.length; l++) {
+      const log = draggableLogs[l];
       const mx = Math.floor(log.position[0] - px + halfSize);
       const mz = Math.floor(pz - log.position[2] + halfSize);
-      if (mx >= 1 && mx < RESOLUTION-1 && mz >= 1 && mz < RESOLUTION-1) {
-         const logColor = log.isMudded ? {r: 61, g: 40, b: 23} : {r: 139, g: 69, b: 19};
-         for(let i=-1; i<=1; i++) {
-           for(let j=-1; j<=1; j++) {
-             chunkMap.set(`${mx+i},${mz+j}`, logColor); 
-           }
-         }
+      if (mx >= 1 && mx < RESOLUTION - 1 && mz >= 1 && mz < RESOLUTION - 1) {
+        if (log.isMudded) {
+          stamp3x3(data, RESOLUTION, mx, mz, 61, 40, 23);
+        } else {
+          stamp3x3(data, RESOLUTION, mx, mz, 139, 69, 19);
+        }
       }
     }
 
-    // --- 2. Write natively to the DataTexture buffer ---
-    let activeTiles = 0;
-    const totalTiles = waterEngine.size * waterEngine.size;
-    for (let i = 0; i < totalTiles; i++) {
-      if (waterEngine.W[i] > 0.1) activeTiles++;
-    }
-    const maxRecord = Math.max(useGameStore.getState().stats.maxWaterCoverage || 0, Math.floor((activeTiles / totalTiles) * 100));
-    useGameStore.setState(state => ({
-       stats: { ...state.stats, maxWaterCoverage: maxRecord }
-    }));
-
-    for (let y = 0; y < RESOLUTION; y++) {
-      for (let x = 0; x < RESOLUTION; x++) {
-        const i = (y * RESOLUTION + x) * 4;
-
-        if (x === halfSize && y === halfSize) {
-          data[i] = 255; data[i+1] = 0; data[i+2] = 0; data[i+3] = 255;
-          continue;
-        }
-
-        const overlay = chunkMap.get(`${x},${y}`);
-        if (overlay) {
-          data[i] = overlay.r; data[i+1] = overlay.g; data[i+2] = overlay.b; data[i+3] = 255;
-          continue;
-        }
-
-        const worldX = px + (x - halfSize);
-        const worldZ = pz - (y - halfSize);
-        const waterHeight = waterEngine.getSurfaceHeight(worldX, worldZ);
-
-        if (waterHeight > -50) {
-          data[i] = 28; data[i+1] = 163; data[i+2] = 236; data[i+3] = 255; // Water
-        } else {
-          data[i] = 85; data[i+1] = 195; data[i+2] = 85; data[i+3] = 255; // Land
+    // --- 4. Stamp Directional Player Arrow in 11x11 center box ---
+    const playerRot = store.playerRotation || 0;
+    const cosR = Math.cos(playerRot);
+    const sinR = Math.sin(playerRot);
+    const minC = Math.max(0, halfSize - 5);
+    const maxC = Math.min(RESOLUTION - 1, halfSize + 5);
+    for (let y = minC; y <= maxC; y++) {
+      const dy = halfSize - y;
+      const rowOffset = y * RESOLUTION;
+      for (let x = minC; x <= maxC; x++) {
+        const dx = x - halfSize;
+        const rx = dx * cosR - dy * sinR;
+        const ry = dx * sinR + dy * cosR;
+        if (ry >= -4 && ry <= 3 && Math.abs(rx) <= (ry + 4) * 0.4) {
+          const i = (rowOffset + x) * 4;
+          data[i] = 255; data[i + 1] = 0; data[i + 2] = 0; data[i + 3] = 255;
         }
       }
     }

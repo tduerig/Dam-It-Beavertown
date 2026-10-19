@@ -13,22 +13,42 @@ import { CHUNK_SIZE, globalTerrainCache } from './terrain';
 
 // ── Core data store ──────────────────────────────────────────
 // The actual terrain offset data. Module-scope, not reactive.
-const _offsets = new Map<string, number>();
+// Uses 32-bit integer keys ((x + 32768) << 16) | ((z + 32768) & 0xFFFF) for zero-allocation hot lookups.
+const _offsets = new Map<number, number>();
 let _updateFlag = 0;
 
 // ── Chunk dirty tracking ─────────────────────────────────────
-// Maps chunk key ("cx,cz") → last modification stamp.
+// Maps packed chunk key → last modification stamp.
 // Chunks poll this to decide if they need to rebuild geometry.
-const _chunkDirtyStamps = new Map<string, number>();
+const _chunkDirtyStamps = new Map<number, number>();
 let _globalStamp = 0;
+let _resetStamp = 0;
+
+export function packCoord(x: number, z: number): number {
+  return ((x + 32768) << 16) | ((z + 32768) & 0xffff);
+}
+
+export function unpackCoord(packed: number): [number, number] {
+  const x = (packed >>> 16) - 32768;
+  const z = (packed & 0xffff) - 32768;
+  return [x, z];
+}
 
 /**
- * Get the terrain offset at integer coordinates (x, z).
- * This is the hot-path function called by getTerrainHeight.
- * No Zustand, no getState(), no string template overhead.
+ * Get the terrain offset at integer coordinates (x, z) using zero-allocation packed int key.
+ */
+export function getOffsetXY(x: number, z: number): number {
+  return _offsets.get(((x + 32768) << 16) | ((z + 32768) & 0xffff)) || 0;
+}
+
+/**
+ * Legacy string-keyed getter for backwards compatibility with existing tests.
  */
 export function getOffset(key: string): number {
-  return _offsets.get(key) || 0;
+  const comma = key.indexOf(',');
+  const x = parseInt(key.slice(0, comma), 10);
+  const z = parseInt(key.slice(comma + 1), 10);
+  return _offsets.get(((x + 32768) << 16) | ((z + 32768) & 0xffff)) || 0;
 }
 
 /** Get the update flag (for WaterEngine cache invalidation) */
@@ -53,18 +73,21 @@ export function applyTerrainMod(
   const maxX = Math.ceil(cx + radius);
   const minZ = Math.floor(cz - radius);
   const maxZ = Math.ceil(cz + radius);
+  const r4 = radius * radius * radius * radius;
   
   for (let x = minX; x <= maxX; x++) {
+    const dx = x - cx;
+    const dx2 = dx * dx;
+    const dx4 = dx2 * dx2;
     for (let z = minZ; z <= maxZ; z++) {
-      const dx = Math.abs(x - cx);
-      const dz = Math.abs(z - cz);
-      const dist = Math.pow(Math.pow(dx, 4) + Math.pow(dz, 4), 0.25);
+      const dz = z - cz;
+      const dz2 = dz * dz;
+      const dist4 = dx4 + dz2 * dz2;
       
-      if (dist <= radius) {
-        const key = `${x},${z}`;
+      if (dist4 <= r4) {
+        const key = ((x + 32768) << 16) | ((z + 32768) & 0xffff);
         const current = _offsets.get(key) || 0;
-        const t = dist / radius;
-        const falloff = 1 - Math.pow(t, 4);
+        const falloff = 1 - dist4 / r4;
         const delta = amount * falloff;
         _offsets.set(key, current + delta);
         globalTerrainCache.modifyHeight(x, z, delta);
@@ -84,7 +107,7 @@ export function applyTerrainMod(
   
   for (let cx2 = chunkMinX; cx2 <= chunkMaxX; cx2++) {
     for (let cz2 = chunkMinZ; cz2 <= chunkMaxZ; cz2++) {
-      _chunkDirtyStamps.set(`${cx2},${cz2}`, _globalStamp);
+      _chunkDirtyStamps.set(((cx2 + 32768) << 16) | ((cz2 + 32768) & 0xffff), _globalStamp);
     }
   }
 }
@@ -106,6 +129,7 @@ export function applyTerrainBatch(
     const maxX = Math.ceil(cx + radius);
     const minZ = Math.floor(cz - radius);
     const maxZ = Math.ceil(cz + radius);
+    const r4 = radius * radius * radius * radius;
     
     globalMinX = Math.min(globalMinX, minX);
     globalMaxX = Math.max(globalMaxX, maxX);
@@ -113,16 +137,18 @@ export function applyTerrainBatch(
     globalMaxZ = Math.max(globalMaxZ, maxZ);
     
     for (let x = minX; x <= maxX; x++) {
+      const dx = x - cx;
+      const dx2 = dx * dx;
+      const dx4 = dx2 * dx2;
       for (let z = minZ; z <= maxZ; z++) {
-        const dx = Math.abs(x - cx);
-        const dz = Math.abs(z - cz);
-        const dist = Math.pow(Math.pow(dx, 4) + Math.pow(dz, 4), 0.25);
+        const dz = z - cz;
+        const dz2 = dz * dz;
+        const dist4 = dx4 + dz2 * dz2;
         
-        if (dist <= radius) {
-          const key = `${x},${z}`;
+        if (dist4 <= r4) {
+          const key = ((x + 32768) << 16) | ((z + 32768) & 0xffff);
           const current = _offsets.get(key) || 0;
-          const t = dist / radius;
-          const falloff = 1 - Math.pow(t, 4);
+          const falloff = 1 - dist4 / r4;
           const delta = amount * falloff;
           _offsets.set(key, current + delta);
           globalTerrainCache.modifyHeight(x, z, delta);
@@ -143,7 +169,7 @@ export function applyTerrainBatch(
   
   for (let cx2 = chunkMinX; cx2 <= chunkMaxX; cx2++) {
     for (let cz2 = chunkMinZ; cz2 <= chunkMaxZ; cz2++) {
-      _chunkDirtyStamps.set(`${cx2},${cz2}`, _globalStamp);
+      _chunkDirtyStamps.set(((cx2 + 32768) << 16) | ((cz2 + 32768) & 0xffff), _globalStamp);
     }
   }
 }
@@ -154,9 +180,9 @@ export function applyTerrainBatch(
  * for that chunk is newer, the chunk needs to rebuild.
  */
 export function isChunkTerrainDirty(chunkX: number, chunkZ: number, lastSeenStamp: number): boolean {
-  const key = `${chunkX},${chunkZ}`;
+  const key = ((chunkX + 32768) << 16) | ((chunkZ + 32768) & 0xffff);
   const chunkStamp = _chunkDirtyStamps.get(key) || 0;
-  return chunkStamp > lastSeenStamp;
+  return Math.max(_resetStamp, chunkStamp) > lastSeenStamp;
 }
 
 /** Get the current global stamp. */
@@ -169,8 +195,9 @@ export function getGlobalStamp(): number {
  */
 export function serializeOffsets(): Record<string, number> {
   const obj: Record<string, number> = {};
-  for (const [key, val] of _offsets) {
-    obj[key] = val;
+  for (const [packed, val] of _offsets) {
+    const [x, z] = unpackCoord(packed);
+    obj[`${x},${z}`] = val;
   }
   return obj;
 }
@@ -180,15 +207,21 @@ export function serializeOffsets(): Record<string, number> {
  */
 export function deserializeOffsets(data: Record<string, number>): void {
   _offsets.clear();
+  _chunkDirtyStamps.clear();
   for (const [key, val] of Object.entries(data)) {
     if (key !== 'update_flag') {
-      _offsets.set(key, val);
-      // We don't apply globalTerrainCache.modifyHeight here because the terrainCache
-      // natively folds _offsets when a new chunk is lazily compiled.
+      const comma = key.indexOf(',');
+      if (comma !== -1) {
+        const x = parseInt(key.slice(0, comma), 10);
+        const z = parseInt(key.slice(comma + 1), 10);
+        _offsets.set(((x + 32768) << 16) | ((z + 32768) & 0xffff), val);
+      }
     }
   }
+  globalTerrainCache.clear();
   _updateFlag = Date.now();
   _globalStamp++;
+  _resetStamp = _globalStamp;
 }
 
 /**
@@ -206,10 +239,15 @@ export function getInterpolatedOffset(x: number, z: number): number {
   const tx = x - x0;
   const tz = z - z0;
   
-  const v00 = _offsets.get(`${x0},${z0}`) || 0;
-  const v10 = _offsets.get(`${x1},${z0}`) || 0;
-  const v01 = _offsets.get(`${x0},${z1}`) || 0;
-  const v11 = _offsets.get(`${x1},${z1}`) || 0;
+  const bx0 = (x0 + 32768) << 16;
+  const bx1 = (x1 + 32768) << 16;
+  const bz0 = (z0 + 32768) & 0xffff;
+  const bz1 = (z1 + 32768) & 0xffff;
+
+  const v00 = _offsets.get(bx0 | bz0) || 0;
+  const v10 = _offsets.get(bx1 | bz0) || 0;
+  const v01 = _offsets.get(bx0 | bz1) || 0;
+  const v11 = _offsets.get(bx1 | bz1) || 0;
   
   const nx0 = v00 * (1 - tx) + v10 * tx;
   const nx1 = v01 * (1 - tx) + v11 * tx;

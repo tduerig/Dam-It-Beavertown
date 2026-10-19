@@ -6,7 +6,7 @@ import { floraCache, FloraItem } from '../utils/floraCache';
 import { useGameStore } from '../store';
 import { getGlobalStamp } from '../utils/terrainOffsets';
 import { waterEngine } from '../utils/WaterEngine';
-import { createMaterial } from '../utils/qualityTier';
+import { getRenderConfig, createMaterial } from '../utils/qualityTier';
 
 const dummy = new THREE.Object3D();
 const HIDDEN_MATRIX = new THREE.Matrix4().makeTranslation(0, -1000, 0).scale(new THREE.Vector3(0, 0, 0));
@@ -40,6 +40,7 @@ function GlobalLilies({ geometry, material }: { geometry: THREE.BufferGeometry, 
   const meshRef = useRef<THREE.InstancedMesh>(null);
   const lastStamp = useRef(-1);
   const MAX_GLOBAL_LILIES = 2500;
+  const isCulledRef = useRef<Uint8Array>(new Uint8Array(MAX_GLOBAL_LILIES));
 
   useFrame((state, delta) => {
     if (!meshRef.current) return;
@@ -47,22 +48,37 @@ function GlobalLilies({ geometry, material }: { geometry: THREE.BufferGeometry, 
 
     // Read items directly from the shared module-level array
     const items = _allLilies;
+    const renderCount = Math.min(items.length, MAX_GLOBAL_LILIES);
+    const isCulled = isCulledRef.current;
+    const playerPos = useGameStore.getState().playerPosition;
+    const viewDist = (getRenderConfig().chunkViewDistance + 1) * CHUNK_SIZE;
+    const viewDistSq = viewDist * viewDist;
 
     // ── Dirty check: rebuild when global stamp changes ──
     const needsRebuild = lastStamp.current !== _globalFloraStamp;
     if (needsRebuild) {
       lastStamp.current = _globalFloraStamp;
-      const renderCount = Math.min(items.length, MAX_GLOBAL_LILIES);
 
       meshRef.current.count = renderCount;
 
       for (let i = renderCount; i < MAX_GLOBAL_LILIES; i++) {
         meshRef.current.setMatrixAt(i, HIDDEN_MATRIX);
+        isCulled[i] = 1;
       }
 
       for (let i = 0; i < renderCount; i++) {
         const l = items[i];
-        if (isNaN(l.position[0]) || isNaN(l.position[1]) || isNaN(l.position[2])) {
+        
+        const dx = l.position[0] - playerPos[0];
+        const dz = l.position[2] - playerPos[2];
+        if (dx * dx + dz * dz > viewDistSq) {
+          meshRef.current.setMatrixAt(i, HIDDEN_MATRIX);
+          isCulled[i] = 1;
+          continue;
+        }
+
+        isCulled[i] = 0;
+        if (isNaN(l.position[1])) {
           l.position[1] = 0;
         }
         dummy.position.set(l.position[0], l.position[1], l.position[2]);
@@ -77,52 +93,77 @@ function GlobalLilies({ geometry, material }: { geometry: THREE.BufferGeometry, 
     }
 
     // ── Per-frame water-drift animation ──
-    if (items.length === 0) return;
+    if (renderCount === 0) return;
     let needsUpdate = false;
-    const playerPos = useGameStore.getState().playerPosition;
 
-    for (let i = 0; i < items.length; i++) {
-        const l = items[i];
-        
-        // Distance Culling: Bypasses expensive terrain hash polling for distant clusters
-        const dx = l.position[0] - playerPos[0];
-        const dz = l.position[2] - playerPos[2];
-        if (dx * dx + dz * dz > 3600) continue;
-
-        const surfaceH = waterEngine.getSurfaceHeight(l.position[0], l.position[2]);
-        const terrainH = getTerrainHeight(l.position[0], l.position[2]);
-        const targetY = Math.max(terrainH, surfaceH);
-
-        const vel = waterEngine.getVelocity(l.position[0], l.position[2]);
-        const speed = Math.sqrt(vel.x * vel.x + vel.z * vel.z);
-
-        let moved = false;
-        if (speed > 1.2) {
-            l.position[0] += vel.x * dt * 0.8;
-            l.position[2] += vel.z * dt * 0.8;
-            moved = true;
+    for (let i = 0; i < renderCount; i++) {
+      const l = items[i];
+      
+      // Distance Culling: Bypasses expensive terrain hash polling for distant clusters
+      const dx = l.position[0] - playerPos[0];
+      const dz = l.position[2] - playerPos[2];
+      const distSq = dx * dx + dz * dz;
+      
+      // Hide once if it crosses outside the view threshold during gameplay
+      if (distSq > viewDistSq) {
+        if (isCulled[i] === 0) {
+          isCulled[i] = 1;
+          meshRef.current!.setMatrixAt(i, HIDDEN_MATRIX);
+          needsUpdate = true;
         }
+        continue;
+      }
 
-        const yDiff = targetY - l.position[1];
-        if (Math.abs(yDiff) > 0.02) {
-           l.position[1] += yDiff * dt * 5.0;
-           moved = true;
-        }
+      const unculled = isCulled[i] === 1;
+      if (unculled) {
+        isCulled[i] = 0;
+      }
 
-        if (moved) {
-            if (!isNaN(l.position[1])) {
-                dummy.position.set(l.position[0], l.position[1], l.position[2]);
-                dummy.rotation.set(0, (i * 1.5) % Math.PI, 0);
-                dummy.scale.setScalar(1);
-                dummy.updateMatrix();
-                meshRef.current!.setMatrixAt(i, dummy.matrix);
-                needsUpdate = true;
-            }
+      // Distance Optimization: Bypass physics & animation for distant visible lilies
+      if (distSq > 3600) {
+        if (unculled && !isNaN(l.position[1])) {
+          dummy.position.set(l.position[0], l.position[1], l.position[2]);
+          dummy.rotation.set(0, (i * 1.5) % Math.PI, 0);
+          dummy.scale.setScalar(1);
+          dummy.updateMatrix();
+          meshRef.current!.setMatrixAt(i, dummy.matrix);
+          needsUpdate = true;
         }
+        continue;
+      }
+
+      const surfaceH = waterEngine.getSurfaceHeight(l.position[0], l.position[2]);
+      const terrainH = getTerrainHeight(l.position[0], l.position[2]);
+      const targetY = Math.max(terrainH, surfaceH);
+
+      const vel = waterEngine.getVelocity(l.position[0], l.position[2]);
+      const speedSq = vel.x * vel.x + vel.z * vel.z;
+
+      let moved = unculled;
+      if (speedSq > 1.44) {
+        l.position[0] += vel.x * dt * 0.8;
+        l.position[2] += vel.z * dt * 0.8;
+        moved = true;
+      }
+
+      const yDiff = targetY - l.position[1];
+      if (Math.abs(yDiff) > 0.02) {
+        l.position[1] += yDiff * dt * 5.0;
+        moved = true;
+      }
+
+      if (moved && !isNaN(l.position[1])) {
+        dummy.position.set(l.position[0], l.position[1], l.position[2]);
+        dummy.rotation.set(0, (i * 1.5) % Math.PI, 0);
+        dummy.scale.setScalar(1);
+        dummy.updateMatrix();
+        meshRef.current!.setMatrixAt(i, dummy.matrix);
+        needsUpdate = true;
+      }
     }
 
     if (needsUpdate) {
-        meshRef.current!.instanceMatrix.needsUpdate = true;
+      meshRef.current!.instanceMatrix.needsUpdate = true;
     }
   });
 
@@ -132,41 +173,53 @@ function GlobalLilies({ geometry, material }: { geometry: THREE.BufferGeometry, 
     return geo;
   }, [geometry]);
 
-  return <instancedMesh frustumCulled={true} ref={meshRef} args={[localGeo, material, MAX_GLOBAL_LILIES]} />;
+  return <instancedMesh frustumCulled={false} ref={meshRef} args={[localGeo, material, MAX_GLOBAL_LILIES]} />;
 }
 
 function GlobalCattails({ stalkGeo, headGeo, stalkMat, headMat }: { stalkGeo: THREE.BufferGeometry, headGeo: THREE.BufferGeometry, stalkMat: THREE.Material, headMat: THREE.Material }) {
   const stalkRef = useRef<THREE.InstancedMesh>(null);
   const headRef = useRef<THREE.InstancedMesh>(null);
   const lastStamp = useRef(-1);
+  const lastTerrainStamp = useRef(-1);
+  const lastChunkX = useRef(NaN);
+  const lastChunkZ = useRef(NaN);
   const MAX_GLOBAL_CATTAILS = 2500;
 
   useFrame(() => {
     if (!stalkRef.current || !headRef.current) return;
 
     const items = _allCattails;
+    const playerPos = useGameStore.getState().playerPosition;
+    const cx = Math.floor((playerPos[0] + CHUNK_SIZE / 2) / CHUNK_SIZE);
+    const cz = Math.floor((playerPos[2] + CHUNK_SIZE / 2) / CHUNK_SIZE);
+    const terrainStamp = getGlobalStamp();
 
-    if (lastStamp.current === _globalFloraStamp) return;
-    lastStamp.current = _globalFloraStamp;
-
-    const renderCount = Math.min(items.length, MAX_GLOBAL_CATTAILS);
-
-    stalkRef.current.count = renderCount;
-    headRef.current.count = renderCount;
-
-    for (let i = renderCount; i < MAX_GLOBAL_CATTAILS; i++) {
-      stalkRef.current.setMatrixAt(i, HIDDEN_MATRIX);
-      headRef.current.setMatrixAt(i, HIDDEN_MATRIX);
-    }
-
-    if (renderCount === 0) {
-      stalkRef.current.instanceMatrix.needsUpdate = true;
-      headRef.current.instanceMatrix.needsUpdate = true;
+    if (
+      lastStamp.current === _globalFloraStamp &&
+      lastTerrainStamp.current === terrainStamp &&
+      cx === lastChunkX.current &&
+      cz === lastChunkZ.current
+    ) {
       return;
     }
+    lastStamp.current = _globalFloraStamp;
+    lastTerrainStamp.current = terrainStamp;
+    lastChunkX.current = cx;
+    lastChunkZ.current = cz;
 
-    for (let i = 0; i < renderCount; i++) {
+    const viewDist = (getRenderConfig().chunkViewDistance + 1) * CHUNK_SIZE;
+    const viewDistSq = viewDist * viewDist;
+
+    let visIdx = 0;
+    for (let i = 0; i < items.length && visIdx < MAX_GLOBAL_CATTAILS; i++) {
       const c = items[i];
+      const dx = c.position[0] - playerPos[0];
+      const dz = c.position[2] - playerPos[2];
+      
+      if (dx * dx + dz * dz > viewDistSq) {
+        continue;
+      }
+
       const terrainY = getTerrainHeight(c.position[0], c.position[2]);
       c.position[1] = terrainY;
 
@@ -174,13 +227,16 @@ function GlobalCattails({ stalkGeo, headGeo, stalkMat, headMat }: { stalkGeo: TH
       dummy.rotation.set(0, 0, 0);
       dummy.scale.setScalar(1);
       dummy.updateMatrix();
-      stalkRef.current.setMatrixAt(i, dummy.matrix);
+      stalkRef.current.setMatrixAt(visIdx, dummy.matrix);
 
       dummy.position.set(c.position[0], terrainY + 3.2, c.position[2]);
       dummy.updateMatrix();
-      headRef.current.setMatrixAt(i, dummy.matrix);
+      headRef.current.setMatrixAt(visIdx, dummy.matrix);
+      visIdx++;
     }
 
+    stalkRef.current.count = visIdx;
+    headRef.current.count = visIdx;
     stalkRef.current.instanceMatrix.needsUpdate = true;
     headRef.current.instanceMatrix.needsUpdate = true;
   });
@@ -196,8 +252,8 @@ function GlobalCattails({ stalkGeo, headGeo, stalkMat, headMat }: { stalkGeo: TH
 
   return (
     <group>
-      <instancedMesh frustumCulled={true} ref={stalkRef} args={[localStalkGeo, stalkMat, MAX_GLOBAL_CATTAILS]} />
-      <instancedMesh frustumCulled={true} ref={headRef} args={[localHeadGeo, headMat, MAX_GLOBAL_CATTAILS]} />
+      <instancedMesh frustumCulled={false} ref={stalkRef} args={[localStalkGeo, stalkMat, MAX_GLOBAL_CATTAILS]} />
+      <instancedMesh frustumCulled={false} ref={headRef} args={[localHeadGeo, headMat, MAX_GLOBAL_CATTAILS]} />
     </group>
   );
 }

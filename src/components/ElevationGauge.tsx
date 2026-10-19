@@ -6,10 +6,11 @@ export function ElevationGauge() {
   const [elevationPercent, setElevationPercent] = useState(50);
   
   useEffect(() => {
-    let intervalId = setInterval(() => {
+    const intervalId = setInterval(() => {
       const zPos = useGameStore.getState().playerPosition[2];
       const percent = Math.max(0, Math.min(100, ((zPos + 300) / 600) * 100));
-      setElevationPercent(Math.round(percent));
+      const rounded = Math.round(percent);
+      setElevationPercent(prev => (prev === rounded ? prev : rounded));
     }, 100);
     return () => clearInterval(intervalId);
   }, []);

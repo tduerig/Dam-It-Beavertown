@@ -162,6 +162,28 @@ store.getState().batchModifyTerrain(batch);
 **Cause**: `setInterval` inside `useEffect` without proper cleanup, or re-entrant callbacks.
 **Fix**: Always return cleanup. Use a guard flag: `if (isUpdating) return; isUpdating = true; ... isUpdating = false;`
 
+### AP-7: The Culling Erasure (Consolidation Without Frustum Gating)
+**Symptom**: Draw call count drops dramatically but FPS gets *worse* on mobile.
+**Cause**: Consolidating many small InstancedMeshes (each with `frustumCulled={true}`) into one large global InstancedMesh. The old meshes got free per-mesh frustum culling from Three.js — ~50% of chunks behind the camera were skipped entirely. The new single mesh submits ALL instances to the GPU every frame.
+**Why it's insidious**: Draw call count (the proxy metric) improves. Vertex throughput (the real cost on mobile GPUs) regresses. Desktop won't notice because desktop GPUs have massive vertex headroom.
+**Fix**: When consolidating InstancedMeshes, you MUST implement your own culling. Extract the camera frustum each frame and test each chunk/region's bounding sphere before adding its instances to the buffer:
+```typescript
+const _frustum = new THREE.Frustum();
+const _projScreenMatrix = new THREE.Matrix4();
+const _chunkSphere = new THREE.Sphere(new THREE.Vector3(), CHUNK_SIZE * 0.75);
+
+// Inside useFrame:
+_projScreenMatrix.multiplyMatrices(camera.projectionMatrix, camera.matrixWorldInverse);
+_frustum.setFromProjectionMatrix(_projScreenMatrix);
+
+// Before processing a chunk's trees:
+_chunkSphere.center.set(chunkWorldX, 5, chunkWorldZ);
+if (!_frustum.intersectsSphere(_chunkSphere)) continue; // Skip off-screen chunk
+```
+
+> [!CAUTION]
+> **THE CARDINAL RULE**: Reducing draw calls is NOT the same as reducing GPU work. On mobile, vertex throughput is often the bottleneck. Every "consolidation" optimization MUST be validated with real FPS measurement, not draw call counting.
+
 ---
 
 ## Optimization Playbook (Impact Order)
@@ -219,16 +241,22 @@ Configuration lives in `src/utils/qualityTier.ts`. Components read cached config
 
 ## Benchmarking Protocol
 
+> [!CAUTION]
+> **MANDATORY**: Every performance optimization MUST run the Regression Prevention Gate below BEFORE and AFTER the change. No exceptions. A commit that reduces draw calls but regresses FPS is a REGRESSION, not an optimization.
+
 ### Before Making Changes
-1. Run `npm test -- --testPathPattern=benchmarks`
-2. Save the output JSON as a baseline: `benchmarks/YYYY-MM-DD-HH:MM.json`
-3. Run `/play_test` to capture live FPS baseline
+1. Run `npm test -- --testPathPattern=benchmarks` (if hermetic benchmarks exist)
+2. **Run the FPS Regression Gate** (see below) and save the output as `baseline`
+3. Record: `{ drawCalls, triangles, fps_p50, fps_p5 }`
 
 ### After Making Changes
-1. Re-run benchmarks
-2. Compare against baseline — flag any regression > 10%
-3. Re-run `/play_test` — compare FPS P50/P95/P99
-4. Document results in the playtest output
+1. Re-run the **FPS Regression Gate** with the same camera position/scenario
+2. Compare against baseline:
+   - **FPS P50 must not decrease by more than 5%**
+   - **FPS P5 (worst frames) must not decrease by more than 10%**
+   - If either threshold is breached → **REVERT or fix before committing**
+3. Draw call reduction is a BONUS metric, not the gate. FPS is the gate.
+4. Document results: `{ before: {fps, draws}, after: {fps, draws}, delta_pct }`
 
 ### Stress Scenarios
 Define reproducible worst-case loads for benchmarking:
@@ -236,6 +264,68 @@ Define reproducible worst-case loads for benchmarking:
 2. **Flood**: Maximum rain for 30 seconds → water grid maxed, 100% coverage
 3. **Dam Build**: 20+ sticks + 10 mud blocks placed → max terrain offset churn
 4. **Exploration**: Walk to edge of map → max chunk loading, 49 chunks active
+
+---
+
+## Regression Prevention Gate
+
+> [!IMPORTANT]
+> This is the **mandatory** before/after FPS benchmark. It must be run via browser subagent before and after ANY performance-affecting commit. The results are compared numerically. FPS regression = blocked commit.
+
+### Step 1: Inject the FPS Sampler
+Inject this into the browser console after the game loads and reaches steady-state gameplay:
+```javascript
+// ── FPS Regression Gate ──
+window.__perfGate = { samples: [], draws: [], tris: [], startTime: Date.now() };
+const __origRAF = window.requestAnimationFrame;
+let __lastT = performance.now();
+window.requestAnimationFrame = function(cb) {
+  return __origRAF.call(window, function(t) {
+    const dt = t - __lastT;
+    __lastT = t;
+    if (dt > 0 && dt < 200) { // skip outliers
+      window.__perfGate.samples.push(Math.round(1000 / dt));
+    }
+    cb(t);
+  });
+};
+```
+
+### Step 2: Capture Renderer Stats
+After 15-30 seconds of gameplay, capture the GPU metrics:
+```javascript
+// Capture renderer stats (requires access to R3F gl context)
+const gl = document.querySelector('canvas')?.__r$?.return?.memoizedState?.memoizedState?.current;
+if (gl) {
+  window.__perfGate.draws.push(gl.info.render.calls);
+  window.__perfGate.tris.push(gl.info.render.triangles);
+}
+```
+
+### Step 3: Extract Results
+After 20+ seconds of sampling:
+```javascript
+const s = window.__perfGate.samples.sort((a,b) => a - b);
+const p5  = s[Math.floor(s.length * 0.05)];
+const p50 = s[Math.floor(s.length * 0.50)];
+const p95 = s[Math.floor(s.length * 0.95)];
+JSON.stringify({
+  fps_p5: p5, fps_p50: p50, fps_p95: p95,
+  sample_count: s.length,
+  duration_sec: ((Date.now() - window.__perfGate.startTime) / 1000).toFixed(1)
+});
+```
+
+### Step 4: Compare
+| Metric | Baseline | After | Delta | Gate |
+|--------|----------|-------|-------|------|
+| FPS P50 | ? | ? | ? | **≤ -5% = FAIL** |
+| FPS P5 | ? | ? | ? | **≤ -10% = FAIL** |
+| Draw Calls | ? | ? | ? | informational only |
+| Triangles | ? | ? | ? | informational only |
+
+> [!WARNING]
+> **Draw calls improving while FPS regresses is the classic "Culling Erasure" trap (AP-7).** Always gate on FPS, never on draw calls alone.
 
 ---
 
@@ -248,3 +338,4 @@ When investigating a performance issue, work through these in order:
 3. **Is it Zustand?** Add `console.log` in Zustand `set()` callbacks. Count dispatches per frame. More than 1-2 per frame is suspicious.
 4. **Is it a specific component?** Add `performance.now()` brackets to each `useFrame`. The one consuming >4ms is the culprit.
 5. **Is it conditional?** Does it only lag during specific actions (tree chopping, rain, etc.)? Reproduce the specific scenario and measure.
+6. **Is it culling?** After any consolidation optimization, verify that off-screen geometry is actually being skipped. Inject `console.log(mesh.count)` and rotate the camera 180° — count should drop significantly.

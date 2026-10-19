@@ -8,6 +8,7 @@ import { npcActions } from './npcActions';
 import * as THREE from 'three';
 
 const _aiScratchPos = new THREE.Vector3();
+const _aiPlayerPos = new THREE.Vector3();
 
 export type AIState = 
   | 'IDLE' 
@@ -63,7 +64,11 @@ export class BeaverAI {
     if (now - this.lastThinkTime < 40) return; // 25Hz brain
     this.lastThinkTime = now;
 
-    const pos = new THREE.Vector3(...gameStore.playerPosition);
+    const pos = _aiPlayerPos.set(
+      gameStore.playerPosition[0],
+      gameStore.playerPosition[1],
+      gameStore.playerPosition[2]
+    );
 
     if (this.damTargetZ === null) {
       this.damTargetZ = pos.z + 5; // Initial dam site
@@ -77,13 +82,19 @@ export class BeaverAI {
     let worstScore = -1;
     const searchWidth = getRiverWidth() + 10;
     
+    // We also track how many spots are actually "underwater" (need building)
+    let activeLeaks = 0;
+    
     for (let x = riverX - searchWidth; x <= riverX + searchWidth; x += 1.5) {
         const depth = waterEng.getWaterDepth(x, damZ);
         const vel = waterEng.getVelocity(x, damZ);
         const speed = Math.sqrt(vel.x**2 + vel.z**2);
         
-        const tieBreaker = Math.sin(x * 0.5 + buildCount) * 0.1;
-        const score = (depth * 2.5) + (speed * 1.5) + tieBreaker;
+        let score = (depth * 2.5) + (speed * 1.5);
+        if (score > 0.1) activeLeaks++;
+        
+        // Tie breaker so they don't stack in exactly one spot
+        score += Math.sin(x * 0.5 + buildCount) * 0.1;
         
         if (score > worstScore) {
             worstScore = score;
@@ -91,9 +102,13 @@ export class BeaverAI {
         }
     }
     
-    if (worstScore < 0.1) {
-       const damOffset = Math.sin(buildCount * 0.8) * (getRiverWidth() - 1);
-       worstX = riverX + damOffset;
+    // If there are basically no leaks, this dam is solidly above water level!
+    // Signal the migration logic below instead of building a miles-high wall.
+    const isDamSealed = activeLeaks === 0 && worstScore < 0.25;
+
+    if (isDamSealed) {
+        // Just target the center, but the IDLE state will intercept this and migrate!
+        worstX = riverX;
     }
     
     const damCenter = new THREE.Vector3(worstX, 0, damZ);
@@ -107,7 +122,7 @@ export class BeaverAI {
     }
 
     // Boredom logic - Explore if stuck
-    if (this.state !== 'IDLE' && this.state !== 'EXPLORE') {
+    if (this.state !== 'IDLE' && this.state !== 'EXPLORE' && this.state !== 'PLAY' && this.state !== 'EXPLORE_FOR_FOOD') {
         const maxTime = (this.state === 'CHOP_TREE' || this.state === 'DIG_CHANNEL') ? 25000 : 15000;
         if (now - this.stateStartTime > maxTime) {
             this.targetPos = null;
@@ -139,16 +154,17 @@ export class BeaverAI {
              } else if (gameStore.inventory.sticks > 4) {
                  this.macroStep = 0;
                  this.transition('FORTIFY_DAM', now, 'Got sticks, packing dam!');
-             } else if (buildCount > 8 && this.channelsDug < 4 && Math.random() < 0.3) {
-                 // After building some dam, periodically breach the banks!
-                 this.macroStep = 0;
-                 this.transition('DIG_CHANNEL', now, 'Breaching riverbank to flood the plains!');
-             } else if (this.channelsDug >= 4 && buildCount > this.lastDamBuildCount + 15) {
+             } else if (isDamSealed && buildCount > this.lastDamBuildCount + 5) {
+                 // Dam is completely sealed and above water level! 
                  this.damTargetZ! -= 15; // Move upstream 15 meters for the next dam
                  this.channelsDug = 0;
                  this.lastDamBuildCount = buildCount;
                  this.damsBuilt++;
-                 this.transition('EXPLORE', now, `Migrating upstream! Dam #${this.damsBuilt} complete.`);
+                 this.transition('EXPLORE', now, `Migrating upstream! Dam #${this.damsBuilt} successfully sealed.`);
+             } else if (buildCount > 8 && this.channelsDug < 4 && Math.random() < 0.2) {
+                 // Occasionally dig side channels to spread the water if dam is getting robust
+                 this.macroStep = 0;
+                 this.transition('DIG_CHANNEL', now, 'Breaching riverbank to flood the plains!');
              } else if (gameStore.inventory.mud < 4 && Math.random() < 0.4) {
                  this.macroStep = 0;
                  this.transition('GATHER_MUD', now, 'Gathering mud for dam.');

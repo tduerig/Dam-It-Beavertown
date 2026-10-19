@@ -16,7 +16,6 @@ import { useGameStore } from '../store';
 import { waterEngine } from '../utils/WaterEngine';
 import { BRANCH_CONFIGS } from './DraggableLogs';
 import { woodEngine } from '../utils/woodEngine';
-import { woodEngine } from '../utils/woodEngine';
 import { getRenderConfig, createMaterial } from '../utils/qualityTier';
 
 // Types that render as 3D tree geometry (same filter as old Chunk.tsx)
@@ -182,6 +181,9 @@ export function GlobalTrees() {
     };
   }, []);
 
+  const lastFrustumMaskLoRef = useRef(-1);
+  const lastFrustumMaskHiRef = useRef(-1);
+
   useFrame((state, delta) => {
     const gs = useGameStore.getState();
     if (gs.gameState !== 'playing' && gs.gameState !== 'paused') return;
@@ -189,26 +191,43 @@ export function GlobalTrees() {
 
     const dt = Math.min(delta, 0.1);
     const viewDistance = getRenderConfig().chunkViewDistance;
-    const cx = Math.floor(gs.playerPosition[0] / CHUNK_SIZE);
-    const cz = Math.floor(gs.playerPosition[2] / CHUNK_SIZE);
+    const cx = Math.floor((gs.playerPosition[0] + CHUNK_SIZE / 2) / CHUNK_SIZE);
+    const cz = Math.floor((gs.playerPosition[2] + CHUNK_SIZE / 2) / CHUNK_SIZE);
     const coordsKey = `${cx},${cz}`;
 
     // ── Build camera frustum for per-chunk culling ──
-    // This replaces the automatic frustumCulled={true} that each old
-    // per-chunk InstancedMesh got for free. Without it, we vertex-shade
-    // every tree in the world including those behind the camera.
     _projScreenMatrix.multiplyMatrices(
       state.camera.projectionMatrix,
       state.camera.matrixWorldInverse
     );
     _frustum.setFromProjectionMatrix(_projScreenMatrix);
 
-    // ── Detect chunk boundary crossing → full rebuild ──
+    // Compute 64-bit frustum visibility mask across the (2*viewDistance+1)^2 chunks
+    let maskLo = 0;
+    let maskHi = 0;
+    let bitIdx = 0;
+    for (let dx = -viewDistance; dx <= viewDistance; dx++) {
+      for (let dz = -viewDistance; dz <= viewDistance; dz++) {
+        _chunkSphere.center.set((cx + dx) * CHUNK_SIZE, 5, (cz + dz) * CHUNK_SIZE);
+        if (_frustum.intersectsSphere(_chunkSphere)) {
+          if (bitIdx < 31) maskLo |= (1 << bitIdx);
+          else maskHi |= (1 << (bitIdx - 31));
+        }
+        bitIdx++;
+      }
+    }
+
+    // ── Detect chunk boundary crossing or frustum visibility change → rebuild ──
     let needsFullRebuild = false;
     if (coordsKey !== lastChunkCoordsRef.current) {
       lastChunkCoordsRef.current = coordsKey;
       needsFullRebuild = true;
       floraStampsRef.current.clear();
+    }
+    if (maskLo !== lastFrustumMaskLoRef.current || maskHi !== lastFrustumMaskHiRef.current) {
+      lastFrustumMaskLoRef.current = maskLo;
+      lastFrustumMaskHiRef.current = maskHi;
+      needsFullRebuild = true;
     }
 
     // ── Detect per-chunk dirtiness ──
@@ -227,21 +246,51 @@ export function GlobalTrees() {
       }
     }
 
+    // Check if any leaves are mid-animation
+    let keepAnimating = false;
+    if (!anyDirty) {
+      for (const [, scale] of leavesScalesRef.current) {
+        if (scale > 0 && scale < 1) { anyDirty = true; keepAnimating = true; break; }
+      }
+    }
+
     // ── Periodic water-level flooding check (every 10 frames) ──
     waterCheckCounter.current++;
     const doWaterCheck = waterCheckCounter.current >= 10;
     if (doWaterCheck) waterCheckCounter.current = 0;
 
-    // Check if any leaves are mid-animation
-    let keepAnimating = false;
-    for (const [, scale] of leavesScalesRef.current) {
-      if (scale > 0 && scale < 1) { anyDirty = true; keepAnimating = true; break; }
+    if (!anyDirty && doWaterCheck) {
+      // Lightweight check: did any visible tree's target flood state change?
+      let checkBit = 0;
+      for (let dx = -viewDistance; dx <= viewDistance && !anyDirty; dx++) {
+        for (let dz = -viewDistance; dz <= viewDistance; dz++) {
+          const isVis = checkBit < 31 ? (maskLo & (1 << checkBit)) !== 0 : (maskHi & (1 << (checkBit - 31))) !== 0;
+          checkBit++;
+          if (!isVis) continue;
+          const trees = generateTreesForChunk(cx + dx, cz + dz);
+          for (let ti = 0; ti < trees.length; ti++) {
+            const tree = trees[ti];
+            if (!TREE_TYPES.has(tree.type)) continue;
+            const isBig = tree.type === 'big';
+            if (woodEngine.getSticks(tree.id, isBig) <= 0) continue;
+            const scale = isBig ? 2.8 : (tree.type === 'sapling' ? 0.4 : 1);
+            const waterHeight = waterEngine.getSurfaceHeight(tree.position[0], tree.position[2]);
+            const targetScale = waterHeight > tree.position[1] + scale ? 0 : 1;
+            const curScale = leavesScalesRef.current.get(tree.id) ?? 1;
+            if (curScale !== targetScale) {
+              anyDirty = true;
+              break;
+            }
+          }
+        }
+      }
     }
 
-    if (!anyDirty && !doWaterCheck) return;
+    if (!anyDirty) return;
 
     // ── Gather all trees across VISIBLE chunks ──
     let slot = 0;
+    let chunkBit = 0;
     for (let dx = -viewDistance; dx <= viewDistance; dx++) {
       for (let dz = -viewDistance; dz <= viewDistance; dz++) {
         const kcx = cx + dx;
@@ -249,12 +298,9 @@ export function GlobalTrees() {
         const key = `${kcx},${kcz}`;
         const trees = generateTreesForChunk(kcx, kcz);
 
-        // ── Per-chunk frustum cull ──
-        // Test the chunk's bounding sphere against the camera frustum.
-        // If the entire chunk is off-screen, skip all its trees.
-        _chunkSphere.center.set(kcx * CHUNK_SIZE, 5, kcz * CHUNK_SIZE);
-        if (!_frustum.intersectsSphere(_chunkSphere)) {
-          // Still update the flora stamp so we don't re-trigger dirty next frame
+        const isVis = chunkBit < 31 ? (maskLo & (1 << chunkBit)) !== 0 : (maskHi & (1 << (chunkBit - 31))) !== 0;
+        chunkBit++;
+        if (!isVis) {
           floraStampsRef.current.set(key, woodEngine.getChunkStamp(key));
           continue;
         }

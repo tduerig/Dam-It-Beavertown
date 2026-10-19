@@ -59,11 +59,42 @@ function captureScreenshot(): string {
 }
 
 
+// ── Utility: Deep Merge ──────────────────────────────────────────
+/**
+ * Recursively merges source into target.
+ * Objects are merged deeply. Arrays and primitives overwrite entirely.
+ * This guarantees new save-fields natively initialize on legacy saves.
+ */
+function deepMerge<T>(target: T, source: any): T {
+  if (target === null || target === undefined) return source;
+  if (source === null || source === undefined) return target as any;
+  if (typeof target !== 'object' || typeof source !== 'object') return source;
+  if (Array.isArray(target) || Array.isArray(source)) return source; // Overwrite arrays
+
+  const result = { ...target } as any;
+  for (const key of Object.keys(source)) {
+    if (source[key] !== undefined) {
+      result[key] = deepMerge(result[key], source[key]);
+    }
+  }
+  return result as T;
+}
+
 const SAVES_INDEX_KEY = 'beavertown_saves_index';
 const SLOT_KEY_PREFIX = 'beavertown_slot_';
 const LEGACY_SAVE_KEY = 'beavertown_save';
 
 async function loadSavesIndex(): Promise<SaveSlotMeta[]> {
+  try {
+    const raw = await AsyncStorage.getItem(SAVES_INDEX_KEY);
+    if (raw) {
+      const parsed = JSON.parse(raw);
+      if (parsed.length > 0) return parsed;
+    }
+  } catch { /* ignore */ }
+
+  await migrateLegacySave();
+  
   try {
     const raw = await AsyncStorage.getItem(SAVES_INDEX_KEY);
     return raw ? JSON.parse(raw) : [];
@@ -79,13 +110,16 @@ async function migrateLegacySave(): Promise<void> {
   try {
     const legacy = await AsyncStorage.getItem(LEGACY_SAVE_KEY);
     if (!legacy) return;
-    const index = await loadSavesIndex();
-    // Only migrate if the index is empty (first run after upgrade)
-    if (index.length > 0) {
-      // Already migrated — just clean up the old key
-      await AsyncStorage.removeItem(LEGACY_SAVE_KEY);
-      return;
-    }
+
+    try {
+      const existingRaw = await AsyncStorage.getItem(SAVES_INDEX_KEY);
+      if (existingRaw && JSON.parse(existingRaw).length > 0) {
+        // Already migrated
+        await AsyncStorage.removeItem(LEGACY_SAVE_KEY);
+        return;
+      }
+    } catch { /* ignore */ }
+
     const parsed = JSON.parse(legacy);
     const slotId = 'migrated_' + Date.now();
     const meta: SaveSlotMeta = {
@@ -108,10 +142,6 @@ async function migrateLegacySave(): Promise<void> {
     console.warn('[SaveSystem] Migration error:', e);
   }
 }
-
-// Kick off migration immediately (fire-and-forget)
-migrateLegacySave();
-
 export type BlockType = 'stick' | 'mud';
 
 export interface PlacedBlock {
@@ -343,12 +373,6 @@ export const useGameStore = create<GameState>((set, get) => ({
 
   saveGame: async (slotId?: string) => {
     const { inventory, stats, settings, placedBlocks, draggableLogs, playerPosition, playerRotation, timeOfDay, dayNumber } = get();
-    const savePayload = {
-      inventory, stats, settings, placedBlocks, draggableLogs, playerPosition, playerRotation, timeOfDay, dayNumber,
-      terrainOffsets: serializeOffsets(),
-      treeSticks: woodEngine.serialize(),
-      mudSaturation: serializeMud()
-    };
     try {
       const id = slotId || ('save_' + Date.now());
       const isAutoSave = id === 'autosave';
@@ -359,8 +383,12 @@ export const useGameStore = create<GameState>((set, get) => ({
       try { thumbnail = captureMinimapThumbnail(); } catch (_) {}
       try { screenshot = captureScreenshot(); } catch (_) {}
 
-      // Write payload
-      await AsyncStorage.setItem(SLOT_KEY_PREFIX + id, JSON.stringify(savePayload));
+      // Chunk payload into separate DB rows to bypass iOS SQLite size limits
+      const basePayload = { inventory, stats, settings, placedBlocks, draggableLogs, playerPosition, playerRotation, timeOfDay, dayNumber };
+      await AsyncStorage.setItem(SLOT_KEY_PREFIX + id + '_base', JSON.stringify(basePayload));
+      await AsyncStorage.setItem(SLOT_KEY_PREFIX + id + '_terrain', JSON.stringify(serializeOffsets()));
+      await AsyncStorage.setItem(SLOT_KEY_PREFIX + id + '_wood', JSON.stringify(woodEngine.serialize()));
+      await AsyncStorage.setItem(SLOT_KEY_PREFIX + id + '_mud', JSON.stringify(serializeMud()));
 
       // Update index
       const index = await loadSavesIndex();
@@ -392,30 +420,69 @@ export const useGameStore = create<GameState>((set, get) => ({
 
   loadGame: async (slotId: string) => {
     try {
-      const data = await AsyncStorage.getItem(SLOT_KEY_PREFIX + slotId);
-      if (data) {
-        const loadedState = JSON.parse(data);
-        if (loadedState.terrainOffsets) {
-          deserializeOffsets(loadedState.terrainOffsets);
+      let loadedState: any = null;
+      let terrainData: any = null;
+      let treeData: any = null;
+      let mudData: any = null;
+
+      const baseData = await AsyncStorage.getItem(SLOT_KEY_PREFIX + slotId + '_base');
+      if (baseData) {
+        loadedState = JSON.parse(baseData);
+        const tStr = await AsyncStorage.getItem(SLOT_KEY_PREFIX + slotId + '_terrain');
+        const wStr = await AsyncStorage.getItem(SLOT_KEY_PREFIX + slotId + '_wood');
+        const mStr = await AsyncStorage.getItem(SLOT_KEY_PREFIX + slotId + '_mud');
+        if (tStr) terrainData = JSON.parse(tStr);
+        if (wStr) treeData = JSON.parse(wStr);
+        if (mStr) mudData = JSON.parse(mStr);
+      } else {
+        // Fallback for legacy monolithic saves
+        const data = await AsyncStorage.getItem(SLOT_KEY_PREFIX + slotId);
+        if (data) {
+          loadedState = JSON.parse(data);
+          terrainData = loadedState.terrainOffsets;
+          treeData = loadedState.treeSticks;
+          mudData = loadedState.mudSaturation;
         }
-        if (loadedState.treeSticks) {
-          woodEngine.deserialize(loadedState.treeSticks);
-        } else {
-          woodEngine.deserialize({});
-        }
-        if (loadedState.mudSaturation) {
-          deserializeMud(loadedState.mudSaturation);
-        }
+      }
+
+      if (loadedState) {
+        deserializeOffsets(terrainData || {});
+        woodEngine.deserialize(treeData || {});
+        deserializeMud(mudData || {});
+        const defaultState = {
+          inventory: { sticks: 0, mud: 0 },
+          stats: {
+            mudDug: 0, mudPatted: 0, treesDowned: 0, sticksPlaced: 0,
+            massiveTreesFelled: 0, maxWaterCoverage: 0, snacksEaten: 0,
+          },
+          settings: {
+            showStatsOverlay: false,
+            physicsSubsteps: 4,
+            reflectionsActive: false,
+            quality: detectDefaultQuality(),
+          },
+          placedBlocks: [] as any[],
+          draggableLogs: [] as any[],
+          playerPosition: [0, 0, 0] as [number, number, number],
+          playerRotation: 0,
+          timeOfDay: 0,
+          dayNumber: 1,
+        };
+
+        const safeInventory = deepMerge(defaultState.inventory, loadedState.inventory);
+        const safeStats = deepMerge(defaultState.stats, loadedState.stats);
+        const safeSettings = deepMerge(defaultState.settings, loadedState.settings);
+
         set({
-          inventory: loadedState.inventory,
-          stats: loadedState.stats,
-          settings: loadedState.settings,
-          placedBlocks: loadedState.placedBlocks,
-          draggableLogs: loadedState.draggableLogs,
-          playerPosition: loadedState.playerPosition,
-          playerRotation: loadedState.playerRotation,
-          timeOfDay: loadedState.timeOfDay || 0,
-          dayNumber: loadedState.dayNumber || 1,
+          inventory: safeInventory,
+          stats: safeStats,
+          settings: safeSettings,
+          placedBlocks: loadedState.placedBlocks || defaultState.placedBlocks,
+          draggableLogs: loadedState.draggableLogs || defaultState.draggableLogs,
+          playerPosition: loadedState.playerPosition || defaultState.playerPosition,
+          playerRotation: loadedState.playerRotation ?? defaultState.playerRotation,
+          timeOfDay: loadedState.timeOfDay ?? defaultState.timeOfDay,
+          dayNumber: loadedState.dayNumber ?? defaultState.dayNumber,
           terrainStamp: getGlobalStamp(),
           gameState: 'paused',
         });
@@ -433,6 +500,10 @@ export const useGameStore = create<GameState>((set, get) => ({
   deleteSlot: async (slotId: string) => {
     try {
       await AsyncStorage.removeItem(SLOT_KEY_PREFIX + slotId);
+      await AsyncStorage.removeItem(SLOT_KEY_PREFIX + slotId + '_base');
+      await AsyncStorage.removeItem(SLOT_KEY_PREFIX + slotId + '_terrain');
+      await AsyncStorage.removeItem(SLOT_KEY_PREFIX + slotId + '_wood');
+      await AsyncStorage.removeItem(SLOT_KEY_PREFIX + slotId + '_mud');
       const index = await loadSavesIndex();
       const filtered = index.filter(s => s.id !== slotId);
       await writeSavesIndex(filtered);

@@ -1,13 +1,15 @@
 import { getTerrainHeight, getBaseTerrainHeight, getRiverCenter } from './terrain';
 import { globalTerrainConfig } from './terrainConfig';
 import { PlacedBlock, DraggableLog } from '../store';
-import { getUpdateFlag, hasAnyOffsets, getOffset } from './terrainOffsets';
+import { getUpdateFlag, hasAnyOffsets, getOffsetXY } from './terrainOffsets';
 import { shouldUpdate as shouldUpdateMud, updateMudSaturation } from './mudEngine';
 
 import { getSimConfig } from './qualityTier';
 
 export const WATER_SIZE = getSimConfig().waterSize;
 export const WATER_HALF = WATER_SIZE / 2;
+
+const _velScratch = { x: 0, z: 0 };
 
 export class WaterEngine {
   size = WATER_SIZE;
@@ -18,10 +20,19 @@ export class WaterEngine {
   VX = new Float32Array(this.size * this.size);
   VZ = new Float32Array(this.size * this.size);
   
+  // Pre-allocated swap buffers for shift() so moving 1m allocates 0 bytes on the heap
+  private _swapW = new Float32Array(this.size * this.size);
+  private _swapT = new Float32Array(this.size * this.size);
+  private _swapT_base = new Float32Array(this.size * this.size);
+  private _swapT_terrain = new Float32Array(this.size * this.size);
+  private _swapVX = new Float32Array(this.size * this.size);
+  private _swapVZ = new Float32Array(this.size * this.size);
+
   // Pre-allocated arrays for the simulation loop to prevent GC OOM crashes natively
   outFlow = new Float32Array(this.size * this.size * 4);
   newT = new Float32Array(this.size * this.size);
   RenderY = new Float32Array(this.size * this.size);
+  renderStamp = 0;
   
   originX = 0;
   originZ = 0;
@@ -103,12 +114,12 @@ export class WaterEngine {
     const dx = newOx - this.originX;
     const dz = newOz - this.originZ;
     
-    const newW = new Float32Array(this.size * this.size);
-    const newT_base = new Float32Array(this.size * this.size);
-    const newT_terrain = new Float32Array(this.size * this.size);
-    const newT = new Float32Array(this.size * this.size);
-    const newVX = new Float32Array(this.size * this.size);
-    const newVZ = new Float32Array(this.size * this.size);
+    const newW = this._swapW;
+    const newT_base = this._swapT_base;
+    const newT_terrain = this._swapT_terrain;
+    const newT = this._swapT;
+    const newVX = this._swapVX;
+    const newVZ = this._swapVZ;
     
     for (let x = 0; x < this.size; x++) {
       for (let z = 0; z < this.size; z++) {
@@ -146,12 +157,13 @@ export class WaterEngine {
       }
     }
     
-    this.W = newW;
-    this.T_base = newT_base;
-    this.T_terrain = newT_terrain;
-    this.T = newT;
-    this.VX = newVX;
-    this.VZ = newVZ;
+    // Ping-pong buffer references (0 heap allocations)
+    this._swapW = this.W;               this.W = newW;
+    this._swapT_base = this.T_base;     this.T_base = newT_base;
+    this._swapT_terrain = this.T_terrain; this.T_terrain = newT_terrain;
+    this._swapT = this.T;               this.T = newT;
+    this._swapVX = this.VX;             this.VX = newVX;
+    this._swapVZ = this.VZ;             this.VZ = newVZ;
     this.originX = newOx;
     this.originZ = newOz;
   }
@@ -176,26 +188,18 @@ export class WaterEngine {
 
     const offsetsExist = hasAnyOffsets();
 
-    // Fast-path reconstruction from BaseTerrain Cache
+    // Fast-path reconstruction from BaseTerrain Cache (zero string allocations)
     for (let i = 0; i < this.size * this.size; i++) {
-        const x = i % this.size;
-        const z = Math.floor(i / this.size);
-        const wx = this.originX - WATER_HALF + x;
-        const wz = this.originZ - WATER_HALF + z;
-        
         let h = this.T_base[i];
         
         if (offsetsExist) {
-            const x0 = Math.floor(wx); const x1 = x0 + 1;
-            const z0 = Math.floor(wz); const z1 = z0 + 1;
-            const tx = wx - x0; const tz = wz - z0;
-            const v00 = getOffset(`${x0},${z0}`);
-            const v10 = getOffset(`${x1},${z0}`);
-            const v01 = getOffset(`${x0},${z1}`);
-            const v11 = getOffset(`${x1},${z1}`);
-            const nx0 = v00 * (1 - tx) + v10 * tx;
-            const nx1 = v01 * (1 - tx) + v11 * tx;
-            h += nx0 * (1 - tz) + nx1 * tz;
+            const x = i % this.size;
+            const z = (i / this.size) | 0;
+            const wx = this.originX - WATER_HALF + x;
+            const wz = this.originZ - WATER_HALF + z;
+            const x0 = Math.floor(wx);
+            const z0 = Math.floor(wz);
+            h += getOffsetXY(x0, z0);
         }
         
         this.newT[i] = h;
@@ -468,6 +472,7 @@ export class WaterEngine {
         }
       }
     }
+    this.renderStamp++;
   }
 
   getSurfaceHeight(wx: number, wz: number): number {
@@ -497,9 +502,13 @@ export class WaterEngine {
     const z = Math.floor(wz) - this.originZ + WATER_HALF;
     if (x >= 0 && x < this.size && z >= 0 && z < this.size) {
       const idx = x + z * this.size;
-      return { x: this.VX[idx], z: this.VZ[idx] };
+      _velScratch.x = this.VX[idx];
+      _velScratch.z = this.VZ[idx];
+      return _velScratch;
     }
-    return { x: 0, z: 0 };
+    _velScratch.x = 0;
+    _velScratch.z = 0;
+    return _velScratch;
   }
 }
 

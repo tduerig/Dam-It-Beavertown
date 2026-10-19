@@ -8,7 +8,12 @@
     "android": "expo start --android",
     "ios": "expo start --ios",
     "web": "expo start --web",
-    "lint": "expo lint"
+    "lint": "expo lint",
+    "build:android": "EAS_NO_VCS=1 npx --yes eas-cli build --platform android --profile production --no-wait --non-interactive",
+    "build:android:apk": "EAS_NO_VCS=1 npx --yes eas-cli build --platform android --profile preview --no-wait --non-interactive",
+    "build:ios": "EAS_NO_VCS=1 npx --yes eas-cli build --platform ios --profile production --no-wait --non-interactive",
+    "submit:ios": "EAS_NO_VCS=1 npx --yes eas-cli submit --platform ios --latest --no-wait --non-interactive",
+    "submit:android": "EAS_NO_VCS=1 npx --yes eas-cli submit --platform android --latest --no-wait --non-interactive"
   },
   "dependencies": {
     "@expo/vector-icons": "^15.0.3",

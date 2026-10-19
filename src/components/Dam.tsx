@@ -8,18 +8,17 @@ import { createMaterial } from '../utils/qualityTier';
 
 const dummy = new THREE.Object3D();
 
+const MAX_DAM_BLOCKS = 1000;
+
 export function Dam() {
-  const placedBlocks = useGameStore((state) => state.placedBlocks);
   const lastTick = useRef(0);
 
-  // Separate sticks and mud for instanced rendering
-  const sticks = useMemo(() => placedBlocks.filter(b => b.type === 'stick'), [placedBlocks]);
-  const muds = useMemo(() => placedBlocks.filter(b => b.type === 'mud'), [placedBlocks]);
-
   const { stickGeometry, mudGeometry, stickMaterial, mudMaterial } = useMemo(() => {
+    const sGeo = new THREE.CylinderGeometry(0.5, 0.5, 4, 8);
+    const mGeo = new THREE.DodecahedronGeometry(0.6, 1);
     return {
-      stickGeometry: new THREE.CylinderGeometry(0.5, 0.5, 4, 8),
-      mudGeometry: new THREE.DodecahedronGeometry(0.6, 1),
+      stickGeometry: sGeo,
+      mudGeometry: mGeo,
       stickMaterial: createMaterial({ color: '#8B4513' }),
       mudMaterial: createMaterial({ color: '#5C4033', roughness: 1 } as any),
     };
@@ -27,33 +26,44 @@ export function Dam() {
 
   const stickMeshRef = useRef<THREE.InstancedMesh>(null);
   const mudMeshRef = useRef<THREE.InstancedMesh>(null);
+  const lastPlacedBlocksRef = useRef<any[] | null>(null);
 
   useFrame((state) => {
     const now = state.clock.getElapsedTime();
+    const placedBlocks = useGameStore.getState().placedBlocks;
     
-    // Update instanced mesh matrices for sticks
-    if (stickMeshRef.current && sticks.length > 0) {
-      sticks.forEach((block, i) => {
-        dummy.position.set(...block.position);
-        dummy.rotation.set(...block.rotation);
-        dummy.scale.set(1, 1, 1);
-        dummy.updateMatrix();
-        stickMeshRef.current!.setMatrixAt(i, dummy.matrix);
-      });
+    // Update instanced mesh matrices ONLY when placedBlocks reference changes
+    if (stickMeshRef.current && mudMeshRef.current && lastPlacedBlocksRef.current !== placedBlocks) {
+      lastPlacedBlocksRef.current = placedBlocks;
+      let stickIdx = 0;
+      let mudIdx = 0;
+      for (let i = 0; i < placedBlocks.length; i++) {
+        const block = placedBlocks[i];
+        if (block.type === 'stick') {
+          if (stickIdx < MAX_DAM_BLOCKS) {
+            dummy.position.set(...block.position);
+            dummy.rotation.set(...block.rotation);
+            dummy.scale.set(1, 1, 1);
+            dummy.updateMatrix();
+            stickMeshRef.current.setMatrixAt(stickIdx, dummy.matrix);
+            stickIdx++;
+          }
+        } else {
+          if (mudIdx < MAX_DAM_BLOCKS) {
+            const health = block.health ?? 3;
+            const scale = (health / 3) * 0.8 + 0.2;
+            dummy.position.set(...block.position);
+            dummy.rotation.set(...block.rotation);
+            dummy.scale.set(scale, scale, scale);
+            dummy.updateMatrix();
+            mudMeshRef.current.setMatrixAt(mudIdx, dummy.matrix);
+            mudIdx++;
+          }
+        }
+      }
+      stickMeshRef.current.count = stickIdx;
+      mudMeshRef.current.count = mudIdx;
       stickMeshRef.current.instanceMatrix.needsUpdate = true;
-    }
-    
-    // Update instanced mesh matrices for mud
-    if (mudMeshRef.current && muds.length > 0) {
-      muds.forEach((block, i) => {
-        const health = block.health ?? 3;
-        const scale = (health / 3) * 0.8 + 0.2;
-        dummy.position.set(...block.position);
-        dummy.rotation.set(...block.rotation);
-        dummy.scale.set(scale, scale, scale);
-        dummy.updateMatrix();
-        mudMeshRef.current!.setMatrixAt(i, dummy.matrix);
-      });
       mudMeshRef.current.instanceMatrix.needsUpdate = true;
     }
     
@@ -145,12 +155,8 @@ export function Dam() {
 
   return (
     <group>
-      {sticks.length > 0 && (
-        <instancedMesh ref={stickMeshRef} args={[stickGeometry, stickMaterial, Math.max(1, sticks.length)]} castShadow receiveShadow />
-      )}
-      {muds.length > 0 && (
-        <instancedMesh ref={mudMeshRef} args={[mudGeometry, mudMaterial, Math.max(1, muds.length)]} castShadow receiveShadow />
-      )}
+      <instancedMesh ref={stickMeshRef} args={[stickGeometry, stickMaterial, MAX_DAM_BLOCKS]} castShadow receiveShadow frustumCulled={false} />
+      <instancedMesh ref={mudMeshRef} args={[mudGeometry, mudMaterial, MAX_DAM_BLOCKS]} castShadow receiveShadow frustumCulled={false} />
     </group>
   );
 }

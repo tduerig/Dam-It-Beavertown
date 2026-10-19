@@ -141,8 +141,6 @@ export function getGraphicsConfig(): GraphicsConfig {
   return _cachedGfx;
 }
 
-}
-
 export function getRenderConfig(): RenderingConfig {
   return _cachedRender;
 }

@@ -2,7 +2,7 @@
   "expo": {
     "name": "Beavers Dam It",
     "slug": "beavertown",
-    "version": "1.0.2",
+    "version": "1.0.3",
     "orientation": "landscape",
     "icon": "./assets/images/icon.png",
     "scheme": "tmpexpo",
@@ -11,14 +11,14 @@
     "ios": {
       "supportsTablet": true,
       "bundleIdentifier": "com.beaversdamit.app",
-      "buildNumber": "3",
+      "buildNumber": "7",
       "infoPlist": {
         "ITSAppUsesNonExemptEncryption": false
       }
     },
     "android": {
       "package": "com.beaversdamit.app",
-      "versionCode": 5,
+      "versionCode": 13,
       "adaptiveIcon": {
         "backgroundColor": "#E6F4FE",
         "foregroundImage": "./assets/images/android-icon-foreground.png"
